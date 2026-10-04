@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import {
     configureRequestHeaderOverride,
     releaseStreamHeaderOverride,
+    releaseRendererStreamHeaderOverride,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
 
@@ -24,6 +25,18 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
     };
 }
 
+const observedOwners = new WeakSet<Electron.WebContents>();
+function observeStreamOwner(owner: Electron.WebContents): void {
+    if (observedOwners.has(owner)) return;
+    observedOwners.add(owner);
+    const revoke = () => releaseRendererStreamHeaderOverride(owner.id);
+    owner.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+        if (isMainFrame && !isInPlace) revoke();
+    });
+    owner.on('render-process-gone', revoke);
+    owner.once('destroyed', revoke);
+}
+
 ipcMain.handle(
     'set-user-agent',
     (event, userAgent, referer, scopeUrl, credentials, operation) => {
@@ -31,6 +44,7 @@ ipcMain.handle(
             releaseStreamHeaderOverride(scopeUrl, event.sender.id);
             return true;
         }
+        if (typeof scopeUrl === 'string') observeStreamOwner(event.sender);
         setUserAgent(
             userAgent,
             referer,

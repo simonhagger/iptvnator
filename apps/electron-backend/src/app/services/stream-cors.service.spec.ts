@@ -33,6 +33,42 @@ const response = (url = source, changes = {}) =>
     }) as OnHeadersReceivedListenerDetails;
 
 describe('active stream CORS scope', () => {
+    it('tracks an HLS redirect whose final manifest URL is extensionless', () => {
+        const playlist = 'https://provider.example/live/index.m3u8';
+        const redirected = 'https://cdn.example/channel/manifest';
+        scope.configure(playlist, 7);
+        scope.beforeRequest(request(playlist));
+        scope.response(response(playlist));
+        scope.beforeRequest(request(redirected));
+        scope.response(response(redirected, { statusCode: 200 }));
+        scope.finish(1);
+        const segment = 'https://cdn.example/channel/chunk.ts';
+        scope.beforeRequest(request(segment, { id: 2 }));
+        expect(
+            scope.response(response(segment, { id: 2 }))?.[
+                'Access-Control-Allow-Origin'
+            ]
+        ).toBeDefined();
+    });
+
+    it('deduplicates live manifest reloads by directory and revokes only the active owner', () => {
+        const playlist = 'https://provider.example/live/index.m3u8';
+        scope.configure(playlist, 7);
+        for (let id = 1; id <= 100; id++) {
+            const url = id === 1 ? playlist : `${playlist}?_HLS_msn=${id}`;
+            scope.beforeRequest(request(url, { id }));
+            scope.response(response(url, { id, statusCode: 200 }));
+            scope.finish(id);
+        }
+        expect(
+            (scope as unknown as { playlists: Set<string> }).playlists.size
+        ).toBe(1);
+        scope.beforeRequest(request(playlist));
+        expect(scope.releaseOwner(8)).toBe(false);
+        expect(scope.response(response(playlist))).toBeDefined();
+        expect(scope.releaseOwner(7)).toBe(true);
+        expect(scope.response(response(playlist))).toBeUndefined();
+    });
     it.each(['stream.M3U8', 'stream.m3u', 'stream?format=hls'])(
         'grants same-directory video and captions after %s loads',
         (name) => {

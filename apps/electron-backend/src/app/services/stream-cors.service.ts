@@ -4,7 +4,7 @@ import type {
 } from 'electron';
 import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/shared/m3u-utils';
 
-type Request = { origin: string; url: string };
+type Request = { origin: string; url: string; manifest: boolean };
 const HLS_MEDIA_EXTENSIONS = new Set([
     'm3u',
     'm3u8',
@@ -23,6 +23,12 @@ export class StreamCorsScope {
     private requests = new Map<number, Request>();
     private playlists = new Set<string>();
 
+    releaseOwner(owner: number): boolean {
+        if (this.owner !== owner) return false;
+        this.configure();
+        return true;
+    }
+
     release(url: string | null | undefined, owner: number): boolean {
         if (this.owner !== owner || !url) return false;
         try {
@@ -30,8 +36,7 @@ export class StreamCorsScope {
         } catch {
             return false;
         }
-        this.configure();
-        return true;
+        return this.releaseOwner(owner);
     }
 
     configure(url?: string | null, owner?: number): void {
@@ -85,6 +90,11 @@ export class StreamCorsScope {
         this.requests.set(details.id, {
             url: url.href,
             origin: originHeader || tracked?.origin || 'null',
+            manifest:
+                tracked?.manifest ||
+                ['m3u', 'm3u8'].includes(
+                    getPlaybackMediaExtensionFromUrl(url.href)
+                ),
         });
     }
 
@@ -93,14 +103,23 @@ export class StreamCorsScope {
     ): Record<string, string[]> | undefined {
         const request = this.requests.get(details.id);
         if (!request || details.webContentsId !== this.owner) return;
+        const contentType = Object.entries(details.responseHeaders ?? {})
+            .find(([name]) => name.toLowerCase() === 'content-type')?.[1]?.[0]
+            ?.split(';')[0]
+            ?.trim()
+            .toLowerCase();
         if (
             details.statusCode >= 200 &&
             details.statusCode < 300 &&
-            ['m3u', 'm3u8'].includes(
-                getPlaybackMediaExtensionFromUrl(details.url)
-            )
+            (request.manifest ||
+                [
+                    'application/vnd.apple.mpegurl',
+                    'application/x-mpegurl',
+                    'audio/mpegurl',
+                    'audio/x-mpegurl',
+                ].includes(contentType ?? ''))
         )
-            this.playlists.add(details.url);
+            this.playlists.add(new URL('.', details.url).href);
         const headers = { ...details.responseHeaders };
         if (
             Object.keys(headers).some(

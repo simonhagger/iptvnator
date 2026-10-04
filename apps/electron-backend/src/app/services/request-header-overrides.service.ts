@@ -307,6 +307,14 @@ export function releaseStreamHeaderOverride(
     }
 }
 
+export function releaseRendererStreamHeaderOverride(
+    ownerWebContentsId: number
+): void {
+    if (streamCors.releaseOwner(ownerWebContentsId)) {
+        clearScopedRequestHeaderOverride();
+    }
+}
+
 function clearScopedRequestHeaderOverride(): void {
     activeScopedHeaderOverride = null;
 }
