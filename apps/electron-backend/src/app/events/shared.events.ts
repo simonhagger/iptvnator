@@ -25,12 +25,13 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
 
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials) => {
+    (event, userAgent, referer, scopeUrl, credentials) => {
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
-            sanitizeCredentials(credentials)
+            sanitizeCredentials(credentials),
+            event.sender.id
         );
         return true;
     }
@@ -49,7 +50,14 @@ export function setUserAgent(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
-    credentials?: StreamCredentialHeaders | null
+    credentials?: StreamCredentialHeaders | null,
+    ownerWebContentsId?: number
 ): void {
-    configureRequestHeaderOverride(userAgent, referer, scopeUrl, credentials);
+    configureRequestHeaderOverride(
+        userAgent,
+        referer,
+        scopeUrl,
+        credentials,
+        ownerWebContentsId
+    );
 }

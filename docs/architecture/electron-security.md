@@ -24,6 +24,19 @@ Do not re-enable direct Node.js access from Angular code. New desktop-only APIs
 should be added to the preload bridge and backed by an `ipcMain.handle(...)`
 owner in the Electron backend.
 
+## Active media CORS compatibility
+
+`StreamCorsScope` repairs missing `Access-Control-Allow-Origin` on GET media/XHR
+responses belonging to the playback window's selected stream. The `set-user-agent`
+IPC binds the scope to its sender's webContents ID. Exact initial URLs seed the
+scope; the same request ID retains ownership across HTTP redirects. Successful
+HLS playlists additionally authorize media extensions within their directory.
+Existing provider CORS headers are retained. No credentials CORS grant is added,
+and Cookie/Authorization forwarding retains its separate exact-origin policy.
+Source replacement, playback cleanup and request completion revoke grants.
+`webSecurity` remains enabled. Cross-directory HLS assets and unrelated CDN
+requests are outside this compatibility scope and may still require a proxy.
+
 ## Preload API Type Contract
 
 The canonical renderer bridge type is
