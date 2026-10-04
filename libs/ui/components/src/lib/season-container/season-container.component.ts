@@ -21,8 +21,6 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
-    formatDurationLabel,
-    formatRemainingLabel,
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
@@ -40,12 +38,17 @@ import {
 } from './episode-info-dialog.component';
 import {
     formatEpisodePositionText,
-    episodeRuntimeSeconds,
+    formatEpisodeSubline,
 } from './episode-progress.util';
 import { resolveAutoSelectedSeason } from './season-auto-select.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
+import {
+    SeasonEpisodeMenuComponent,
+    type SeasonEpisodeMenuSections,
+    type SeasonContainerEpisodeMenuSelection,
+} from './season-episode-menu.component';
 import {
     type SeasonContainerPlaybackToggleRequest,
     type SeasonContainerSeasonPlaybackToggleRequest,
@@ -53,6 +56,10 @@ import {
     buildWatchedEpisodePosition,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
+export type {
+    SeasonEpisodeMenuSections,
+    SeasonContainerEpisodeMenuSelection,
+} from './season-episode-menu.component';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
@@ -72,6 +79,7 @@ export type EpisodeViewMode = 'grid' | 'list';
         MatProgressSpinnerModule,
         MatTooltipModule,
         SeasonTabsComponent,
+        SeasonEpisodeMenuComponent,
         TranslateModule,
     ],
 })
@@ -114,6 +122,11 @@ export class SeasonContainerComponent implements OnInit {
      * count from the series action label.
      */
     readonly hasUnloadedSeasons = input(false);
+    readonly episodeMenuSections = input<SeasonEpisodeMenuSections | null>(
+        null
+    );
+    readonly episodeMenuSelected =
+        output<SeasonContainerEpisodeMenuSelection>();
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     readonly playbackToggleRequested =
@@ -434,21 +447,11 @@ export class SeasonContainerComponent implements OnInit {
 
     /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
     getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
-        const info = this.getEpisodeInfo(episode);
-        const duration = formatDurationLabel(episodeRuntimeSeconds(info));
-        const position = this.playbackPositions().get(Number(episode.id));
-        const remaining = formatRemainingLabel(position);
-        const parts = [
-            duration
-                ? this.translate.instant(duration.key, duration.params)
-                : null,
-            this.isEpisodeWatched(episode)
-                ? this.translate.instant('PORTALS.DETAIL.WATCHED')
-                : remaining
-                  ? this.translate.instant(remaining.key, remaining.params)
-                  : this.getEpisodePositionText(episode),
-        ].filter((part): part is string => !!part);
-        return parts.length ? parts.join(' · ') : null;
+        return formatEpisodeSubline(
+            this.getEpisodeInfo(episode),
+            this.getEpisodePosition(episode),
+            (key, params) => this.translate.instant(key, params)
+        );
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {

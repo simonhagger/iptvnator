@@ -30,6 +30,24 @@ function rows(input: Partial<typeof BASE>) {
 }
 
 describe('buildVodMenuSections', () => {
+    it('offers the common Add action only for an eligible provider identity, independently of playback', () => {
+        expect(rows({}).map((row) => row.id)).not.toContain(
+            'add-to-saved-playlist'
+        );
+        const add = buildVodMenuSections({
+            ...BASE,
+            externalPlayerAvailable: false,
+            startPending: true,
+            savedPlaylistAvailable: true,
+        })
+            .flatMap((section) => section.items)
+            .find((row) => row.id === 'add-to-saved-playlist');
+        expect(add).toMatchObject({
+            labelKey: 'SAVED_VOD_PLAYLISTS.ADD_TITLE',
+            icon: 'playlist_add',
+        });
+        expect(add?.disabled).toBeFalsy();
+    });
     it('offers the external player and the progress reset while nothing plays', () => {
         const ids = rows({}).map((row) => row.id);
         expect(ids).toContain(VOD_DETAILS_MENU_ACTION.ExternalPlayer);

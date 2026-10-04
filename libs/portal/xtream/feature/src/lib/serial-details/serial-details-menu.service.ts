@@ -80,6 +80,17 @@ export class SerialDetailsMenuService {
         }
     }
 
+    toggleFavorite(serialId: string): void {
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) return;
+        this.xtreamStore.toggleFavorite(
+            serialId,
+            playlist.id,
+            'series',
+            this.bindings()?.selectedItem()?.info?.backdrop_path?.[0]
+        );
+    }
+
     readonly externalPlayer = computed<ExternalPlayerName>(() =>
         this.settingsStore.player() === VideoPlayer.VLC ? 'vlc' : 'mpv'
     );

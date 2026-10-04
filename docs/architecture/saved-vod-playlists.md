@@ -53,7 +53,14 @@ list or creates a populated named list in one atomic write. Its component-scoped
 controller captures the selected revision, validates every candidate before
 deduplication and offers explicit duplicate occurrences. A conflict requires
 Refresh and a new submission; closing or relocking ignores later responses.
-The reusable dialog is implemented, but content-cover callers are not wired yet.
+Movie details and individual episode menus now launch this dialog for Xtream and
+Stalker sources. Provider hosts construct validated, locally owned references;
+shared movie and episode controls emit presentation actions only. Missing IDs,
+stale source metadata and old menu events cannot create a saved candidate.
+Saving does not depend on the current renderer, codec or download capability.
+The owner closes its dialog when its content/source changes or it is destroyed.
+Whole-series and season Add remain unavailable until complete metadata loading
+and persistent group provenance are implemented.
 
 `SavedVodEntryRowComponent` presents movie/episode occurrences with source display
 names and keyboard-accessible reorder/remove buttons. It emits occurrence IDs and
@@ -132,6 +139,11 @@ Stalker season proposals retain the raw season ID and series mode, including
 special seasons with display number zero. Refresh preserves matching occurrence
 IDs, matches deliberate duplicates in their existing order and reports additions,
 removals and changes to retained order.
+
+Stalker `seriesMode` describes the catalogue origin: regular series use `series`,
+while embedded and lazily loaded VOD series both use `vod-series`. Raw provider
+season IDs are retained separately from enriched display coordinates. Neither a
+synthetic watch-history ID nor a transport command substitutes for that identity.
 
 These descriptors and proposals are not persisted or connected to provider
 fetching yet. The next slice must store group provenance in the same document as

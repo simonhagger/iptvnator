@@ -13,6 +13,7 @@ export * from './lib/components/channel-list-hidden-state/channel-list-hidden-st
 export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/saved-vod-playlist-name-dialog/saved-vod-playlist-name-dialog.component';
 export * from './lib/components/saved-vod-add-dialog/saved-vod-add-dialog.component';
+export * from './lib/components/saved-vod-add-dialog/saved-vod-add-dialog-launcher.service';
 export * from './lib/components/saved-vod-entry-row/saved-vod-entry-row.component';
 export * from './lib/components/search-layout/search-layout.component';
 export { WatchedBadgeComponent } from '@iptvnator/ui/components';

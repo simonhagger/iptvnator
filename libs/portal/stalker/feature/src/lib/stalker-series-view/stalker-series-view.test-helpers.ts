@@ -6,6 +6,10 @@ import {
     signal,
 } from '@angular/core';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
+import type {
+    SeasonContainerEpisodeMenuSelection,
+    SeasonEpisodeMenuSections,
+} from '@iptvnator/ui/components';
 
 @Component({
     selector: 'app-season-container',
@@ -27,6 +31,11 @@ export class StubSeasonContainerComponent {
     readonly seasonPosters = input<unknown>(null);
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
+    readonly episodeMenuSections = input<SeasonEpisodeMenuSections | null>(
+        null
+    );
+    readonly episodeMenuSelected =
+        output<SeasonContainerEpisodeMenuSelection>();
     readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly seasonWatchBatchRunning = input(false);
     readonly seasonSelected = output<string>();

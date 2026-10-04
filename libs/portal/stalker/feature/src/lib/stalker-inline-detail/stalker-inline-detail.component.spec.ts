@@ -2,6 +2,7 @@ import {
     Component,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -10,6 +11,8 @@ import { createStalkerVodItem } from '@iptvnator/shared/interfaces';
 import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail.component';
+import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
 
 @Component({
     selector: 'app-vod-details',
@@ -30,6 +33,8 @@ class StubVodDetailsComponent {
     readonly watchedToggleBusy = input(false);
     readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
+    readonly savedPlaylistAvailable = input(false);
+    readonly savedPlaylistAddRequested = output<unknown>();
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
@@ -75,16 +80,35 @@ const VOD_ITEM = createStalkerVodItem(
 
 describe('StalkerInlineDetailComponent provider presentation', () => {
     let fixture: ComponentFixture<StalkerInlineDetailComponent>;
+    const source = signal<{ _id: string } | null>({ _id: 'stalker-1' });
+    const openSavedDialog = jest.fn();
 
     beforeEach(async () => {
+        source.set({ _id: 'stalker-1' });
+        openSavedDialog.mockReset();
         await TestBed.configureTestingModule({
             imports: [StalkerInlineDetailComponent],
+            providers: [
+                {
+                    provide: StalkerStore,
+                    useValue: { currentPlaylist: source },
+                },
+            ],
         })
             .overrideComponent(StalkerInlineDetailComponent, {
                 remove: {
                     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
                 },
                 add: {
+                    providers: [
+                        {
+                            provide: SavedVodAddDialogLauncherService,
+                            useValue: {
+                                bindOwner: jest.fn(),
+                                open: openSavedDialog,
+                            },
+                        },
+                    ],
                     imports: [
                         StubStalkerSeriesViewComponent,
                         StubVodDetailsComponent,
@@ -101,6 +125,32 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
     });
 
     afterEach(() => fixture.destroy());
+    it('adds the current movie through its own dialog launcher, including provider-only views', async () => {
+        fixture.componentRef.setInput('categoryId', 'vod');
+        fixture.componentRef.setInput('vodDetailsItem', VOD_ITEM);
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.savedPlaylistAvailable()).toBe(true);
+        child.savedPlaylistAddRequested.emit(VOD_ITEM);
+        expect(openSavedDialog).toHaveBeenCalledWith([
+            {
+                title: 'Movie',
+                reference: {
+                    provider: 'stalker',
+                    sourceId: 'stalker-1',
+                    kind: 'movie',
+                    contentId: '42',
+                },
+            },
+        ]);
+        source.set(null);
+        fixture.detectChanges();
+        expect(child.savedPlaylistAvailable()).toBe(false);
+        child.savedPlaylistAddRequested.emit(VOD_ITEM);
+        expect(openSavedDialog).toHaveBeenCalledTimes(1);
+    });
 
     it('passes provider-only mode to regular VOD details', async () => {
         fixture.componentRef.setInput('categoryId', 'vod');

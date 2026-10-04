@@ -1,10 +1,14 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    inject,
     input,
     output,
 } from '@angular/core';
-import { StalkerSelectedVodItem } from '@iptvnator/portal/stalker/data-access';
+import {
+    StalkerSelectedVodItem,
+    StalkerStore,
+} from '@iptvnator/portal/stalker/data-access';
 import {
     type PlaybackFallbackRequest,
     VodDetailsComponent,
@@ -16,10 +20,13 @@ import {
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { createStalkerSavedMovieState } from '../stalker-saved-movie.state';
 
 @Component({
     selector: 'app-stalker-inline-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
+    providers: [SavedVodAddDialogLauncherService],
     templateUrl: './stalker-inline-detail.component.html',
     changeDetection: ChangeDetectionStrategy.OnPush,
     styles: [
@@ -33,6 +40,7 @@ import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-serie
     ],
 })
 export class StalkerInlineDetailComponent {
+    private readonly stalkerStore = inject(StalkerStore);
     readonly playbackSessionKey = input.required<string>();
     readonly categoryId = input<'vod' | 'series' | null>(null);
     readonly seriesItem = input<StalkerSelectedVodItem | null>(null);
@@ -49,6 +57,15 @@ export class StalkerInlineDetailComponent {
     readonly watchedToggleBusy = input(false);
     readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
+    readonly savedMovie = createStalkerSavedMovieState(
+        this.vodDetailsItem,
+        () =>
+            this.categoryId() === 'vod' &&
+            !this.isSeries() &&
+            !this.seriesItem()?.series?.length,
+        inject(SavedVodAddDialogLauncherService),
+        () => this.stalkerStore.currentPlaylist()?._id
+    );
 
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();

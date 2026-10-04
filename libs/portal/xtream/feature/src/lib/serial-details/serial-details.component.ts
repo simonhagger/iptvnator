@@ -71,6 +71,8 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
 import { SerialDetailsHeroPresenter } from './serial-details-hero.presenter';
 import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsDownloadAdapterService } from './serial-details-download-adapter.service';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { SerialDetailsSavedEpisodePresenter } from './serial-details-saved-episode.presenter';
 
 @Component({
     selector: 'app-serial-details',
@@ -95,6 +97,8 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         SerialDetailsHeroPresenter,
         SerialDetailsMenuService,
         SerialDetailsDownloadAdapterService,
+        SavedVodAddDialogLauncherService,
+        SerialDetailsSavedEpisodePresenter,
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
@@ -128,6 +132,7 @@ export class SerialDetailsComponent implements OnDestroy {
 
     readonly heroPresenter = inject(SerialDetailsHeroPresenter);
     readonly menu = inject(SerialDetailsMenuService);
+    readonly savedEpisodes = inject(SerialDetailsSavedEpisodePresenter);
     readonly seasonContainer =
         viewChild<SeasonContainerComponent>('seasonContainer');
 
@@ -201,6 +206,7 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly similarInPortals = this.similar.similarInPortals;
 
     constructor() {
+        this.savedEpisodes.bind(this.selectedItem, this.routeParams);
         this.playback.bind({ selectedItem: this.selectedItem });
         this.similar.bind({ selectedItem: this.selectedItem });
         this.downloadAdapter.bind(this.selectedItem);
@@ -414,17 +420,7 @@ export class SerialDetailsComponent implements OnDestroy {
     }
 
     toggleFavorite(): void {
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return;
-        }
-
-        this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params['serialId'],
-            playlist.id,
-            'series',
-            this.selectedItem()?.info?.backdrop_path?.[0]
-        );
+        this.menu.toggleFavorite(this.route.snapshot.params['serialId']);
     }
 
     getBackdropUrl(info: XtreamSerieInfo): string | undefined {

@@ -42,6 +42,7 @@ export interface VodDetailsHeroStateDeps {
     readonly similarInPortals: Signal<readonly CrossPortalSimilarItem[]>;
     readonly configuredPlayer: Signal<VideoPlayer | null | undefined>;
     readonly translate: Pick<TranslateService, 'instant'>;
+    readonly savedPlaylistAvailable?: Signal<boolean>;
 }
 
 /**
@@ -126,6 +127,8 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
                     deps.externalState() !== 'idle' ||
                     deps.playbackStartPending(),
                 startPending: deps.playbackStartPending(),
+                savedPlaylistAvailable:
+                    deps.savedPlaylistAvailable?.() ?? false,
             })
         ),
     };

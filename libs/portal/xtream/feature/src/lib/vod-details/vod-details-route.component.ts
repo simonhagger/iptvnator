@@ -88,26 +88,8 @@ import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-
-type XtreamVodIdentityItem = XtreamVodDetails & {
-    readonly id?: number | string;
-    readonly stream_id?: number | string;
-    readonly xtream_id?: number | string;
-};
-
-function resolveVodIdentity(item: XtreamVodDetails): number | null {
-    const candidate = item as XtreamVodIdentityItem;
-    const value =
-        item.movie_data?.stream_id ??
-        candidate.xtream_id ??
-        candidate.stream_id ??
-        candidate.id;
-    const id = typeof value === 'string' ? Number(value) : value;
-
-    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0
-        ? id
-        : null;
-}
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { resolveVodIdentity } from './vod-details-identity';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -117,6 +99,7 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
+        SavedVodAddDialogLauncherService,
         VodDetailsPlaybackService,
         VodMultiSourceHostService,
         VodDetailsMultiSourceUiService,
@@ -514,6 +497,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         });
         this.menu.bind({
             item: this.playableVodItem,
+            savedItem: this.selectedItem,
+            savedTitle: computed(
+                () => this.selectedVodInfo()?.name ?? this.fallbackView()?.title
+            ),
             vodId: this.selectedVodId,
             category: this.selectedCategory,
             restart: () => this.restartVod(this.playableVodItem()),

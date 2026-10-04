@@ -3,4 +3,4 @@ type: feature
 area: playlists
 ---
 
-Saved VOD playlists gain a sidebar management page with naming, duplication, keyboard ordering, removal and confirmed Clear with Undo. Competing edits show an explicit conflict, and parental lock hides saved titles. This local alpha is tested on Windows only; playback and import/export remain in development.
+Manage named VOD playlists from the sidebar with ordering, duplication and Clear/Undo. Add Xtream or Stalker movies and episodes to existing or new lists, with optional duplicates. Competing edits report conflicts; parental lock hides saved titles. This alpha is tested on Windows only. Playlist playback, group refresh and import/export remain in development.

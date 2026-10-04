@@ -1,9 +1,18 @@
-import { computed, inject, Injectable, Signal, signal } from '@angular/core';
+import {
+    computed,
+    effect,
+    inject,
+    Injectable,
+    Signal,
+    signal,
+    untracked,
+} from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
+    createSavedVodMovieCandidate,
     PORTAL_PLAYBACK_POSITIONS,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -14,7 +23,12 @@ import {
     type XtreamCategory,
     type XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
-import type { VodMoreMenuSection } from '@iptvnator/ui/components';
+import {
+    SAVED_VOD_ADD_MENU_ITEM,
+    type VodMoreMenuSection,
+} from '@iptvnator/ui/components';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { resolveVodIdentity } from './vod-details-identity';
 import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { withoutVodResetTarget } from './vod-details-reset-target';
@@ -31,6 +45,9 @@ export const VOD_MENU_ACTION = {
 
 interface VodDetailsMenuBindings {
     readonly item: Signal<XtreamVodDetails | null>;
+    /** Route detail identity remains independent of a pinned playback copy. */
+    readonly savedItem?: Signal<XtreamVodDetails | null>;
+    readonly savedTitle?: Signal<string | null | undefined>;
     readonly vodId: Signal<number>;
     readonly category: Signal<Partial<XtreamCategory> | null>;
     /** Start over honours a pinned copy, so the host owns it. */
@@ -46,6 +63,7 @@ interface VodDetailsMenuBindings {
  */
 @Injectable()
 export class VodDetailsMenuService {
+    private readonly savedDialog = inject(SavedVodAddDialogLauncherService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(VodDetailsPlaybackService);
     private readonly msUi = inject(VodDetailsMultiSourceUiService);
@@ -58,10 +76,53 @@ export class VodDetailsMenuService {
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('VodDetailsMenu');
     private readonly bindings = signal<VodDetailsMenuBindings | null>(null);
+    private readonly savedMetadataSource = signal<string | undefined>(
+        undefined
+    );
+
+    constructor() {
+        effect(() => {
+            const item = this.bindings()?.savedItem?.();
+            untracked(() =>
+                this.savedMetadataSource.set(
+                    item ? this.xtreamStore.currentPlaylist()?.id : undefined
+                )
+            );
+        });
+    }
 
     bind(bindings: VodDetailsMenuBindings): void {
         this.bindings.set(bindings);
+        this.savedMetadataSource.set(
+            bindings.savedItem?.()
+                ? this.xtreamStore.currentPlaylist()?.id
+                : undefined
+        );
+        this.savedDialog.bindOwner(
+            computed(() => {
+                const reference = this.savedCandidate()?.reference;
+                return reference ? JSON.stringify(reference) : '';
+            })
+        );
     }
+
+    private readonly savedCandidate = computed(() => {
+        const bindings = this.bindings();
+        const item = bindings?.savedItem?.();
+        const sourceId = this.xtreamStore.currentPlaylist()?.id;
+        const contentId = bindings?.vodId();
+        return item &&
+            sourceId &&
+            sourceId === this.savedMetadataSource() &&
+            resolveVodIdentity(item) === contentId
+            ? createSavedVodMovieCandidate({
+                  provider: 'xtream',
+                  sourceId,
+                  contentId,
+                  title: bindings?.savedTitle?.(),
+              })
+            : null;
+    });
 
     /** MPV or VLC: the configured one, otherwise MPV. */
     readonly externalPlayer = computed<ExternalPlayerName>(() =>
@@ -109,6 +170,12 @@ export class VodDetailsMenuService {
             });
         }
         const stateRows: VodMoreMenuSection['items'][number][] = [];
+        if (this.savedCandidate()) {
+            stateRows.push({
+                ...SAVED_VOD_ADD_MENU_ITEM,
+                testId: 'vod-menu-add-saved-playlist',
+            });
+        }
         if (item && this.msUi.hasPlaybackPosition()) {
             stateRows.push({
                 id: VOD_MENU_ACTION.StartOver,
@@ -147,6 +214,11 @@ export class VodDetailsMenuService {
     async run(actionId: string): Promise<void> {
         const item = this.bindings()?.item() ?? null;
         switch (actionId) {
+            case SAVED_VOD_ADD_MENU_ITEM.id: {
+                const draft = this.savedCandidate();
+                if (draft) this.savedDialog.open([draft]);
+                return;
+            }
             case VOD_MENU_ACTION.ExternalPlayer:
                 await this.bindings()?.openExternal(this.externalPlayer());
                 return;

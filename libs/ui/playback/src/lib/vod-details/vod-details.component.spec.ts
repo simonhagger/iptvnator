@@ -210,6 +210,29 @@ describe('VodDetailsComponent offline playback', () => {
             'stalker-host-owned-key'
         );
     });
+    it('emits Add from the existing overflow menu without starting playback', async () => {
+        await render({ providerOnly: true });
+        fixture.componentRef.setInput('savedPlaylistAvailable', true);
+        fixture.detectChanges();
+        const addRequested = jest.fn();
+        fixture.componentInstance.savedPlaylistAddRequested.subscribe(
+            addRequested
+        );
+        await openStartOver();
+        const add = TestBed.inject(OverlayContainer)
+            .getContainerElement()
+            .querySelector<HTMLButtonElement>(
+                '[data-test-id="vod-menu-add-saved-playlist"]'
+            );
+        expect(add).not.toBeNull();
+        add?.click();
+        expect(addRequested).toHaveBeenCalledWith(STALKER_VOD);
+        expect(playClicked).not.toHaveBeenCalled();
+        expect(resumeClicked).not.toHaveBeenCalled();
+        fixture.componentRef.setInput('savedPlaylistAvailable', false);
+        fixture.componentInstance.runMenuAction('add-to-saved-playlist');
+        expect(addRequested).toHaveBeenCalledTimes(1);
+    });
 
     const completeDownload = (
         fileAvailability: DownloadItem['fileAvailability'] = 'available'

@@ -53,7 +53,6 @@ import {
     XtreamSerieEpisode,
     pickSeasonMarkedTitle,
     seriesStatusLabelKey,
-    youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import {
     isLiveExternalPlayerSession,
@@ -127,6 +126,8 @@ import {
     type StalkerEpisodePlaybackSessionIdentity,
     type StalkerEpisodePlaybackStructuralIdentity,
 } from './stalker-episode-playback-session-key';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { StalkerSeriesSavedEpisodePresenter } from './stalker-series-saved-episode.presenter';
 
 interface SeriesPositionContext {
     readonly generation: number;
@@ -201,12 +202,15 @@ interface StalkerSeriesPlaybackRequestContext {
         StalkerSeriesTmdbSeasonsService,
         StalkerSeriesHeroPresenter,
         StalkerSeriesMenuService,
+        SavedVodAddDialogLauncherService,
+        StalkerSeriesSavedEpisodePresenter,
     ],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
+    readonly savedEpisodes = inject(StalkerSeriesSavedEpisodePresenter);
     private readonly seasonContainerRef =
         viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -413,6 +417,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        this.savedEpisodes.bind({
+            seriesId: computed(() => this.displayItem()?.id),
+            seriesMode: computed(() =>
+                this.seriesMode() ===
+                STALKER_SERIES_DOWNLOAD_MODES.RegularSeries
+                    ? 'series'
+                    : 'vod-series'
+            ),
+            episodes: this.mappedSeasons,
+        });
         this.heroPresenter.bind({
             displayItem: this.displayItem,
             quickStart: this.quickStartButton,
