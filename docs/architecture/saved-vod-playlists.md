@@ -47,6 +47,12 @@ and add-to-new-list actions. It validates the trimmed name against the persisted
 name limit, keeps invalid input available for correction and returns only a name.
 Callers own the command, persistence result and translated action label.
 
+`SavedVodEntryRowComponent` presents movie/episode occurrences with source display
+names and keyboard-accessible reorder/remove buttons. It emits occurrence IDs and
+target positions, disables boundary moves and respects pending writes. The owner
+resolves source names, translates labels, persists commands and restores focus
+after removal. Rows do not resolve streams or expose credentials or provider URLs.
+
 Observations carry execution ID, occurrence ID and playback revision. Every
 transition increments the revision, including Repeat One, so late time/end events
 cannot advance a replacement run or complete the same occurrence twice. Skip does
