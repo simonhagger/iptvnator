@@ -23,7 +23,6 @@ import {
     PORTAL_PLAYER,
     SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
-import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     DownloadsService,
@@ -42,31 +41,7 @@ import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-
-@Component({
-    selector: 'app-season-container',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.Eager,
-    template: '<div data-testid="season-container"></div>',
-})
-class StubSeasonContainerComponent {
-    readonly seasons = input<unknown>(null);
-    readonly seriesId = input<number | string | null>(null);
-    readonly playlistId = input('');
-    readonly seriesTitle = input<string | undefined>(undefined);
-    readonly playbackPositions = input<unknown>(null);
-    readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
-    readonly downloadsEnabled = input(true);
-    readonly openingEpisodeId = input<number | null>(null);
-    readonly activeEpisodeId = input<number | null>(null);
-    readonly playingEpisodeId = input<number | null>(null);
-    readonly seasonDescriptions = input<unknown>(null);
-    readonly seasonPosters = input<unknown>(null);
-    readonly seasonWatchBatchRunning = input(false);
-    readonly episodeClicked = output<unknown>();
-    readonly playbackToggleRequested = output<unknown>();
-    readonly seasonPlaybackToggleRequested = output<unknown>();
-}
+import { StubSeasonContainerComponent } from './serial-details.test-helpers';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -578,6 +553,8 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({ id: '1001' })
@@ -640,6 +617,8 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain('00:42');
 
         quickStartButton?.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(openResolvedPlayback).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -654,6 +633,8 @@ describe('SerialDetailsComponent', () => {
             '[data-testid="series-restart"]'
         );
         restart.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
         expect(openResolvedPlayback.mock.calls.at(-1)?.[0]).toMatchObject({
             startTime: 0,
             contentInfo: { contentXtreamId: 1001 },
@@ -738,6 +719,7 @@ describe('SerialDetailsComponent', () => {
         fixture.detectChanges();
 
         expect(constructEpisodeStreamUrl).toHaveBeenCalledTimes(1);
+        await new Promise((resolve) => setTimeout(resolve));
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: '2001',

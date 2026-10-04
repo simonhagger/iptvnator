@@ -441,9 +441,7 @@ export class SerialDetailsPlaybackService {
         }
 
         this.closeInlinePlayer();
-        const launch = player
-            ? openEpisodeExternally(this, playback, player)
-            : this.portalPlayer.openResolvedPlayback(playback, true);
+        const launch = openEpisodeExternally(this, playback, player);
         // The bookkeeping never rejects; a forced launch's failure is the
         // menu's to report, which awaits the launch it asked for.
         const token = this.pageToken();

@@ -15,7 +15,10 @@ import {
     type StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import { TmdbEnrichmentService } from '@iptvnator/services';
-import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import type {
+    ExternalPlayerSession,
+    PlaybackPositionData,
+} from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 import { STALKER_SERIES_RESUME_TARGET } from './stalker-series-resume';
 
@@ -34,6 +37,8 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
     const fetchVodSeriesEpisodes = jest.fn();
     const getSeriesPlaybackPositions = jest.fn();
     const openResolvedPlayback = jest.fn();
+    const activeSession = signal<ExternalPlayerSession | null>(null);
+    const closeSession = jest.fn();
     const currentPlaylist = signal({
         _id: 'stalker-1',
         title: 'Portal',
@@ -106,6 +111,10 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         fetchVodSeriesEpisodes.mockReset();
         getSeriesPlaybackPositions.mockReset().mockResolvedValue([]);
         openResolvedPlayback.mockReset();
+        activeSession.set(null);
+        closeSession
+            .mockReset()
+            .mockImplementation(async () => activeSession.set(null));
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -128,7 +137,7 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
-                    useValue: { activeSession: signal(null) },
+                    useValue: { activeSession, closeSession },
                 },
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
@@ -182,6 +191,48 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
     });
 
     afterEach(() => fixture.destroy());
+
+    it.each(['mpv', 'vlc'] as const)(
+        'closes the configured %s session before starting the same episode over',
+        async (player) => {
+            await settle();
+            const episode = fixture.componentInstance.mappedSeasons()['1'][0];
+            const running: ExternalPlayerSession = {
+                id: `${player}-running`,
+                player,
+                status: 'playing',
+                title: 'Episode 1',
+                streamUrl: 'https://resolved.example/episode.mpg',
+                startedAt: '2026-10-04T00:00:00Z',
+                updatedAt: '2026-10-04T00:00:00Z',
+                canClose: true,
+                contentInfo: {
+                    playlistId: 'stalker-1',
+                    contentXtreamId: Number(episode.id),
+                    contentType: 'episode',
+                    seriesXtreamId: 30001,
+                },
+            };
+            activeSession.set(running);
+            fixture.componentInstance.onEpisodeClicked(
+                episode,
+                undefined,
+                undefined,
+                true
+            );
+            await settle();
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(closeSession).toHaveBeenCalledWith(running);
+            expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+                openResolvedPlayback.mock.invocationCallOrder[0]
+            );
+            expect(openResolvedPlayback).toHaveBeenCalledWith(
+                expect.objectContaining({ startTime: 0 }),
+                true
+            );
+        }
+    );
 
     it.each([0, 42])(
         'prefers scoped progress over a legacy handoff at %s',
@@ -484,6 +535,7 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         );
         await fixture.componentInstance.playQuickStartEpisode();
         await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
         expect(resolveVodPlayback).toHaveBeenLastCalledWith(
             '/media/file_30001.mpg',
             'Regular Series',
@@ -494,6 +546,7 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         );
         fixture.componentInstance.restartQuickStartEpisode();
         await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
         expect(resolveVodPlayback).toHaveBeenLastCalledWith(
             '/media/file_30001.mpg',
             'Regular Series',

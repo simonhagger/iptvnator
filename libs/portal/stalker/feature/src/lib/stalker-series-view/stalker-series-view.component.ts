@@ -1319,7 +1319,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     private async openEpisodeExternally(
         playback: ResolvedPortalPlayback,
-        player: ExternalPlayerName,
+        player: ExternalPlayerName | undefined,
         request: StalkerSeriesPlaybackRequestContext
     ): Promise<void> {
         // `closeInlinePlayer()` just retired `request`'s generation; a fresh
@@ -1336,10 +1336,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
         let session: ExternalPlayerSession | void;
         try {
-            session = await this.portalPlayer.openExternalPlayback(
-                playback,
-                player
-            );
+            session = player
+                ? await this.portalPlayer.openExternalPlayback(playback, player)
+                : await this.portalPlayer.openResolvedPlayback(playback, true);
         } catch (error) {
             // The caller's catch would read the retired generation and stay
             // silent; the user chose this launch and gets its failure.
@@ -1440,32 +1439,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            if (forcePlayer) {
-                // Awaited so the start stays pending through the close of the
-                // previous player and the launch itself.
-                await this.launchQueue.run(
-                    pendingSeriesId,
-                    () =>
-                        this.openEpisodeExternally(
-                            resolvedPlayback,
-                            forcePlayer,
-                            request
+            // Keep all external starts pending through replacement and launch.
+            await this.launchQueue.run(
+                pendingSeriesId,
+                () =>
+                    this.openEpisodeExternally(
+                        resolvedPlayback,
+                        forcePlayer,
+                        request
+                    ),
+                {
+                    stillShown: () =>
+                        this.currentSeriesKey() === pendingSeriesId,
+                    replacePlayer: () =>
+                        this.replaceOwnExternalSession(
+                            resolvedPlayback.contentInfo
                         ),
-                    {
-                        stillShown: () =>
-                            this.currentSeriesKey() === pendingSeriesId,
-                        replacePlayer: () =>
-                            this.replaceOwnExternalSession(
-                                resolvedPlayback.contentInfo
-                            ),
-                    }
-                );
-            } else {
-                void this.portalPlayer.openResolvedPlayback(
-                    resolvedPlayback,
-                    true
-                );
-            }
+                }
+            );
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
