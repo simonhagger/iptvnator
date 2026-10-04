@@ -17,6 +17,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { TranslateModule } from '@ngx-translate/core';
 import { SeriesPlaybackQueueService } from '@iptvnator/portal/shared/data-access';
 import type { UpNextRailItem } from './up-next-rail.util';
+import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-series-queue',
@@ -38,8 +39,7 @@ export class SeriesQueueComponent {
     readonly scope = input.required<string>();
     readonly loadedOnly = input(false);
     readonly initialQueue = input<readonly number[] | null>(null);
-    readonly launchFailure = input(0);
-    readonly launchConfirmation = input(0);
+    readonly launch = input<SeriesQueueLaunchEvent | null>(null);
     private initializedScope: string | null = null;
     readonly playRequested = output<UpNextRailItem>();
     readonly queue = inject(SeriesPlaybackQueueService);
@@ -58,14 +58,11 @@ export class SeriesQueueComponent {
 
     constructor() {
         effect(() => {
-            this.launchConfirmation();
-            untracked(() =>
-                this.queue.launchConfirmed(this.current()?.id ?? null)
-            );
-        });
-        effect(() => {
-            this.launchFailure();
-            untracked(() => this.queue.launchFailed());
+            const launch = this.launch();
+            if (launch)
+                untracked(() =>
+                    this.queue.handleLaunch(launch, this.current()?.id ?? null)
+                );
         });
         effect(() => {
             const scope = this.scope();

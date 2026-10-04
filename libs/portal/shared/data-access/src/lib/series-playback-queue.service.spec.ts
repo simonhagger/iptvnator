@@ -54,6 +54,18 @@ describe('series queue session', () => {
         jest.advanceTimersByTime(5000);
         expect(play).not.toHaveBeenCalled();
     });
+
+    it('a manual request cancels continuation before asynchronous resolution finishes', () => {
+        const autoplay = jest.fn();
+        queue.ended(autoplay);
+        queue.handleLaunch({ revision: 1, phase: 'requested' }, 1);
+        jest.advanceTimersByTime(6000);
+        expect(autoplay).not.toHaveBeenCalled();
+        expect(queue.state().current).toBe(1);
+        queue.handleLaunch({ revision: 2, phase: 'confirmed' }, 3);
+        queue.sync('playlist:series', [1, 2, 3], 3);
+        expect(queue.state().current).toBe(3);
+    });
     it('scope changes reset edits and timers', () => {
         const play = jest.fn();
         queue.clear();

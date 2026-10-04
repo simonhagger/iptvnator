@@ -13,6 +13,7 @@ import {
     removeSeriesQueueEpisode,
     seriesQueueFromHere,
     syncSeriesQueue,
+    type SeriesQueueLaunchEvent,
 } from '@iptvnator/portal/shared/util';
 
 /** One instance per inline series session. Stores IDs, never stream URLs. */
@@ -116,6 +117,12 @@ export class SeriesPlaybackQueueService {
         this.transitionRequested = false;
         this.endedHandled = false;
         this.pendingSequence = null;
+    }
+
+    handleLaunch(event: SeriesQueueLaunchEvent, current: number | null): void {
+        if (event.phase === 'requested') this.cancel();
+        else if (event.phase === 'failed') this.launchFailed();
+        else this.launchConfirmed(current);
     }
 
     launchConfirmed(current: number | null): void {

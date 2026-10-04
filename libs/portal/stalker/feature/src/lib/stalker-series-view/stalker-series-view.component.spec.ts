@@ -26,6 +26,8 @@ import {
     StubFavoritesButtonComponent,
     StubPortalInlinePlayerComponent,
     StubSeasonContainerComponent,
+    seriesFixtureLifecycle,
+    verifyManualQueueLaunch,
 } from './stalker-series-view.test-helpers';
 
 describe('StalkerSeriesViewComponent', () => {
@@ -50,17 +52,9 @@ describe('StalkerSeriesViewComponent', () => {
         macAddress: '00:1A:79:12:34:56',
     });
 
-    async function stabilize(): Promise<void> {
-        fixture.detectChanges();
-        await fixture.whenStable();
-    }
+    const { stabilize, settleStart } = seriesFixtureLifecycle(() => fixture);
 
     /** Lets a start's awaited continuations run, then renders their state. */
-    async function settleStart(): Promise<void> {
-        await stabilize();
-        await new Promise((resolve) => setTimeout(resolve));
-        fixture.detectChanges();
-    }
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -300,6 +294,14 @@ describe('StalkerSeriesViewComponent', () => {
         await settleStart();
         expect(button()?.disabled).toBe(false);
         expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a launch request while manual episode resolution is still pending', async () => {
+        await verifyManualQueueLaunch(fixture, {
+            isEmbeddedPlayer,
+            resolveVodPlayback,
+            openResolvedPlayback,
+        });
     });
 
     it('plays an episode chosen during a forced launch once that launch settles', async () => {

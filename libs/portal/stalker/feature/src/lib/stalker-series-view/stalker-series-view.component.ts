@@ -63,6 +63,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     createLogger,
+    type SeriesQueueLaunchEvent,
     consumeStalkerReturnMarker,
     createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
@@ -1046,6 +1047,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName
     ) {
+        this.reportSeriesQueueLaunch('requested');
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
@@ -1295,8 +1297,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     readonly initialSeriesQueue = signal<readonly number[] | null>(null);
-    readonly seriesQueueLaunchFailure = signal(0);
-    readonly seriesQueueLaunchConfirmation = signal(0);
+    readonly seriesQueueLaunch = signal<SeriesQueueLaunchEvent | null>(null);
+
+    private reportSeriesQueueLaunch(
+        phase: SeriesQueueLaunchEvent['phase']
+    ): void {
+        this.seriesQueueLaunch.update((event) => ({
+            revision: (event?.revision ?? 0) + 1,
+            phase,
+        }));
+    }
 
     startSeriesQueue(request: SeriesQueueStartRequest): void {
         this.initialSeriesQueue.set(request.ids);
@@ -1468,7 +1478,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
-            this.seriesQueueLaunchFailure.update((value) => value + 1);
+            this.reportSeriesQueueLaunch('failed');
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
@@ -1524,7 +1534,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             toStalkerEpisodePlaybackStructuralIdentity(identity)
         );
         this.inlinePlayback.set(playback);
-        this.seriesQueueLaunchConfirmation.update((value) => value + 1);
+        this.reportSeriesQueueLaunch('confirmed');
     }
 
     private syncSeriesPlaybackOwner(ownerKey: string): void {

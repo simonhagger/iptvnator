@@ -101,7 +101,10 @@ describe('series queue surface', () => {
         const play = jest.fn();
         component.playRequested.subscribe(play);
         component.next();
-        fixture.componentRef.setInput('launchFailure', 1);
+        fixture.componentRef.setInput('launch', {
+            revision: 1,
+            phase: 'failed',
+        });
         fixture.detectChanges();
         component.next();
         expect(play).toHaveBeenCalledTimes(2);

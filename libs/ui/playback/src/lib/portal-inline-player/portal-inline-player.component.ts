@@ -56,6 +56,7 @@ import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
 import { buildUpNextRailItems } from './up-next-rail.util';
 import { SeriesQueueComponent } from './series-queue.component';
+import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -99,8 +100,7 @@ export class PortalInlinePlayerComponent {
      * carries the episode title, so the series name must come from the host. */
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
-    readonly seriesQueueLaunchFailure = input(0);
-    readonly seriesQueueLaunchConfirmation = input(0);
+    readonly seriesQueueLaunch = input<SeriesQueueLaunchEvent | null>(null);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     /**

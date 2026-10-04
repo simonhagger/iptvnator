@@ -6,6 +6,73 @@ import {
     signal,
 } from '@angular/core';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
+import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
+import type { ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import type { StalkerSeriesViewComponent } from './stalker-series-view.component';
+
+export async function stabilizeSeriesFixture<T>(
+    fixture: ComponentFixture<T>
+): Promise<void> {
+    fixture.detectChanges();
+    await fixture.whenStable();
+}
+
+export async function settleSeriesStart<T>(
+    fixture: ComponentFixture<T>
+): Promise<void> {
+    await stabilizeSeriesFixture(fixture);
+    await new Promise((resolve) => setTimeout(resolve));
+    fixture.detectChanges();
+}
+
+export function seriesFixtureLifecycle<T>(
+    getFixture: () => ComponentFixture<T>
+) {
+    return {
+        stabilize: () => stabilizeSeriesFixture(getFixture()),
+        settleStart: () => settleSeriesStart(getFixture()),
+    };
+}
+
+export async function verifyManualQueueLaunch(
+    fixture: ComponentFixture<StalkerSeriesViewComponent>,
+    mocks: {
+        isEmbeddedPlayer: jest.Mock;
+        resolveVodPlayback: jest.Mock;
+        openResolvedPlayback: jest.Mock;
+    }
+): Promise<void> {
+    mocks.isEmbeddedPlayer.mockReturnValue(true);
+    await stabilizeSeriesFixture(fixture);
+    const component = fixture.componentInstance;
+    const [first, second] = component.mappedSeasons()['1'];
+    component.onEpisodeClicked(first);
+    await settleSeriesStart(fixture);
+    let finishResolve!: (playback: unknown) => void;
+    mocks.resolveVodPlayback.mockImplementationOnce(
+        () => new Promise((resolve) => (finishResolve = resolve))
+    );
+    component.onEpisodeClicked(second);
+    fixture.detectChanges();
+    expect(component.seriesQueueLaunch()?.phase).toBe('requested');
+    const inline = fixture.debugElement.query(
+        By.directive(StubPortalInlinePlayerComponent)
+    );
+    expect(inline.componentInstance.seriesQueueLaunch()?.phase).toBe(
+        'requested'
+    );
+    expect(mocks.openResolvedPlayback).not.toHaveBeenCalled();
+    finishResolve({
+        streamUrl: 'http://stalker.example/selected.mpg',
+        title: 'Chosen episode',
+    });
+    await settleSeriesStart(fixture);
+    expect(component.seriesQueueLaunch()?.phase).toBe('confirmed');
+    expect(component.inlinePlayback()?.streamUrl).toBe(
+        'http://stalker.example/selected.mpg'
+    );
+}
 
 @Component({
     selector: 'app-season-container',
@@ -48,8 +115,7 @@ export class StubPortalInlinePlayerComponent {
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
-    readonly seriesQueueLaunchFailure = input(0);
-    readonly seriesQueueLaunchConfirmation = input(0);
+    readonly seriesQueueLaunch = input<SeriesQueueLaunchEvent | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
     readonly seriesEpisodes = input<unknown>(null);

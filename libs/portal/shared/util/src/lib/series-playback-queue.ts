@@ -4,6 +4,11 @@ export interface SeriesQueueState {
     custom: boolean;
 }
 
+export interface SeriesQueueLaunchEvent {
+    revision: number;
+    phase: 'requested' | 'confirmed' | 'failed';
+}
+
 export const emptySeriesQueue = (): SeriesQueueState => ({
     current: null,
     upcoming: [],
