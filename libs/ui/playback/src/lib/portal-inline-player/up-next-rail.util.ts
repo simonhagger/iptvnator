@@ -15,6 +15,7 @@ export interface UpNextRailItem<TEpisode = unknown> {
     id: number;
     /** `SxxEyy` label. */
     label: string;
+    seasonNumber?: number;
     title: string;
     thumbnailUrl: string | null;
     /** Watch progress in percent (0–100); null when never started. */
@@ -36,6 +37,8 @@ export interface BuildUpNextRailItemsOptions<
     playbackPositions?: ReadonlyMap<number, PlaybackPositionData> | null;
     /** Max entries including the playing episode. */
     limit?: number;
+    /** Queue picker also offers episodes before the current playhead. */
+    includeBeforeCurrent?: boolean;
 }
 
 const DEFAULT_LIMIT = 12;
@@ -50,6 +53,7 @@ export function buildUpNextRailItems<TEpisode extends UpNextEpisodeLike>({
     currentEpisodeId,
     playbackPositions,
     limit = DEFAULT_LIMIT,
+    includeBeforeCurrent = false,
 }: BuildUpNextRailItemsOptions<TEpisode>): UpNextRailItem<TEpisode>[] {
     if (
         !episodesBySeason ||
@@ -68,16 +72,20 @@ export function buildUpNextRailItems<TEpisode extends UpNextEpisodeLike>({
     }
 
     return flattened
-        .slice(currentIndex, currentIndex + limit)
-        .map(({ episode, seasonNumber, episodeNumber }, index) => ({
+        .slice(
+            includeBeforeCurrent ? 0 : currentIndex,
+            (includeBeforeCurrent ? 0 : currentIndex) + limit
+        )
+        .map(({ episode, seasonNumber, episodeNumber }) => ({
             id: Number(episode.id),
             label: formatSeriesEpisodeLabel(seasonNumber, episodeNumber),
+            seasonNumber,
             title: episode.title ?? '',
             thumbnailUrl: getEpisodeThumbnail(episode),
             progressPercent: getProgressPercent(
                 playbackPositions?.get(Number(episode.id))
             ),
-            isPlaying: index === 0,
+            isPlaying: Number(episode.id) === Number(currentEpisodeId),
             episode,
         }));
 }

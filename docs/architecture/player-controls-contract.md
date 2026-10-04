@@ -7,6 +7,24 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+Inline Xtream and Stalker series use a session-scoped playback queue shared
+across HTML5, Video.js, ArtPlayer and embedded MPV. Pure ordering functions live
+in portal shared util; the component-provided data-access service owns IDs,
+autoplay state and countdown lifecycle. The queue surface resolves IDs back to
+the existing provider episode-selection payload. It stores no stream URLs.
+Automatic ordering follows loaded seasons. Explicit edits, Clear, Play season
+and Play from here keep their chosen sequence as the catalogue refreshes.
+Stalker advertises loaded episodes only; this does not eagerly fetch seasons.
+
+Ended events schedule one five-second countdown. Cancel, autoplay off, queue
+edits, errors, manual navigation, scope changes and destruction cancel it.
+Duplicate ended events do not reverse Cancel or launch twice. The renderer's
+Next control uses the queue head; an empty queue suppresses legacy host autoplay.
+The queue surface sits below the inline player and is available at narrow widths
+and with native MPV. Fullscreen/PiP retain queue advancement, but the countdown
+and editable drawer are currently on the main page, outside the video surface.
+Saved playlists, cross-series queues and fullscreen queue chrome are later work.
+
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.
 

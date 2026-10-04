@@ -44,6 +44,18 @@ const EPISODES_BY_SEASON = {
 };
 
 describe('buildUpNextRailItems', () => {
+    it('builds the queue picker catalogue including earlier episodes with exactly one playing item', () => {
+        const items = buildUpNextRailItems({
+            episodesBySeason: EPISODES_BY_SEASON,
+            currentEpisodeId: 21,
+            includeBeforeCurrent: true,
+        });
+        expect(items.map((item) => item.id)).toEqual([11, 12, 13, 21, 22]);
+        expect(
+            items.filter((item) => item.isPlaying).map((item) => item.id)
+        ).toEqual([21]);
+        expect(items.map((item) => item.seasonNumber)).toEqual([1, 1, 1, 2, 2]);
+    });
     it('starts at the playing episode and spills over into the next season', () => {
         const items = buildUpNextRailItems({
             episodesBySeason: EPISODES_BY_SEASON,

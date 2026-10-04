@@ -82,13 +82,15 @@
                 [volume]="volume()"
                 [playerOverride]="playerOverride()"
                 [startTime]="startTime()"
-                [seriesNavigation]="seriesNavigation()"
+                [seriesNavigation]="queueNavigation()"
                 [alternativeSources]="alternativeSources()"
                 (alternativeSourceRequested)="
                     alternativeSourceRequested.emit($event)
                 "
                 (sourceCheckRequested)="sourceCheckRequested.emit($event)"
-                (playbackFailed)="playbackFailed.emit($event)"
+                (playbackFailed)="
+                    seriesQueue()?.cancel(); playbackFailed.emit($event)
+                "
                 (timeUpdate)="onTimeUpdate($event)"
                 (playbackEnded)="onPlaybackEnded()"
                 (previousEpisodeRequested)="onPreviousEpisodeRequested()"
@@ -105,6 +107,17 @@
                 />
             }
         </div>
+        @if (
+            queueCatalogue().length &&
+            playback()?.contentInfo?.contentType === 'episode'
+        ) {
+            <app-series-queue
+                [items]="queueCatalogue()"
+                [scope]="queueScope()"
+                [loadedOnly]="!!seasonLoadStates()"
+                (playRequested)="onUpNextEpisodeSelected($event)"
+            />
+        }
     </section>
 }
 

@@ -316,4 +316,42 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         buttons[1].click();
         expect(selected).toEqual([upNextItems[1]]);
     });
+    it.each(['videojs', 'html5', 'artplayer', 'embedded-mpv'])(
+        'routes queue advancement through the same provider selection for %s',
+        async (player) => {
+            await setup(true, player);
+            fixture.componentRef.setInput('playback', seriesPlayback);
+            fixture.componentRef.setInput('seriesEpisodes', {
+                '1': [
+                    { id: 12, season: 1, episode_num: 2, title: 'Episode 2' },
+                    { id: 13, season: 1, episode_num: 3, title: 'Episode 3' },
+                    { id: 14, season: 1, episode_num: 4, title: 'Episode 4' },
+                ],
+            });
+            fixture.componentRef.setInput('seriesNavigation', {
+                canNext: true,
+                canPrevious: true,
+                autoplayEnabled: true,
+            });
+            fixture.detectChanges();
+            fixture.detectChanges();
+            const selected: number[] = [];
+            const legacyEnded = jest.fn();
+            component.upNextEpisodeSelected.subscribe((item) =>
+                selected.push(item.id)
+            );
+            component.playbackEnded.subscribe(legacyEnded);
+            const queue = component.seriesQueue()!;
+            expect(queue).toBeTruthy();
+            queue.queue.enqueue(14, 'next');
+            component.onNextEpisodeRequested();
+            expect(selected).toEqual([14]);
+            queue.queue.clear();
+            fixture.detectChanges();
+            component.onPlaybackEnded();
+            expect(component.queueNavigation()?.canNext).toBe(false);
+            expect(legacyEnded).not.toHaveBeenCalled();
+            expect(selected).toEqual([14]);
+        }
+    );
 });

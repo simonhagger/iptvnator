@@ -54,6 +54,8 @@ import {
 } from './portal-inline-player-stage.util';
 import { UpNextRailComponent } from './up-next-rail.component';
 import type { UpNextRailItem } from './up-next-rail.util';
+import { buildUpNextRailItems } from './up-next-rail.util';
+import { SeriesQueueComponent } from './series-queue.component';
 
 @Component({
     selector: 'app-portal-inline-player',
@@ -67,6 +69,7 @@ import type { UpNextRailItem } from './up-next-rail.util';
         MatTooltipModule,
         TranslateModule,
         UpNextRailComponent,
+        SeriesQueueComponent,
         VodSourcesChipComponent,
         WebPlayerViewComponent,
     ],
@@ -246,6 +249,33 @@ export class PortalInlinePlayerComponent {
             progressPercent: next.progressPercent,
         };
     });
+    readonly seriesQueue = viewChild(SeriesQueueComponent);
+    readonly queueCatalogue = computed(() =>
+        buildUpNextRailItems({
+            episodesBySeason: this.seriesEpisodes(),
+            currentEpisodeId:
+                this.upNextEpisodes()?.find((item) => item.isPlaying)?.id ??
+                this.playback()?.contentInfo?.contentXtreamId,
+            playbackPositions: this.episodePlaybackPositions(),
+            includeBeforeCurrent: true,
+            limit: Number.MAX_SAFE_INTEGER,
+        })
+    );
+    readonly queueScope = computed(() => {
+        const info = this.playback()?.contentInfo;
+        return `${info?.playlistId ?? ''}:${info?.seriesXtreamId ?? this.seriesTitle() ?? ''}`;
+    });
+    readonly queueNavigation = computed(() => {
+        const navigation = this.seriesNavigation();
+        const queue = this.seriesQueue()?.queue;
+        return navigation && queue
+            ? {
+                  ...navigation,
+                  canNext: queue.next() !== null,
+                  autoplayEnabled: queue.autoplay(),
+              }
+            : navigation;
+    });
 
     private readonly fullscreenEpisodePanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
@@ -321,6 +351,7 @@ export class PortalInlinePlayerComponent {
     }
 
     onClose(): void {
+        this.seriesQueue()?.cancel();
         this.closed.emit();
     }
 
@@ -333,18 +364,24 @@ export class PortalInlinePlayerComponent {
     }
 
     onExternalFallbackRequested(request: PlaybackFallbackRequest): void {
+        this.seriesQueue()?.cancel();
         this.externalFallbackRequested.emit(request);
     }
 
     onPlaybackEnded(): void {
-        this.playbackEnded.emit();
+        const queue = this.seriesQueue();
+        if (queue) queue.ended();
+        else this.playbackEnded.emit();
     }
 
     onPreviousEpisodeRequested(): void {
+        this.seriesQueue()?.cancel();
         this.previousEpisodeRequested.emit();
     }
 
     onNextEpisodeRequested(): void {
+        const queue = this.seriesQueue();
+        if (queue) { queue.next(); return; }
         // Season-local navigation ends at a season's last episode; the Up
         // next card can still offer the next season's first, which only
         // the rail selection path knows how to play.
@@ -357,12 +394,13 @@ export class PortalInlinePlayerComponent {
     }
 
     onUpNextEpisodeSelected(item: UpNextRailItem): void {
+        this.seriesQueue()?.cancel();
         this.upNextEpisodeSelected.emit(item);
     }
 
     /** Panel pick: same host path as the rail, then the panel slides away. */
     onPanelEpisodeSelected(item: UpNextRailItem, close: () => void): void {
-        this.upNextEpisodeSelected.emit(item);
+        this.onUpNextEpisodeSelected(item);
         close();
     }
 }
