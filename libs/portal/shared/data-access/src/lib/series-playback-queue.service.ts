@@ -120,8 +120,10 @@ export class SeriesPlaybackQueueService {
     }
 
     handleLaunch(event: SeriesQueueLaunchEvent, current: number | null): void {
-        if (event.phase === 'requested') this.cancel();
-        else if (event.phase === 'failed') this.launchFailed();
+        if (event.phase === 'requested') {
+            this.cancel();
+            this.transitionRequested = true;
+        } else if (event.phase === 'failed') this.launchFailed();
         else this.launchConfirmed(current);
     }
 

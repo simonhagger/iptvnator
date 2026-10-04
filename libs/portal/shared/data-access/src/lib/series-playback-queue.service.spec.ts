@@ -76,6 +76,18 @@ describe('series queue session', () => {
         jest.advanceTimersByTime(5000);
         expect(play).not.toHaveBeenCalled();
     });
+    it('ignores old playback completion while a manual launch is resolving', () => {
+        const autoplay = jest.fn();
+        queue.handleLaunch({ revision: 1, phase: 'requested' }, 1);
+        queue.ended(autoplay);
+        jest.advanceTimersByTime(6000);
+        expect(autoplay).not.toHaveBeenCalled();
+        expect(queue.countdown()).toBeNull();
+        queue.handleLaunch({ revision: 2, phase: 'failed' }, 1);
+        queue.ended(autoplay);
+        jest.advanceTimersByTime(5000);
+        expect(autoplay).toHaveBeenCalledWith(2);
+    });
     it('play now emits once and advances only after the host confirms a new episode', () => {
         const play = jest.fn();
         queue.playNow(play);
