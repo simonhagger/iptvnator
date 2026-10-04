@@ -183,6 +183,47 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
 
     afterEach(() => fixture.destroy());
 
+    it('prefers scoped progress over a dashboard handoff to an older legacy row', async () => {
+        getSeriesPlaybackPositions.mockImplementation(async () => [
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: trackingIdOf('1', 2),
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 300,
+                durationSeconds: 1800,
+            },
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: 123456,
+                contentType: 'episode',
+                seriesXtreamId: 30001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 42,
+                durationSeconds: 1800,
+            },
+        ]);
+        await stabilize();
+        seriesResumeTarget.set({
+            seriesXtreamId: 30001,
+            contentXtreamId: 123456,
+            seasonNumber: 1,
+            episodeNumber: 2,
+        });
+        await settle();
+        expect(resolveVodPlayback).toHaveBeenCalledWith(
+            '/media/file_30001.mpg',
+            'Regular Series',
+            'poster.jpg',
+            2,
+            trackingIdOf('1', 2),
+            300
+        );
+    });
+
     it('resumes the handoff episode at its saved offset once the series positions are read', async () => {
         // Position saved under the episode's own tracking id — resolved
         // lazily, since a regular-series id hashes the season command.

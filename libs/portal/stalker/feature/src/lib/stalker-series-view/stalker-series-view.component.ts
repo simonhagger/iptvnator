@@ -1105,8 +1105,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
         const startTime =
-            startTimeOverride ??
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds;
+            startTimeOverride === 0
+                ? 0
+                : (this.episodePlaybackPositions().get(trackingId)
+                      ?.positionSeconds ?? startTimeOverride);
 
         void this.startPlayback(
             command,
