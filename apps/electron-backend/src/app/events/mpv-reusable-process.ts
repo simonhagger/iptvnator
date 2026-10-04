@@ -219,7 +219,7 @@ export class MpvReusableProcess {
             this.processSessionIds.set(reusedProcess, session.id);
             options.stopPositionPolling();
 
-            if (options.startTime) {
+            if (options.startTime !== undefined) {
                 await sendMpvCommand(
                     reusedSocketPath,
                     'seek',
@@ -310,8 +310,13 @@ export class MpvReusableProcess {
         }
         if (!shouldDispatch()) return;
         const loadFileArgs: Array<string | number> = [options.url, 'replace'];
-        if (options.title) {
-            loadFileArgs.push(-1, `force-media-title=${options.title}`);
+        const fileOptions: string[] = [];
+        if (options.title)
+            fileOptions.push(`force-media-title=${options.title}`);
+        if (options.startTime !== undefined)
+            fileOptions.push(`start=${options.startTime}`);
+        if (fileOptions.length) {
+            loadFileArgs.push(-1, fileOptions.join(','));
         }
         const dispatched = await sendMpvCommand(
             socketPath,
