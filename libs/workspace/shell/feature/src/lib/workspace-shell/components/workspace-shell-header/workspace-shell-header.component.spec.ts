@@ -266,6 +266,41 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);
     });
 
+    it.each([true, false])(
+        'keeps saved-list commands global with no sources: %s',
+        (hasNoPlaylists) => {
+            fixture.componentRef.setInput('isSavedPlaylistsRoute', true);
+            fixture.componentRef.setInput('hasNoPlaylists', hasNoPlaylists);
+            fixture.componentRef.setInput('parentalLockState', 'locked');
+            fixture.detectChanges();
+            const requested = jest.fn();
+            component.commandPaletteRequested.subscribe(requested);
+
+            expect(
+                fixture.nativeElement.querySelector('app-playlist-switcher')
+            ).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector('input[type="search"]')
+            ).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    'button[aria-label="WORKSPACE.SHELL.ADD_PLAYLIST"]'
+                )
+            ).not.toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="header-parental-lock"]'
+                )
+            ).not.toBeNull();
+            fixture.nativeElement
+                .querySelector(
+                    'button[aria-label="WORKSPACE.SHELL.OPEN_COMMAND_PALETTE"]'
+                )
+                .click();
+            expect(requested).toHaveBeenCalledTimes(1);
+        }
+    );
+
     it('renders the global active download count without duplicating the button name', () => {
         fixture.componentRef.setInput('isElectron', true);
         fixture.componentRef.setInput('activeDownloadsCount', 3);
@@ -520,7 +555,10 @@ describe('WorkspaceShellHeaderComponent', () => {
 
     it('hides a yielding Back only in the phone layout', () => {
         const styleSource = readFileSync(
-            join(__dirname, 'workspace-shell-header.component.scss'),
+            join(
+                process.cwd(),
+                'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss'
+            ),
             'utf8'
         );
         const phoneStart = styleSource.indexOf('@media (max-width: 640px)');
@@ -535,7 +573,10 @@ describe('WorkspaceShellHeaderComponent', () => {
 
     it('uses the paired Material primary tokens for the download badge', () => {
         const styleSource = readFileSync(
-            join(__dirname, 'workspace-shell-header.component.scss'),
+            join(
+                process.cwd(),
+                'libs/workspace/shell/feature/src/lib/workspace-shell/components/workspace-shell-header/workspace-shell-header.component.scss'
+            ),
             'utf8'
         );
         const badgeStyles = styleSource.match(

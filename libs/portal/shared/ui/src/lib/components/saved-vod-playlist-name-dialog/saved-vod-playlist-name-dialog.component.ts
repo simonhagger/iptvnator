@@ -10,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces';
 import { TranslatePipe } from '@ngx-translate/core';
+import { savedVodPlaylistNameValidator } from './saved-vod-playlist-name.validator';
 
 export interface SavedVodPlaylistNameDialogData {
     readonly title: string;
@@ -83,12 +84,7 @@ export class SavedVodPlaylistNameDialogComponent {
     readonly maxNameLength = MAX_SAVED_VOD_NAME_LENGTH;
     readonly name = new FormControl(this.data.initialName ?? '', {
         nonNullable: true,
-        validators: (control) => {
-            const length = (control.value as string).trim().length;
-            return length > 0 && length <= MAX_SAVED_VOD_NAME_LENGTH
-                ? null
-                : { invalidName: true };
-        },
+        validators: savedVodPlaylistNameValidator,
     });
     readonly form = new FormGroup({ name: this.name });
 

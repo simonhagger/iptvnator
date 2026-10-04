@@ -163,6 +163,24 @@ describe('app routes', () => {
         expect(resolved).toBe(true);
     });
 
+    it('routes saved lists before provider fallbacks under the initialized workspace', () => {
+        const savedIndex = workspaceChildren.findIndex(
+            (route) => route.path === 'saved-playlists'
+        );
+        const providerIndex = workspaceChildren.findIndex(
+            (route) => route.path === '' && route.loadChildren
+        );
+        expect(savedIndex).toBeGreaterThan(-1);
+        expect(savedIndex).toBeLessThan(providerIndex);
+        expect(typeof workspaceChildren[savedIndex].loadComponent).toBe(
+            'function'
+        );
+        expect(workspaceRoute?.data?.['layout']).toBe('workspace');
+        expect(typeof workspaceRoute?.resolve?.['settingsReady']).toBe(
+            'function'
+        );
+    });
+
     it('lazy-loads M3U workspace routes through the feature boundary', async () => {
         const playlistRoute = workspaceChildren.find(
             (route) => route.path === 'playlists/:id'

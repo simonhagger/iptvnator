@@ -1,43 +1,9 @@
-import { buildSync } from 'esbuild';
-import { resolve } from 'node:path';
-import type {
-    SavedVodDeleteResult,
-    SavedVodPlaylist,
-    SavedVodPlaylistSummary,
-    SavedVodWriteResult,
-} from '@iptvnator/shared/interfaces';
+import type { SavedVodPlaylist } from '@iptvnator/shared/interfaces';
 import { expect, test } from './fixtures';
-
-interface TestStorage {
-    save(
-        document: SavedVodPlaylist,
-        revision: number | null
-    ): Promise<SavedVodWriteResult>;
-    get(id: string): Promise<SavedVodPlaylist | null>;
-    list(): Promise<SavedVodPlaylistSummary[]>;
-    delete(id: string, revision: number): Promise<SavedVodDeleteResult>;
-}
-declare global {
-    interface Window {
-        SavedVodStorageTest: { storage: TestStorage };
-    }
-}
-
-// Exercise the production adapter in a real browser, including IDB transaction
-// lifetime and cross-window writes, without exposing test hooks in the app.
-const bundle = buildSync({
-    stdin: {
-        contents: `import { BrowserSavedVodPlaylists } from './libs/portal/shared/data-access/src/lib/saved-vod-playlists/browser-saved-vod-playlists'; export const storage = new BrowserSavedVodPlaylists();`,
-        resolveDir: resolve(__dirname, '../../..'),
-        loader: 'ts',
-    },
-    bundle: true,
-    write: false,
-    platform: 'browser',
-    format: 'iife',
-    globalName: 'SavedVodStorageTest',
-    tsconfig: resolve(__dirname, '../../../tsconfig.base.json'),
-}).outputFiles[0].text;
+import {
+    attachSavedVodStorage,
+    installSavedVodStorageFixture,
+} from './saved-vod-storage.fixture';
 
 const document: SavedVodPlaylist = {
     schemaVersion: 1,
@@ -62,16 +28,14 @@ const document: SavedVodPlaylist = {
 };
 
 test.beforeEach(async ({ context }) => {
-    await context.route('**/__saved-vod-storage-test.js', (route) =>
-        route.fulfill({ contentType: 'application/javascript', body: bundle })
-    );
+    await installSavedVodStorageFixture(context);
 });
 
 test('@web saved playlists survive reload and preserve summaries', async ({
     page,
 }) => {
     await page.goto('/');
-    await page.addScriptTag({ url: '/__saved-vod-storage-test.js' });
+    await attachSavedVodStorage(page);
     expect(
         await page.evaluate(
             (value) => window.SavedVodStorageTest.storage.save(value, null),
@@ -79,7 +43,7 @@ test('@web saved playlists survive reload and preserve summaries', async ({
         )
     ).toEqual({ status: 'saved', playlist: document });
     await page.reload();
-    await page.addScriptTag({ url: '/__saved-vod-storage-test.js' });
+    await attachSavedVodStorage(page);
     expect(
         await page.evaluate(() =>
             window.SavedVodStorageTest.storage.get('weekend')
@@ -104,14 +68,14 @@ test('@web competing saved playlist edits retain exactly one winning revision', 
     context,
 }) => {
     await page.goto('/');
-    await page.addScriptTag({ url: '/__saved-vod-storage-test.js' });
+    await attachSavedVodStorage(page);
     await page.evaluate(
         (value) => window.SavedVodStorageTest.storage.save(value, null),
         document
     );
     const second = await context.newPage();
     await second.goto('/');
-    await second.addScriptTag({ url: '/__saved-vod-storage-test.js' });
+    await attachSavedVodStorage(second);
     const results = await Promise.all([
         page.evaluate(
             (value) => window.SavedVodStorageTest.storage.save(value, 1),
@@ -154,7 +118,7 @@ test('@web invalid edits leave both document and summary unchanged', async ({
     page,
 }) => {
     await page.goto('/');
-    await page.addScriptTag({ url: '/__saved-vod-storage-test.js' });
+    await attachSavedVodStorage(page);
     await page.evaluate(
         (value) => window.SavedVodStorageTest.storage.save(value, null),
         document
@@ -179,4 +143,60 @@ test('@web invalid edits leave both document and summary unchanged', async ({
     expect(
         await page.evaluate(() => window.SavedVodStorageTest.storage.list())
     ).toHaveLength(1);
+});
+
+test('@web sparse progress cannot replace a valid saved list or its summary', async ({
+    page,
+}) => {
+    await page.goto('/');
+    await attachSavedVodStorage(page);
+    await page.evaluate(
+        (value) => window.SavedVodStorageTest.storage.save(value, null),
+        document
+    );
+    const summary = await page.evaluate(() =>
+        window.SavedVodStorageTest.storage.list()
+    );
+    const error = await page.evaluate(async (value) => {
+        try {
+            await window.SavedVodStorageTest.storage.save(
+                {
+                    ...value,
+                    execution: {
+                        id: 'run-1',
+                        playbackRevision: 1,
+                        entries: value.entries,
+                        currentEntryId: value.entries[0].id,
+                        progress: Array(1),
+                        mode: 'ordered',
+                        repeat: 'off',
+                        updatedAt: value.updatedAt,
+                    },
+                },
+                1
+            );
+        } catch {
+            return 'invalid';
+        }
+        return 'unexpected success';
+    }, document);
+    expect(error).toBe('invalid');
+    expect(
+        await page.evaluate(() =>
+            window.SavedVodStorageTest.storage.get('weekend')
+        )
+    ).toEqual(document);
+    expect(
+        await page.evaluate(() => window.SavedVodStorageTest.storage.list())
+    ).toEqual(summary);
+    await page.reload();
+    await attachSavedVodStorage(page);
+    expect(
+        await page.evaluate(() =>
+            window.SavedVodStorageTest.storage.get('weekend')
+        )
+    ).toEqual(document);
+    expect(
+        await page.evaluate(() => window.SavedVodStorageTest.storage.list())
+    ).toEqual(summary);
 });

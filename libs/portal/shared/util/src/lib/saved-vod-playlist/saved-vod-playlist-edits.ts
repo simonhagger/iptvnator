@@ -1,7 +1,8 @@
-import type {
-    SavedVodEntry,
-    SavedVodPlaylist,
-    SavedVodReference,
+import {
+    normalizeSavedVodEntries,
+    type SavedVodEntry,
+    type SavedVodPlaylist,
+    type SavedVodReference,
 } from '@iptvnator/shared/interfaces';
 
 /** Tuple encoding preserves boundaries and Stalker's raw provider identifiers. */
@@ -40,12 +41,13 @@ export function appendSavedVodEntries(
     updatedAt: string,
     allowDuplicates = false
 ): SavedVodPlaylist {
+    const validated = normalizeSavedVodEntries(candidates);
     const identities = new Set(
         playlist.entries.map((entry) => savedVodReferenceKey(entry.reference))
     );
     const ids = new Set(playlist.entries.map((entry) => entry.id));
     const additions: SavedVodEntry[] = [];
-    for (const entry of candidates) {
+    for (const entry of validated) {
         if (ids.has(entry.id)) throw new Error('Duplicate saved entry ID');
         const key = savedVodReferenceKey(entry.reference);
         if (!allowDuplicates && identities.has(key)) continue;

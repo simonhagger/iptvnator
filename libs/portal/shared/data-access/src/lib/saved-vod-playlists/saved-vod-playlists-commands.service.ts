@@ -7,14 +7,16 @@ import {
     removeSavedVodEntries,
     renameSavedVodPlaylist,
 } from '@iptvnator/portal/shared/util';
-import type {
-    SavedVodEntry,
-    SavedVodPlaylist,
-    SavedVodWriteResult,
+import {
+    normalizeSavedVodCandidates,
+    type SavedVodCandidate,
+    type SavedVodEntry,
+    type SavedVodPlaylist,
+    type SavedVodWriteResult,
 } from '@iptvnator/shared/interfaces';
 import { SavedVodPlaylistsStorageService } from './saved-vod-playlists-storage.service';
 
-export type SavedVodCandidate = Omit<SavedVodEntry, 'id'>;
+export type { SavedVodCandidate } from '@iptvnator/shared/interfaces';
 export type SavedVodEditResult =
     SavedVodWriteResult | { status: 'unchanged'; playlist: SavedVodPlaylist };
 
@@ -35,11 +37,21 @@ export class SavedVodPlaylistsCommandsService {
     private readonly storage = inject(SavedVodPlaylistsStorageService);
     private readonly runtime = inject(SAVED_VOD_PLAYLIST_RUNTIME);
 
-    create(name: string, candidates: readonly SavedVodCandidate[] = []) {
+    create(
+        name: string,
+        candidates: readonly SavedVodCandidate[] = [],
+        allowDuplicates = false
+    ) {
+        const validated = normalizeSavedVodCandidates(candidates);
         const now = this.runtime.now();
         const list = createSavedVodPlaylist(this.runtime.newId(), name, now);
         return this.storage.save(
-            appendSavedVodEntries(list, this.occurrences(candidates), now),
+            appendSavedVodEntries(
+                list,
+                this.occurrences(validated),
+                now,
+                allowDuplicates
+            ),
             null
         );
     }
@@ -67,12 +79,13 @@ export class SavedVodPlaylistsCommandsService {
         playlist: SavedVodPlaylist,
         candidates: readonly SavedVodCandidate[],
         allowDuplicates = false
-    ) {
+    ): Promise<SavedVodEditResult> {
+        const validated = normalizeSavedVodCandidates(candidates);
         return this.edit(
             playlist,
             appendSavedVodEntries(
                 playlist,
-                this.occurrences(candidates),
+                this.occurrences(validated),
                 this.runtime.now(),
                 allowDuplicates
             )
@@ -130,12 +143,17 @@ export class SavedVodPlaylistsCommandsService {
         }));
     }
 
-    private edit(
+    private async edit(
         original: SavedVodPlaylist,
         candidate: SavedVodPlaylist
     ): Promise<SavedVodEditResult> {
-        return candidate === original
-            ? Promise.resolve({ status: 'unchanged', playlist: original })
-            : this.storage.save(candidate, original.revision);
+        if (candidate !== original)
+            return this.storage.save(candidate, original.revision);
+        // A no-op snapshot can be stale: another window may have removed an
+        // item or renamed the list. Confirm its revision without issuing a write.
+        const current = await this.storage.get(original.id);
+        return current?.revision === original.revision
+            ? { status: 'unchanged', playlist: current }
+            : { status: 'conflict', current };
     }
 }

@@ -35,6 +35,9 @@ export interface SavedVodEntry {
     readonly groupId?: string;
 }
 
+/** Drafts have provider identities; persistence assigns each occurrence its ID. */
+export type SavedVodCandidate = Omit<SavedVodEntry, 'id'>;
+
 export interface SavedVodProgress {
     readonly entryId: string;
     readonly positionSeconds: number;

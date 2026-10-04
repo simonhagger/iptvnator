@@ -11,3 +11,4 @@ export * from './lib/register-workspace-back';
 export * from './lib/workspace-back-navigation.service';
 export * from './lib/saved-vod-playlists/saved-vod-playlists-storage.service';
 export * from './lib/saved-vod-playlists/saved-vod-playlists-commands.service';
+export * from './lib/saved-vod-playlists/saved-vod-add-dialog.controller';

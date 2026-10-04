@@ -1,0 +1,29 @@
+:host {
+    display: block;
+    color: var(--app-on-surface);
+}
+mat-dialog-content {
+    min-width: 0;
+    max-width: 480px;
+}
+mat-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block-end: 16px;
+}
+mat-form-field {
+    width: 100%;
+}
+.hint,
+.selection-count {
+    color: var(--app-eyebrow-color);
+    margin-block: 8px 16px;
+}
+button,
+input,
+mat-select,
+mat-radio-button,
+mat-checkbox {
+    app-region: no-drag;
+}

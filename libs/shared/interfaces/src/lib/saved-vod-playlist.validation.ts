@@ -1,4 +1,5 @@
 import type {
+    SavedVodCandidate,
     SavedVodEntry,
     SavedVodExecution,
     SavedVodPlaylist,
@@ -109,22 +110,39 @@ function reference(value: unknown): SavedVodReference {
           };
 }
 
-function entries(value: unknown): SavedVodEntry[] {
+function batch(value: unknown): unknown[] {
     if (!Array.isArray(value) || value.length > MAX_SAVED_VOD_ENTRIES)
         return invalid('entries');
+    return value;
+}
+
+function details(raw: RecordValue): SavedVodCandidate {
+    return {
+        reference: reference(raw['reference']),
+        title: text(raw['title'], 'title', 300),
+        ...(raw['groupId'] === undefined
+            ? {}
+            : { groupId: id(raw['groupId'], 'groupId') }),
+    };
+}
+
+/** Validate every draft before deduplication or allocating occurrence IDs. */
+export function normalizeSavedVodCandidates(
+    value: unknown
+): SavedVodCandidate[] {
+    return Array.from(batch(value), (item) => details(object(item, 'entry')));
+}
+
+export function normalizeSavedVodEntries(value: unknown): SavedVodEntry[] {
     const seen = new Set<string>();
-    return value.map((item) => {
+    return Array.from(batch(value), (item) => {
         const raw = object(item, 'entry');
         const entryId = id(raw['id'], 'entry.id');
         if (seen.has(entryId)) return invalid('duplicate entry ID');
         seen.add(entryId);
         return {
             id: entryId,
-            reference: reference(raw['reference']),
-            title: text(raw['title'], 'title', 300),
-            ...(raw['groupId'] === undefined
-                ? {}
-                : { groupId: id(raw['groupId'], 'groupId') }),
+            ...details(raw),
         };
     });
 }
@@ -132,7 +150,7 @@ function entries(value: unknown): SavedVodEntry[] {
 function execution(value: unknown): SavedVodExecution | null {
     if (value === null) return null;
     const raw = object(value, 'execution');
-    const snapshot = entries(raw['entries']);
+    const snapshot = normalizeSavedVodEntries(raw['entries']);
     const entryIds = new Set(snapshot.map((item) => item.id));
     const currentEntryId =
         raw['currentEntryId'] === null
@@ -146,7 +164,7 @@ function execution(value: unknown): SavedVodExecution | null {
     )
         return invalid('progress');
     const seen = new Set<string>();
-    const progress: SavedVodProgress[] = raw['progress'].map((item) => {
+    const progress: SavedVodProgress[] = Array.from(raw['progress'], (item) => {
         const row = object(item, 'progress');
         const entryId = id(row['entryId'], 'progress.entryId');
         if (!entryIds.has(entryId) || seen.has(entryId))
@@ -192,7 +210,7 @@ export function normalizeSavedVodPlaylist(value: unknown): SavedVodPlaylist {
         id: id(raw['id'], 'id'),
         name: text(raw['name'], 'name', MAX_SAVED_VOD_NAME_LENGTH),
         revision: integer(raw['revision'], 'revision'),
-        entries: entries(raw['entries']),
+        entries: normalizeSavedVodEntries(raw['entries']),
         execution: execution(raw['execution']),
         createdAt: timestamp(raw['createdAt'], 'createdAt'),
         updatedAt: timestamp(raw['updatedAt'], 'updatedAt'),

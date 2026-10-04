@@ -3,7 +3,8 @@
 This buildout adds named movie and episode lists independently of provider sources,
 which are already called playlists elsewhere in IPTVnator. The local foundation
 defines identities, pure editing/execution rules and persistence. The management
-and playback views are subsequent slices; storage alone exposes no new user feature.
+page is available at `/workspace/saved-playlists`; playback, provider expansion
+and portable import/export remain subsequent slices.
 
 ## Ownership
 
@@ -47,6 +48,13 @@ and add-to-new-list actions. It validates the trimmed name against the persisted
 name limit, keeps invalid input available for correction and returns only a name.
 Callers own the command, persistence result and translated action label.
 
+`SavedVodAddDialogComponent` adds a validated movie/episode batch to an existing
+list or creates a populated named list in one atomic write. Its component-scoped
+controller captures the selected revision, validates every candidate before
+deduplication and offers explicit duplicate occurrences. A conflict requires
+Refresh and a new submission; closing or relocking ignores later responses.
+The reusable dialog is implemented, but content-cover callers are not wired yet.
+
 `SavedVodEntryRowComponent` presents movie/episode occurrences with source display
 names and keyboard-accessible reorder/remove buttons. It emits occurrence IDs and
 target positions, disables boundary moves and respects pending writes. The owner
@@ -84,7 +92,8 @@ assigns the next persisted revision and preserves the original creation time.
 `SavedVodPlaylistsCommandsService` coordinates pure edits with storage. Creation
 and duplication use create-only writes; edits and deletion use the observed
 revision. Conflicts return to the caller without an automatic overwrite/retry.
-No-op edits skip storage. Clear and restore affect curated entries and retain the
+No-op edits skip writes but verify the observed stored revision; stale or deleted
+targets return a conflict. Clear and restore affect curated entries and retain the
 active execution snapshot; the management view owns whether Undo is still eligible.
 
 The component-scoped `SavedVodPlaylistsController` owns management-pane state.
@@ -93,6 +102,20 @@ Mutations run one at a time and hold selection until completion. A conflict show
 the current stored document with an explicit notice and never silently retries.
 Clear exposes one Undo slot tied to the saved revision; an intervening action,
 selection or conflict invalidates it. Disposed panes ignore pending responses.
+
+The global management page appears in the Electron and browser workspace rail
+and command palette, including when there are no provider sources. It keeps the
+global app actions and removes provider-specific search and source controls.
+Creation, rename and duplication share the naming dialog. Delete and Clear require
+confirmation; Clear exposes Undo. List and entry panes own their scrolling, and
+entry moves/removals preserve keyboard focus unless the user has moved elsewhere.
+An active-run notice explains that editing retains the execution snapshot.
+
+Saved titles currently have no category index, so the whole page is withheld while
+parental lock is active. Initialization finishes before the manager loads data.
+Relocking destroys the manager and closes only its own dialogs; late dialog results
+are checked before writing. This conservative rule also covers lists whose sources
+have been removed.
 
 Documents pass allowlist validation before IPC and persistence. Unknown fields,
 including credentials, are discarded. SQLite reads check stored identity and

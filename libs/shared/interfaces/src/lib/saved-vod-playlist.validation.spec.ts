@@ -1,9 +1,11 @@
 import {
     MAX_SAVED_VOD_ENTRIES,
+    normalizeSavedVodCandidates,
     normalizeSavedVodPlaylist,
     parseSavedVodPlaylist,
     serializeSavedVodPlaylist,
 } from './saved-vod-playlist.validation';
+import type { SavedVodProgress } from './saved-vod-playlist.interface';
 
 const entry = {
     id: 'entry-1',
@@ -24,6 +26,55 @@ const fixture = () => ({
     execution: null,
     createdAt: '2026-10-04T12:00:00Z',
     updatedAt: '2026-10-04T12:00:00Z',
+});
+
+describe('saved playlist candidate batch validation', () => {
+    it('reconstructs drafts with only allowed fields before they receive IDs', () => {
+        expect(
+            normalizeSavedVodCandidates([
+                {
+                    ...entry,
+                    groupId: 'season-1',
+                    password: 'private',
+                    artworkUrl: 'https://private.example/token',
+                    reference: { ...entry.reference, username: 'private' },
+                },
+            ])
+        ).toEqual([
+            {
+                title: entry.title,
+                reference: entry.reference,
+                groupId: 'season-1',
+            },
+        ]);
+    });
+
+    it.each(['', '   ', 'x'.repeat(301)])(
+        'rejects an invalid title on a later content duplicate',
+        (title) => {
+            expect(() =>
+                normalizeSavedVodCandidates([entry, { ...entry, title }])
+            ).toThrow('Invalid saved playlist field: title');
+        }
+    );
+
+    it('rejects an oversized batch before inspecting or allocating its contents', () => {
+        const oversized = Array(MAX_SAVED_VOD_ENTRIES + 1);
+        Object.defineProperty(oversized, 0, {
+            get: () => {
+                throw new Error('Contents should not be inspected');
+            },
+        });
+        expect(() => normalizeSavedVodCandidates(oversized)).toThrow(
+            'Invalid saved playlist field: entries'
+        );
+    });
+
+    it('rejects sparse batches rather than skipping missing drafts', () => {
+        expect(() => normalizeSavedVodCandidates(Array(1))).toThrow(
+            'Invalid saved playlist field: entry'
+        );
+    });
 });
 
 describe('saved playlist document validation', () => {
@@ -122,6 +173,40 @@ describe('saved playlist document validation', () => {
             })
         ).toThrow();
     });
+
+    it.each(['normalize', 'serialize'] as const)(
+        'rejects sparse execution progress before %s can produce an unreadable document',
+        (operation) => {
+            const document = normalizeSavedVodPlaylist({
+                ...fixture(),
+                execution: {
+                    id: 'run-1',
+                    playbackRevision: 1,
+                    entries: [entry],
+                    currentEntryId: entry.id,
+                    progress: [],
+                    mode: 'ordered',
+                    repeat: 'off',
+                    updatedAt: fixture().updatedAt,
+                },
+            });
+            if (!document.execution)
+                throw new Error('Missing execution fixture');
+            const invalid = {
+                ...document,
+                execution: {
+                    ...document.execution,
+                    progress: Array<SavedVodProgress>(1),
+                },
+            };
+            expect(() =>
+                operation === 'normalize'
+                    ? normalizeSavedVodPlaylist(invalid)
+                    : serializeSavedVodPlaylist(invalid)
+            ).toThrow('Invalid saved playlist field: progress');
+            expect(document.execution?.progress).toEqual([]);
+        }
+    );
 
     it('rejects invalid JSON without leaking its contents in errors', () => {
         expect(() => parseSavedVodPlaylist('{"password":"private"')).toThrow(

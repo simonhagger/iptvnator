@@ -3,6 +3,7 @@ import {
     createSavedVodPlaylist,
     startSavedVodExecution,
 } from '@iptvnator/portal/shared/util';
+import { MAX_SAVED_VOD_ENTRIES } from '@iptvnator/shared/interfaces';
 import {
     SAVED_VOD_PLAYLIST_RUNTIME,
     SavedVodPlaylistsCommandsService,
@@ -20,24 +21,42 @@ const candidate: SavedVodCandidate = {
         contentId: '42',
     },
 };
+const episode: SavedVodCandidate = {
+    title: 'Episode',
+    reference: {
+        provider: 'xtream',
+        sourceId: 'source',
+        kind: 'episode',
+        seriesId: '1',
+        contentId: '42',
+        seasonNumber: 1,
+        episodeNumber: 1,
+    },
+};
 const list = () =>
     createSavedVodPlaylist('list', 'Weekend', NOW, [
         { ...candidate, id: 'first' },
     ]);
 
 describe('saved VOD playlist persistence commands', () => {
-    const storage = { save: jest.fn(), delete: jest.fn() };
+    const storage = { save: jest.fn(), delete: jest.fn(), get: jest.fn() };
     let commands: SavedVodPlaylistsCommandsService;
+    let runtime: { newId: jest.Mock<string, []>; now: jest.Mock<string, []> };
     beforeEach(() => {
         let serial = 0;
+        runtime = {
+            newId: jest.fn(() => `id-${++serial}`),
+            now: jest.fn(() => NOW),
+        };
         storage.save.mockReset();
         storage.delete.mockReset();
+        storage.get.mockReset().mockResolvedValue(list());
         TestBed.configureTestingModule({
             providers: [
                 { provide: SavedVodPlaylistsStorageService, useValue: storage },
                 {
                     provide: SAVED_VOD_PLAYLIST_RUNTIME,
-                    useValue: { newId: () => `id-${++serial}`, now: () => NOW },
+                    useValue: runtime,
                 },
             ],
         });
@@ -66,6 +85,104 @@ describe('saved VOD playlist persistence commands', () => {
         expect(current.name).toBe('Another window');
     });
 
+    it('creates deliberate duplicate entries in one populated create-only write', async () => {
+        await commands.create('Weekend', [candidate, candidate], true);
+        expect(storage.save).toHaveBeenCalledTimes(1);
+        const [document, expected] = storage.save.mock.calls[0];
+        expect(expected).toBeNull();
+        expect(
+            document.entries.map((entry: { id: string }) => entry.id)
+        ).toEqual(['id-2', 'id-3']);
+    });
+
+    it('does not leave an empty list when saving its initial entries fails', async () => {
+        const persisted = new Map<string, unknown>();
+        storage.save.mockImplementation(async (document) => {
+            if (document.entries.length) throw new Error('Storage unavailable');
+            persisted.set(document.id, document);
+            return { status: 'saved', playlist: document };
+        });
+        await expect(commands.create('Weekend', [candidate])).rejects.toThrow(
+            'Storage unavailable'
+        );
+        expect(storage.save).toHaveBeenCalledTimes(1);
+        expect(storage.save.mock.calls[0][0].entries).toHaveLength(1);
+        expect(persisted.size).toBe(0);
+    });
+
+    it.each([
+        {
+            label: 'blank duplicate title',
+            valid: candidate,
+            invalid: { ...candidate, title: '   ' },
+        },
+        {
+            label: 'oversized duplicate title',
+            valid: candidate,
+            invalid: { ...candidate, title: 'x'.repeat(301) },
+        },
+        {
+            label: 'duplicate episode coordinates',
+            valid: episode,
+            invalid: {
+                ...episode,
+                reference: { ...episode.reference, episodeNumber: 0 },
+            },
+        },
+    ])(
+        'rejects $label before deduplication in an existing or new list',
+        ({ valid, invalid }) => {
+            const original = createSavedVodPlaylist('list', 'Weekend', NOW, [
+                { ...valid, id: 'first' },
+            ]);
+            expect(() => commands.append(original, [invalid])).toThrow();
+            expect(() =>
+                commands.create('Weekend', [valid, invalid])
+            ).toThrow();
+            expect(runtime.newId).not.toHaveBeenCalled();
+            expect(runtime.now).not.toHaveBeenCalled();
+            expect(storage.get).not.toHaveBeenCalled();
+            expect(storage.save).not.toHaveBeenCalled();
+        }
+    );
+
+    it.each(['create', 'append'] as const)(
+        'rejects an oversized %s batch before allocating IDs or touching storage',
+        (operation) => {
+            const batch = Array<SavedVodCandidate>(
+                MAX_SAVED_VOD_ENTRIES + 1
+            ).fill(candidate);
+            expect(() =>
+                operation === 'create'
+                    ? commands.create('Weekend', batch)
+                    : commands.append(list(), batch)
+            ).toThrow('Invalid saved playlist field: entries');
+            expect(runtime.newId).not.toHaveBeenCalled();
+            expect(runtime.now).not.toHaveBeenCalled();
+            expect(storage.get).not.toHaveBeenCalled();
+            expect(storage.save).not.toHaveBeenCalled();
+        }
+    );
+
+    it('passes only allowlisted draft fields to persistence', async () => {
+        const untrusted = {
+            ...candidate,
+            groupId: 'season-1',
+            password: 'credential-marker',
+            reference: {
+                ...candidate.reference,
+                streamUrl: 'credential-marker',
+            },
+        };
+        await commands.create('Weekend', [untrusted]);
+        expect(storage.save.mock.calls[0][0].entries).toEqual([
+            { ...candidate, groupId: 'season-1', id: 'id-2' },
+        ]);
+        expect(JSON.stringify(storage.save.mock.calls[0][0])).not.toContain(
+            'credential-marker'
+        );
+    });
+
     it('avoids writes for no-op moves, renames and content already in the list', async () => {
         const original = list();
         await expect(
@@ -88,6 +205,61 @@ describe('saved VOD playlist persistence commands', () => {
             document.entries.map((entry: { id: string }) => entry.id)
         ).toEqual(['first', 'id-1']);
     });
+
+    it('reports a conflict instead of claiming a removed item is already present', async () => {
+        const original = list();
+        const current = { ...original, revision: 2, entries: [] };
+        storage.get.mockResolvedValue(current);
+        await expect(commands.append(original, [candidate])).resolves.toEqual({
+            status: 'conflict',
+            current,
+        });
+        expect(storage.get).toHaveBeenCalledWith(original.id);
+        expect(storage.save).not.toHaveBeenCalled();
+    });
+
+    it('reports a deleted target rather than succeeding from a deduplicated snapshot', async () => {
+        storage.get.mockResolvedValue(null);
+        await expect(commands.append(list(), [candidate])).resolves.toEqual({
+            status: 'conflict',
+            current: null,
+        });
+        expect(storage.save).not.toHaveBeenCalled();
+    });
+
+    it.each(['rename', 'move', 'remove', 'clear'] as const)(
+        'checks no-op %s against the observed stored revision without writing',
+        async (operation) => {
+            const original =
+                operation === 'clear' ? { ...list(), entries: [] } : list();
+            const run = () =>
+                operation === 'rename'
+                    ? commands.rename(original, original.name)
+                    : operation === 'move'
+                      ? commands.move(original, 'first', 0)
+                      : operation === 'remove'
+                        ? commands.remove(original, new Set(['absent']))
+                        : commands.clear(original);
+            storage.get.mockResolvedValue(original);
+            await expect(run()).resolves.toEqual({
+                status: 'unchanged',
+                playlist: original,
+            });
+            const current = { ...original, revision: 2 };
+            storage.get.mockResolvedValue(current);
+            await expect(run()).resolves.toEqual({
+                status: 'conflict',
+                current,
+            });
+            storage.get.mockResolvedValue(null);
+            await expect(run()).resolves.toEqual({
+                status: 'conflict',
+                current: null,
+            });
+            expect(storage.save).not.toHaveBeenCalled();
+            expect(storage.get).toHaveBeenCalledTimes(3);
+        }
+    );
 
     it('clears and restores curated entries while retaining the active run and using the latest revision', async () => {
         const original = list();

@@ -101,6 +101,7 @@ export class WorkspaceShellFacade {
     readonly isDashboardRoute = this.routeState.isDashboardRoute;
     readonly isSourcesRoute = this.routeState.isSourcesRoute;
     readonly isSettingsRoute = this.routeState.isSettingsRoute;
+    readonly isSavedPlaylistsRoute = this.routeState.isSavedPlaylistsRoute;
     readonly isGlobalDownloadsRoute = this.routeState.isGlobalDownloadsRoute;
     readonly railContext = this.routeState.railContext;
     readonly externalPlaybackSession = this.externalPlayback.visibleSession;

@@ -100,6 +100,13 @@ export class WorkspaceShellRouteStateService {
             exact: true,
         });
 
+        links.push({
+            icon: 'playlist_play',
+            tooltip: this.translateText('SAVED_VOD_PLAYLISTS.TITLE'),
+            path: ['/workspace/saved-playlists'],
+            exact: true,
+        });
+
         return links;
     });
     readonly isDashboardRoute = computed(
@@ -110,6 +117,9 @@ export class WorkspaceShellRouteStateService {
     );
     readonly isSettingsRoute = computed(
         () => this.currentRoute().kind === 'settings'
+    );
+    readonly isSavedPlaylistsRoute = computed(
+        () => this.currentRoute().kind === 'saved-playlists'
     );
     readonly isGlobalDownloadsRoute = computed(
         () => this.currentRoute().kind === 'downloads'
@@ -195,8 +205,7 @@ export class WorkspaceShellRouteStateService {
             case 'settings':
                 return {
                     aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
-                    tooltip:
-                        'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+                    tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
                 };
             case 'sources':
             case 'collection':

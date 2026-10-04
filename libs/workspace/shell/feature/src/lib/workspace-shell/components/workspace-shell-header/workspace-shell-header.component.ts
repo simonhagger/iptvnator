@@ -83,6 +83,8 @@ export class WorkspaceShellHeaderComponent {
      * isSettingsRoute computed.
      */
     readonly isSettingsRoute = input(false);
+    /** Saved lists can combine providers; switching a source cannot scope them. */
+    readonly isSavedPlaylistsRoute = input(false);
     /**
      * Parental lock indicator: `off` hides the button, `locked` offers the
      * PIN prompt, `unlocked` offers "Lock now".

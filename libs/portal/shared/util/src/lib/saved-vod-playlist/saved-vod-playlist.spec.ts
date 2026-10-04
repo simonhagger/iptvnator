@@ -96,6 +96,20 @@ describe('saved VOD playlist identity and editing', () => {
         expect(new Set(keys).size).toBe(4);
     });
 
+    it('validates all incoming occurrences before content duplicates are discarded', () => {
+        const invalid = { ...movie('copy', '1'), title: '' };
+        expect(() => appendSavedVodEntries(playlist(), [invalid], NOW)).toThrow(
+            'Invalid saved playlist field: title'
+        );
+        expect(() =>
+            appendSavedVodEntries(
+                playlist([]),
+                [movie('first', '1'), invalid],
+                NOW
+            )
+        ).toThrow('Invalid saved playlist field: title');
+    });
+
     it('reorders and removes saved entries without changing the execution snapshot', () => {
         const base = playlist();
         const original = { ...base, execution: start(base) };
