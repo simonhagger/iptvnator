@@ -76,6 +76,13 @@ revision. Conflicts return to the caller without an automatic overwrite/retry.
 No-op edits skip storage. Clear and restore affect curated entries and retain the
 active execution snapshot; the management view owns whether Undo is still eligible.
 
+The component-scoped `SavedVodPlaylistsController` owns management-pane state.
+Read generations prevent an old selection or refresh replacing a newer result.
+Mutations run one at a time and hold selection until completion. A conflict shows
+the current stored document with an explicit notice and never silently retries.
+Clear exposes one Undo slot tied to the saved revision; an intervening action,
+selection or conflict invalidates it. Disposed panes ignore pending responses.
+
 Documents pass allowlist validation before IPC and persistence. Unknown fields,
 including credentials, are discarded. SQLite reads check stored identity and
 revision. Browser reads check identity. Listing reads summaries instead of parsing
