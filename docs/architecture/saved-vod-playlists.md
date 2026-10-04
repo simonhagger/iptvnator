@@ -123,6 +123,24 @@ revision. Browser reads check identity. Listing reads summaries instead of parsi
 every execution snapshot. Real browser tests cover reload, competing windows and
 invalid edits; Electron E2E covers the preload/worker/SQLite path and app restart.
 
+## Series and season planning
+
+Pure expansion and refresh proposals accept explicit provider metadata, supplied
+occurrence IDs, a captured timestamp, a monotonic sequence and available capacity.
+They validate the entire metadata batch before group filtering and deduplication.
+Stalker season proposals retain the raw season ID and series mode, including
+special seasons with display number zero. Refresh preserves matching occurrence
+IDs, matches deliberate duplicates in their existing order and reports additions,
+removals and changes to retained order.
+
+These descriptors and proposals are not persisted or connected to provider
+fetching yet. The next slice must store group provenance in the same document as
+entries, prepare a whole-list preview and apply it with the observed revision in
+one write. Preview and Cancel must not write. Applying refresh must preserve
+unrelated and manually ordered entries and the active execution snapshot. Clear,
+Undo and Duplicate must handle provenance together with entries before group
+refresh becomes available in the UI.
+
 ## Delivery and validation
 
 The grouped tranche contains domain/persistence, a sidebar management pane and add
