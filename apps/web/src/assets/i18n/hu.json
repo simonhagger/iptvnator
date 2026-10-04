@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Lejátszási lista neve",
+        "NAME_ERROR": "Adjon meg egy 1–{{max}} karakter hosszú nevet."
+    },
     "CANCEL": "Mégse",
     "CLEAR": "Törlés",
     "CLOSE": "Bezárás",

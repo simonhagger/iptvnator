@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Nombre de la lista de reproducción",
+        "NAME_ERROR": "Introduce un nombre de 1 a {{max}} caracteres."
+    },
     "CANCEL": "Cancelar",
     "CLEAR": "Borrar",
     "CLOSE": "Cerrar",

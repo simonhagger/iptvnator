@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "プレイリスト名",
+        "NAME_ERROR": "1～{{max}}文字の名前を入力してください。"
+    },
     "CANCEL": "キャンセル",
     "CLEAR": "クリア",
     "CLOSE": "閉じる",

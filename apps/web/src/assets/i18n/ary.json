@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "سمية لائحة التشغيل",
+        "NAME_ERROR": "دخل سمية فيها من حرف واحد حتى {{max}} حرف."
+    },
     "CANCEL": "إلغاء",
     "CLEAR": "مسح",
     "CLOSE": "سد",

@@ -42,6 +42,11 @@ Duplication receives a new list ID and one new ID per occurrence from the caller
 preserves content order and provenance, and starts without an execution or progress.
 Renaming retains the original creation time, persisted revision and run.
 
+The shared `SavedVodPlaylistNameDialogComponent` supplies naming for management
+and add-to-new-list actions. It validates the trimmed name against the persisted
+name limit, keeps invalid input available for correction and returns only a name.
+Callers own the command, persistence result and translated action label.
+
 Observations carry execution ID, occurrence ID and playback revision. Every
 transition increments the revision, including Repeat One, so late time/end events
 cannot advance a replacement run or complete the same occurrence twice. Skip does

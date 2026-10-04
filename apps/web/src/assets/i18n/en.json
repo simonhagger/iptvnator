@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Playlist name",
+        "NAME_ERROR": "Enter a name of 1 to {{max}} characters."
+    },
     "CANCEL": "Cancel",
     "CLEAR": "Clear",
     "CLOSE": "Close",

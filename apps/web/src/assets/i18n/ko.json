@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "재생목록 이름",
+        "NAME_ERROR": "1~{{max}}자 길이의 이름을 입력하세요."
+    },
     "CANCEL": "취소",
     "CLEAR": "지우기",
     "CLOSE": "닫기",

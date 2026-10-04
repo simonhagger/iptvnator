@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Nome della playlist",
+        "NAME_ERROR": "Inserisci un nome da 1 a {{max}} caratteri."
+    },
     "CANCEL": "Annulla",
     "CLEAR": "Cancella",
     "CLOSE": "Chiudi",

@@ -8,6 +8,7 @@ import type {
 
 export const MAX_SAVED_VOD_ENTRIES = 2000;
 export const MAX_SAVED_VOD_DOCUMENT_CHARS = 2 * 1024 * 1024;
+export const MAX_SAVED_VOD_NAME_LENGTH = 100;
 
 /** Errors describe the field, never the supplied value or a resolved stream. */
 export class SavedVodValidationError extends Error {
@@ -189,7 +190,7 @@ export function normalizeSavedVodPlaylist(value: unknown): SavedVodPlaylist {
     return {
         schemaVersion: 1,
         id: id(raw['id'], 'id'),
-        name: text(raw['name'], 'name', 100),
+        name: text(raw['name'], 'name', MAX_SAVED_VOD_NAME_LENGTH),
         revision: integer(raw['revision'], 'revision'),
         entries: entries(raw['entries']),
         execution: execution(raw['execution']),

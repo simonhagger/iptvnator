@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Naam van de afspeellijst",
+        "NAME_ERROR": "Voer een naam van 1 tot {{max}} tekens in."
+    },
     "CANCEL": "Annuleren",
     "CLEAR": "Wissen",
     "CLOSE": "Afsluiten",

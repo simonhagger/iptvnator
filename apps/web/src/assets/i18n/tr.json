@@ -1,4 +1,8 @@
 {
+    "SAVED_VOD_PLAYLISTS": {
+        "NAME": "Oynatma listesi adı",
+        "NAME_ERROR": "1 ile {{max}} karakter arasında bir ad girin."
+    },
     "CANCEL": "İptal",
     "CLEAR": "Temizle",
     "CLOSE": "Kapat",
