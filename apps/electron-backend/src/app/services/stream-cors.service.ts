@@ -2,8 +2,19 @@ import type {
     OnBeforeSendHeadersListenerDetails,
     OnHeadersReceivedListenerDetails,
 } from 'electron';
+import { getPlaybackMediaExtensionFromUrl } from '@iptvnator/shared/m3u-utils';
 
 type Request = { origin: string; url: string };
+const HLS_MEDIA_EXTENSIONS = new Set([
+    'm3u',
+    'm3u8',
+    'ts',
+    'm4s',
+    'mp4',
+    'aac',
+    'key',
+    'vtt',
+]);
 
 /** Only the playback owner can seed requests; redirect grants never become global. */
 export class StreamCorsScope {
@@ -61,7 +72,9 @@ export class StreamCorsScope {
                 url.pathname.startsWith(
                     base.pathname.slice(0, base.pathname.lastIndexOf('/') + 1)
                 ) &&
-                /\.(m3u8|ts|m4s|mp4|aac|key)$/i.test(url.pathname)
+                HLS_MEDIA_EXTENSIONS.has(
+                    getPlaybackMediaExtensionFromUrl(url.href)
+                )
             );
         });
         if (!tracked && url.href !== this.source.href && !segment) return;
@@ -83,7 +96,9 @@ export class StreamCorsScope {
         if (
             details.statusCode >= 200 &&
             details.statusCode < 300 &&
-            new URL(details.url).pathname.endsWith('.m3u8')
+            ['m3u', 'm3u8'].includes(
+                getPlaybackMediaExtensionFromUrl(details.url)
+            )
         )
             this.playlists.add(details.url);
         const headers = { ...details.responseHeaders };

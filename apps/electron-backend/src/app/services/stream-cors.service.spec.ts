@@ -33,6 +33,29 @@ const response = (url = source, changes = {}) =>
     }) as OnHeadersReceivedListenerDetails;
 
 describe('active stream CORS scope', () => {
+    it.each(['stream.M3U8', 'stream.m3u', 'stream?format=hls'])(
+        'grants same-directory video and captions after %s loads',
+        (name) => {
+            const playlist = `https://provider.example/live/${name}`;
+            scope.configure(playlist, 7);
+            scope.beforeRequest(request(playlist));
+            scope.response(response(playlist, { statusCode: 200 }));
+            scope.finish(1);
+            for (const [index, file] of [
+                'chunk.ts',
+                'captions.vtt',
+            ].entries()) {
+                const url = `https://provider.example/live/${file}`;
+                const id = index + 2;
+                scope.beforeRequest(request(url, { id }));
+                expect(
+                    scope.response(response(url, { id }))?.[
+                        'Access-Control-Allow-Origin'
+                    ]
+                ).toBeDefined();
+            }
+        }
+    );
     let scope: StreamCorsScope;
     beforeEach(() => {
         scope = new StreamCorsScope();
