@@ -69,7 +69,7 @@ describe('request header overrides', () => {
     it('binds headerless playback to its IPC owner and revokes it on close', async () => {
         const { configureRequestHeaderOverride, releaseStreamHeaderOverride } =
             await import('./request-header-overrides.service');
-        const url = 'https://stream.example/live.ts';
+        const url = 'https://stream.example:443/live.ts';
         configureRequestHeaderOverride(null, null, url, null, 1);
         runHeaderListener(mockOnBeforeSendHeaders.mock.calls[0][1], url, {
             Origin: 'http://localhost:4200',

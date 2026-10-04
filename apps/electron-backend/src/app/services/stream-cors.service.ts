@@ -13,7 +13,12 @@ export class StreamCorsScope {
     private playlists = new Set<string>();
 
     release(url: string | null | undefined, owner: number): boolean {
-        if (this.owner !== owner || this.source?.href !== url) return false;
+        if (this.owner !== owner || !url) return false;
+        try {
+            if (this.source?.href !== new URL(url).href) return false;
+        } catch {
+            return false;
+        }
         this.configure();
         return true;
     }
