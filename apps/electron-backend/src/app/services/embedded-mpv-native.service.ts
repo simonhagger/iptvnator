@@ -11,8 +11,18 @@ import {
 import { createRequire } from 'module';
 import path from 'path';
 import App from '../app';
+import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
+import { floatingPlaybackState } from './floating-playback-state';
+import {
+    pendingLiveSeekBase,
+    type PendingLiveSeek,
+} from './embedded-mpv-pending-seek';
 import {
     EmbeddedMpvAudioTrack,
+    playbackIsLive,
+    embeddedMpvSeekWindow,
+    clampPlaybackSeek,
+    supportsNativeFloatingPlayer,
     EmbeddedMpvBounds,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
@@ -62,6 +72,8 @@ import {
 } from './embedded-mpv-runtime-policy.util';
 
 export interface NativeEmbeddedMpvSessionSnapshot {
+    seekable?: boolean;
+    seekableRanges?: { start: number; end: number }[];
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -103,6 +115,7 @@ export interface NativeEmbeddedMpvAddon {
     ): string;
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void;
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
+    reparentSession?(sessionId: string, handle: Buffer): void;
     setPaused(sessionId: string, paused: boolean): void;
     seek(sessionId: string, seconds: number): void;
     /**
@@ -134,6 +147,7 @@ interface EmbeddedMpvRuntimeSession {
     startedAt: string;
     updatedAt: string;
     lastPayloadKey: string;
+    pendingLiveSeek?: PendingLiveSeek;
     lastStatus: EmbeddedMpvSessionStatus | null;
     reconnect: EmbeddedMpvReconnectState;
     /** Linux native-view only: the `--include` file carrying the options. */
@@ -497,6 +511,11 @@ export class EmbeddedMpvNativeService {
                     engine: this.getActiveEngine(),
                     ...this.getFrameCopySupportDetails(),
                     capabilities: this.detectCapabilities(),
+                    floatingWindow: supportsNativeFloatingPlayer(
+                        process.platform,
+                        this.getActiveEngine(),
+                        typeof this.addon.reparentSession === 'function'
+                    ),
                 };
             } catch (error) {
                 return {
@@ -563,6 +582,11 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
+                floatingWindow: supportsNativeFloatingPlayer(
+                    process.platform,
+                    this.getActiveEngine(),
+                    typeof addon.reparentSession === 'function'
+                ),
             };
         } catch (error) {
             return {
@@ -595,6 +619,11 @@ export class EmbeddedMpvNativeService {
                 engine: this.getActiveEngine(),
                 ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
+                floatingWindow: supportsNativeFloatingPlayer(
+                    process.platform,
+                    this.getActiveEngine(),
+                    typeof addon.reparentSession === 'function'
+                ),
             };
         } catch (error) {
             return {
@@ -694,6 +723,7 @@ export class EmbeddedMpvNativeService {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         const session = this.getRuntimeSession(sessionId);
+        session.pendingLiveSeek = undefined;
         session.title = playback.title ?? session.title;
         session.streamUrl = playback.streamUrl ?? session.streamUrl;
         session.updatedAt = new Date().toISOString();
@@ -710,11 +740,51 @@ export class EmbeddedMpvNativeService {
         this.refreshSession(sessionId);
     }
 
+    private readonly floatingPlayer = new EmbeddedMpvFloatingPlayer({
+        mainWindow: () => App.mainWindow,
+        reparent: (id, handle) => {
+            const addon = this.getAddon();
+            if (!addon.reparentSession)
+                throw new Error('Floating MPV is unavailable.');
+            addon.reparentSession(id, handle);
+        },
+        setBounds: (id, bounds) => this.getAddon().setBounds(id, bounds),
+        togglePaused: (id) =>
+            this.setPaused(id, this.refreshSession(id)?.status !== 'paused'),
+        setVolume: (id, volume) => this.setVolume(id, volume),
+        seek: (id, seconds) => this.seek(id, seconds),
+        seekBy: (id, delta) => this.seekBy(id, delta),
+    });
+
+    async openFloatingPlayer(sessionId: string): Promise<boolean> {
+        if (
+            !this.sessions.has(sessionId) ||
+            !this.getSupport().floatingWindow
+        ) {
+            return false;
+        }
+        const opened = await this.floatingPlayer.open(sessionId);
+        const session = this.sessions.get(sessionId);
+        if (opened && session) {
+            session.lastPayloadKey = '';
+            this.refreshSession(sessionId);
+        }
+        return opened;
+    }
+
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
         const usesFrameCopyAddon =
             this.frameCopyAdapter !== null && addon === this.frameCopyAdapter;
+        if (
+            !usesFrameCopyAddon &&
+            this.floatingPlayer.rememberBounds(
+                sessionId,
+                this.scaleBoundsForNativeView(bounds)
+            )
+        )
+            return;
         addon.setBounds(
             sessionId,
             usesFrameCopyAddon ? bounds : this.scaleBoundsForNativeView(bounds)
@@ -738,7 +808,19 @@ export class EmbeddedMpvNativeService {
 
     seek(sessionId: string, seconds: number): EmbeddedMpvSession | null {
         this.assertEmbeddedMpvEnabled();
-        this.getAddon().seek(sessionId, seconds);
+        const runtime = this.sessions.get(sessionId);
+        if (runtime) runtime.pendingLiveSeek = undefined;
+        const session = this.refreshSession(sessionId);
+        const playback = this.sessions.get(sessionId)?.reconnect.playback;
+        const target = playback
+            ? clampPlaybackSeek(
+                  embeddedMpvSeekWindow(session, playback),
+                  seconds
+              )
+            : Number.isFinite(seconds)
+              ? seconds
+              : null;
+        if (target !== null) this.getAddon().seek(sessionId, target);
         return this.refreshSession(sessionId);
     }
 
@@ -756,6 +838,36 @@ export class EmbeddedMpvNativeService {
         const addon = this.getAddon();
         if (!Number.isFinite(deltaSeconds)) {
             return this.refreshSession(sessionId);
+        }
+        const playback = this.sessions.get(sessionId)?.reconnect.playback;
+        if (playback) {
+            const session = this.refreshSession(sessionId);
+            const window = embeddedMpvSeekWindow(session, playback);
+            if (!window.canSeek) return session;
+            if (playbackIsLive(playback)) {
+                const runtime = this.sessions.get(sessionId);
+                const observed = session?.positionSeconds ?? 0;
+                const pending = runtime?.pendingLiveSeek;
+                const observedAt = performance.now();
+                const base = pendingLiveSeekBase(
+                    pending,
+                    observed,
+                    observedAt,
+                    session?.status === 'playing',
+                    session?.playbackSpeed ?? 1
+                );
+                const target = clampPlaybackSeek(window, base + deltaSeconds);
+                if (target !== null) {
+                    if (runtime)
+                        runtime.pendingLiveSeek = {
+                            observed,
+                            observedAt,
+                            target,
+                        };
+                    addon.seek(sessionId, target);
+                }
+                return this.refreshSession(sessionId);
+            }
         }
         if (typeof addon.seekBy === 'function') {
             addon.seekBy(sessionId, deltaSeconds);
@@ -1040,6 +1152,7 @@ export class EmbeddedMpvNativeService {
     }
 
     disposeSession(sessionId: string): EmbeddedMpvSession | null {
+        this.floatingPlayer.dispose(sessionId);
         const session = this.sessions.get(sessionId);
         if (!session) {
             return null;
@@ -1168,6 +1281,9 @@ export class EmbeddedMpvNativeService {
             });
         };
 
+        App.mainWindow.webContents.on('destroyed', () =>
+            disposeAll('main window closed')
+        );
         App.mainWindow.webContents.on(
             'render-process-gone',
             (_event, details) => disposeAll(`process gone (${details.reason})`)
@@ -1258,11 +1374,22 @@ export class EmbeddedMpvNativeService {
         this.reportRejectedOptions(session, snapshot);
 
         const payload: EmbeddedMpvSession = {
+            seekable:
+                typeof snapshot.seekable === 'boolean'
+                    ? snapshot.seekable
+                    : undefined,
+            seekableRanges: snapshot.seekableRanges ?? [],
             id: session.id,
             title: session.title,
             streamUrl: snapshot.streamUrl || session.streamUrl,
             status: snapshot.status,
-            positionSeconds: Math.max(0, Math.floor(snapshot.positionSeconds)),
+            positionSeconds: Math.max(
+                0,
+                session.reconnect.playback &&
+                    playbackIsLive(session.reconnect.playback)
+                    ? snapshot.positionSeconds
+                    : Math.floor(snapshot.positionSeconds)
+            ),
             durationSeconds:
                 typeof snapshot.durationSeconds === 'number'
                     ? Math.max(0, Math.floor(snapshot.durationSeconds))
@@ -1439,6 +1566,22 @@ export class EmbeddedMpvNativeService {
         }
 
         App.mainWindow.webContents.send(EMBEDDED_MPV_SESSION_UPDATE, session);
+        this.floatingPlayer.update(
+            session.id,
+            floatingPlaybackState(
+                session.status === 'paused',
+                session.volume,
+                playbackIsLive(
+                    this.sessions.get(session.id)?.reconnect.playback ?? {
+                        isLive: true,
+                    }
+                ),
+                session.positionSeconds,
+                session.durationSeconds,
+                session.seekable,
+                session.seekableRanges
+            )
+        );
     }
 
     private getRuntimeSession(sessionId: string): EmbeddedMpvRuntimeSession {

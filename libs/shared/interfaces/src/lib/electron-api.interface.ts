@@ -1260,6 +1260,7 @@ export interface ElectronBridgeApi {
         sessionId: string
     ) => Promise<ExternalPlayerSession | null>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
+    openEmbeddedMpvFloatingPlayer?: (sessionId: string) => Promise<boolean>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;
     createEmbeddedMpvSession: (
         bounds: EmbeddedMpvBounds,
