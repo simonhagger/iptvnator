@@ -39,6 +39,7 @@ export class SeriesQueueComponent {
     readonly loadedOnly = input(false);
     readonly initialQueue = input<readonly number[] | null>(null);
     readonly launchFailure = input(0);
+    readonly launchConfirmation = input(0);
     private initializedScope: string | null = null;
     readonly playRequested = output<UpNextRailItem>();
     readonly queue = inject(SeriesPlaybackQueueService);
@@ -56,6 +57,12 @@ export class SeriesQueueComponent {
     readonly nextItem = computed(() => this.upcoming()[0] ?? null);
 
     constructor() {
+        effect(() => {
+            this.launchConfirmation();
+            untracked(() =>
+                this.queue.launchConfirmed(this.current()?.id ?? null)
+            );
+        });
         effect(() => {
             this.launchFailure();
             untracked(() => this.queue.launchFailed());

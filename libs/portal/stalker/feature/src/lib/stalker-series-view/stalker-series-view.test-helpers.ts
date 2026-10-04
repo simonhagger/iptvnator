@@ -48,6 +48,8 @@ export class StubPortalInlinePlayerComponent {
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
+    readonly seriesQueueLaunchFailure = input(0);
+    readonly seriesQueueLaunchConfirmation = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
     readonly seriesEpisodes = input<unknown>(null);

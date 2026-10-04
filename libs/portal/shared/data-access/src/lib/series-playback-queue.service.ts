@@ -26,6 +26,7 @@ export class SeriesPlaybackQueueService {
     private timer: ReturnType<typeof setInterval> | null = null;
     private transitionRequested = false;
     private endedHandled = false;
+    private lastPlaybackPosition = 0;
     private pendingSequence: {
         ids: readonly number[];
         current: number;
@@ -115,6 +116,23 @@ export class SeriesPlaybackQueueService {
         this.transitionRequested = false;
         this.endedHandled = false;
         this.pendingSequence = null;
+    }
+
+    launchConfirmed(current: number | null): void {
+        this.cancel();
+        this.transitionRequested = false;
+        this.endedHandled = false;
+        if (this.pendingSequence?.current !== current)
+            this.pendingSequence = null;
+    }
+
+    observePlayback(position: number, playing?: boolean): void {
+        if (!Number.isFinite(position)) return;
+        if (playing === true || position < this.lastPlaybackPosition) {
+            this.cancel();
+            this.endedHandled = false;
+        }
+        this.lastPlaybackPosition = position;
     }
 
     ended(play: (id: number) => void): void {

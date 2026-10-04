@@ -1296,6 +1296,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     readonly initialSeriesQueue = signal<readonly number[] | null>(null);
     readonly seriesQueueLaunchFailure = signal(0);
+    readonly seriesQueueLaunchConfirmation = signal(0);
 
     startSeriesQueue(request: SeriesQueueStartRequest): void {
         this.initialSeriesQueue.set(request.ids);
@@ -1523,6 +1524,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             toStalkerEpisodePlaybackStructuralIdentity(identity)
         );
         this.inlinePlayback.set(playback);
+        this.seriesQueueLaunchConfirmation.update((value) => value + 1);
     }
 
     private syncSeriesPlaybackOwner(ownerKey: string): void {

@@ -79,6 +79,26 @@ describe('series queue session', () => {
         queue.sync('playlist:series', [1, 2, 3], 1);
         expect(queue.state().upcoming).toEqual([2]);
     });
+    it('replaying an episode cancels continuation and re-arms its next completion', () => {
+        const play = jest.fn();
+        queue.observePlayback(120, false);
+        queue.ended(play);
+        queue.observePlayback(20, true);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+        queue.observePlayback(120, false);
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).toHaveBeenCalledWith(2);
+    });
+    it('releases a superseded Next when the host confirms the same episode', () => {
+        const play = jest.fn();
+        queue.playNow(play);
+        queue.launchConfirmed(1);
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2], [2]]);
+    });
+
     it('destroy cancels timers', () => {
         const play = jest.fn();
         queue.ended(play);

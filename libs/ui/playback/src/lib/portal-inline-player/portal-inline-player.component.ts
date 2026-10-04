@@ -100,6 +100,7 @@ export class PortalInlinePlayerComponent {
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
     readonly seriesQueueLaunchFailure = input(0);
+    readonly seriesQueueLaunchConfirmation = input(0);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     /**
@@ -359,7 +360,15 @@ export class PortalInlinePlayerComponent {
         this.closed.emit();
     }
 
-    onTimeUpdate(event: { currentTime: number; duration: number }): void {
+    onTimeUpdate(event: {
+        currentTime: number;
+        duration: number;
+        playing?: boolean;
+    }): void {
+        this.seriesQueue()?.queue.observePlayback(
+            event.currentTime,
+            event.playing
+        );
         this.timeUpdate.emit(event);
     }
 
