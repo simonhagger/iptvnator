@@ -98,6 +98,7 @@ export class PortalInlinePlayerComponent {
     /** Series name for the fullscreen title overlay. Xtream episode playback
      * carries the episode title, so the series name must come from the host. */
     readonly seriesTitle = input<string | null>(null);
+    readonly initialSeriesQueue = input<readonly number[] | null>(null);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     /**

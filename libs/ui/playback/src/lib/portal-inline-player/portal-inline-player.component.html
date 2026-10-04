@@ -114,6 +114,7 @@
             <app-series-queue
                 [items]="queueCatalogue()"
                 [scope]="queueScope()"
+                [initialQueue]="initialSeriesQueue()"
                 [loadedOnly]="!!seasonLoadStates()"
                 (playRequested)="onUpNextEpisodeSelected($event)"
             />

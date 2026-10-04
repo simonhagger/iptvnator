@@ -140,6 +140,7 @@
                 detail-player
                 [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
+                [initialSeriesQueue]="initialSeriesQueue()"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="serial.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
@@ -163,6 +164,9 @@
         }
 
         <!-- Seasons & Episodes -->
+        @if (!inlinePlayback()) {
+            <app-series-queue-start detail-episodes [seasons]="mappedSeasons()" (requested)="startSeriesQueue($event)" />
+        }
         @if (mappedSeasons()) {
             <app-season-container
                 detail-episodes

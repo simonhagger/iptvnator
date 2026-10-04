@@ -194,7 +194,8 @@ export async function selectWebPlayer(
 /** Add the mock portal and start the first episode of the first series. */
 export async function playFirstSeriesEpisode(
     page: Page,
-    request: APIRequestContext
+    request: APIRequestContext,
+    startPlayback = true
 ): Promise<{ playerView: Locator; video: Locator }> {
     const categories = (await (
         await request.get(
@@ -227,7 +228,7 @@ export async function playFirstSeriesEpisode(
 
     const episodeCards = page.locator('.episode-card');
     await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
-    await episodeCards.first().click();
+    if (startPlayback) await episodeCards.first().click();
 
     const playerView = page.locator(
         'app-portal-inline-player app-web-player-view'

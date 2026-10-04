@@ -41,6 +41,8 @@ import {
     buildUpNextRailItems,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
@@ -108,6 +110,7 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         SeasonContainerComponent,
         SimilarRailComponent,
         TranslatePipe,
@@ -164,6 +167,12 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly seasonWatchBatchRunning = this.playback.seasonWatchBatchRunning;
     readonly activeEpisodeId = this.playback.activeEpisodeId;
     readonly quickStartAction = this.playback.quickStartAction;
+    readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.initialSeriesQueue.set(request.ids);
+        this.playUpNextEpisode(request.episode);
+    }
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
     readonly playbackSessionKey = computed(() =>
@@ -381,6 +390,7 @@ export class SerialDetailsComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.initialSeriesQueue.set(null);
         this.playback.closeInlinePlayer();
     }
 

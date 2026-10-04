@@ -8,6 +8,11 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 ## Current status
 
 Inline Xtream and Stalker series use a session-scoped playback queue shared
+with a browse-state entry point above the show page's seasons. Its episode
+picker offers Play season and Play from here before playback. A one-time ID
+sequence seeds the active queue; closing playback clears that pending sequence.
+The editable queue remains in the inline player after playback starts.
+The active queue is shared
 across HTML5, Video.js, ArtPlayer and embedded MPV. Pure ordering functions live
 in portal shared util; the component-provided data-access service owns IDs,
 autoplay state and countdown lifecycle. The queue surface resolves IDs back to

@@ -91,6 +91,8 @@ import {
     getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type SeriesPlaybackEpisodeState,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
@@ -193,6 +195,7 @@ interface StalkerSeriesPlaybackRequestContext {
         ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         TranslatePipe,
         SeasonContainerComponent,
     ],
@@ -1216,6 +1219,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.initialSeriesQueue.set(null);
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1287,6 +1291,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     playUpNextEpisode(item: UpNextRailItem): void {
         this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
+    }
+
+    readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.initialSeriesQueue.set(request.ids);
+        this.playUpNextEpisode(request.episode);
     }
 
     handleInlinePlaybackEnded(): void {
