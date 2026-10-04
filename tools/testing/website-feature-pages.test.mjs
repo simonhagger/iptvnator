@@ -23,7 +23,7 @@ function extractJsonLd(html) {
 for (const slug of FEATURES) {
   test(`feature page ${slug}: canonical, schema and links`, async () => {
     const html = await readDist(`features/${slug}/index.html`);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/features/${slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/features/${slug}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
 
     const schema = extractJsonLd(html);
@@ -46,7 +46,7 @@ for (const slug of FEATURES) {
 
 test('features hub links to every feature page and the download hub', async () => {
   const html = await readDist('features/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/features/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/features/"`));
   for (const slug of FEATURES) {
     assert.match(html, new RegExp(`href="/iptvnator/features/${slug}/"`));
   }
@@ -64,6 +64,6 @@ test('homepage feature cards and the header link into the feature pages', async 
 test('sitemap lists the feature pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const path of ['features/', ...FEATURES.map((slug) => `features/${slug}/`)]) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/${path}</loc>`));
   }
 });

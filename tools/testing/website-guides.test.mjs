@@ -233,7 +233,7 @@ for (const guide of GUIDES) {
     assert.ok(faq, 'Expected a FAQPage entry.');
     assert.ok(faq.mainEntity.length >= 5, 'Expected at least five FAQ questions.');
     assert.match(html, /Frequently asked questions/);
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/blog/${guide.slug}/"`));
   });
 
   test(`${guide.slug}: links to the download hub and ships its screenshots`, async () => {
