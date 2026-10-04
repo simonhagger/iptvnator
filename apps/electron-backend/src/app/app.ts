@@ -7,11 +7,15 @@ import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
-    isStartupTraceEnabled,
+    isPerformanceCaptureEnabled,
     isRendererConsoleTraceEnabled,
+    isSqlStatementCountEnabled,
     isWindowTraceEnabled,
+    performanceCounters,
     trace,
+    traceStartupPhase,
 } from './services/debug-trace';
+import { attachMainWindowPerformanceCounters } from './services/performance-counters';
 import {
     STARTUP_WINDOW_MODE,
     store,
@@ -122,7 +126,11 @@ export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructor
         nodeIntegration: false,
         sandbox: !frameCopyExperiment,
         webSecurity: true,
-        backgroundThrottling: false,
+        // Chromium's default. A hidden or minimized window must report
+        // `document.hidden` so idle timers can pause and the playback
+        // keep-awake gate can release the display; Chromium itself keeps
+        // audible media and picture-in-picture running at full rate.
+        backgroundThrottling: true,
         preload: join(__dirname, 'main.preload.js'),
     };
 }
@@ -135,19 +143,14 @@ export async function clearElectronServiceWorkerStorage(
             storages: ['serviceworkers', 'cachestorage'],
         });
 
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'electron-service-worker-storage:cleared');
-        }
+        traceStartupPhase('electron-service-worker-storage:cleared');
     } catch (error) {
         console.warn('Failed to clear Electron service worker storage:', error);
 
-        if (isStartupTraceEnabled()) {
-            trace(
-                'startup',
-                'electron-service-worker-storage:clear-failed',
-                error
-            );
-        }
+        traceStartupPhase(
+            'electron-service-worker-storage:clear-failed',
+            () => error
+        );
     }
 }
 
@@ -522,6 +525,14 @@ export default class App {
             ...App.getPlatformTitleBarOptions(),
         });
         App.mainWindow.setMenu(null);
+        attachMainWindowPerformanceCounters(
+            App.mainWindow,
+            performanceCounters,
+            {
+                capture: isPerformanceCaptureEnabled(),
+                sqlStatements: isSqlStatementCountEnabled(),
+            }
+        );
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);
         // Seeds the F11 tracker's fullscreen state now, while no transition

@@ -23,6 +23,7 @@ import {
 } from '@iptvnator/shared/logging';
 import * as schema from './schema';
 import { getIptvnatorDatabasePath } from './path-utils';
+import { notifyDatabaseConnectionOpened } from './connection-observer';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
@@ -174,6 +175,7 @@ const CREATE_TABLE_STATEMENTS = [
       type TEXT NOT NULL CHECK (type IN ('live', 'movies', 'series')),
       xtream_id INTEGER NOT NULL,
       hidden INTEGER DEFAULT 0,
+      locked INTEGER DEFAULT 0,
       UNIQUE(playlist_id, type, xtream_id),
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
@@ -381,6 +383,8 @@ const CREATE_TABLE_STATEMENTS = [
 const COLUMN_MIGRATION_STATEMENTS = [
     // v1.0.0 -> v1.1.0: Add hidden column to categories for category management
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
+    // Parental lock: per-category lock index (issue #285)
+    `ALTER TABLE categories ADD COLUMN locked INTEGER DEFAULT 0`,
     // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
     `ALTER TABLE playlists ADD COLUMN portal_url TEXT`,
     `ALTER TABLE playlists ADD COLUMN count INTEGER`,
@@ -976,9 +980,9 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
  * - unversioned → v2: title normalization learned to strip appended
  *   language/quality tags.
  * - v2 → v3: the search query stopped being the folded comparison key. Under
- *   v2 every title with a Cyrillic "й"/"ё" was searched folded ("феик" for
- *   "Фейк", "елки" for "Ёлки"), got no answer, and was cached as missing for
- *   7 days.
+ *   v2 every title with a Cyrillic "й"/"ё" was searched folded — the fold
+ *   spells them "и" and "е", as in the illustrative "леика" for "Лейка" —
+ *   got no answer, and was cached as missing for 7 days.
  * - v3 → v4: year evidence became tiered. Under v3 a series admitted only by
  *   the "premiered earlier" tolerance competed with an exact-year match on
  *   popularity alone, so a new series resolved to its older, better-known
@@ -1225,6 +1229,7 @@ export async function initDatabase(
                 ? (message?: unknown) => traceSqlStatement(message)
                 : undefined,
         });
+        notifyDatabaseConnectionOpened(sqlite);
 
         if (isSqlTraceEnabled()) {
             traceSql('sql-main', 'open', {

@@ -3,10 +3,9 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import {
-    WorkspaceShellContextDrawerService,
-    SettingsContextService,
-} from '@iptvnator/workspace/shell/util';
+import { registerWorkspaceBack } from '@iptvnator/portal/shared/data-access';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 
 @Component({
     selector: 'app-workspace-settings-context-panel',
@@ -20,7 +19,7 @@ import {
                 @for (section of ctx.sections(); track section.id) {
                     <!-- replaceUrl keeps a single settings entry in the
                          browser history: switching sections must not turn
-                         "Back" (footer or browser) into a walk through every
+                         "Back" (header or browser) into a walk through every
                          visited section page before finally leaving. -->
                     <a
                         class="nav-item settings-section-item"
@@ -28,23 +27,30 @@ import {
                         [routerLink]="['/workspace/settings', section.id]"
                         [replaceUrl]="true"
                         [attr.data-test-id]="'settings-section-' + section.id"
+                        [class.has-no-matches]="
+                            ctx.matchCounts() !== null &&
+                            !ctx.matchCounts()?.[section.id]
+                        "
                         (click)="onSectionClicked()"
                     >
                         <mat-icon>{{ section.icon }}</mat-icon>
-                        <span>{{ section.label | translate }}</span>
+                        <span class="nav-item-label">{{
+                            section.label | translate
+                        }}</span>
+                        <!-- While a settings search is active, each section
+                             shows how many of its settings match. -->
+                        @if (ctx.matchCounts(); as counts) {
+                            <span
+                                class="nav-item-meta"
+                                [attr.data-test-id]="
+                                    'settings-section-matches-' + section.id
+                                "
+                                >{{ counts[section.id] ?? 0 }}</span
+                            >
+                        }
                     </a>
                 }
             </div>
-        </div>
-        <div class="settings-panel-footer">
-            <button
-                type="button"
-                class="nav-item settings-back-button"
-                (click)="onBack()"
-            >
-                <mat-icon>arrow_back</mat-icon>
-                <span>{{ 'SETTINGS.BACK_TO_HOME' | translate }}</span>
-            </button>
         </div>
     `,
 })
@@ -62,11 +68,17 @@ export class WorkspaceSettingsContextPanelComponent {
         }
     );
 
-    onSectionClicked() {
-        this.contextDrawer?.close();
+    constructor() {
+        // The panel exists exactly while the settings route shows, so it
+        // offers the page's Back in the header. On a phone the toggle for
+        // this drawer stays beside it: the drawer holds the sections.
+        registerWorkspaceBack({
+            phoneDrawerToggle: 'beside',
+            run: () => this.location.back(),
+        });
     }
 
-    onBack() {
-        this.location.back();
+    onSectionClicked() {
+        this.contextDrawer?.close();
     }
 }

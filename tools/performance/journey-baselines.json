@@ -1,0 +1,15 @@
+{
+    "version": 1,
+    "journeys": {
+        "launch": {
+            "renderer.initialBytes": {
+                "value": 1605046,
+                "unit": "bytes",
+                "slack": 4096,
+                "updatedAt": "2026-10-01",
+                "evidencePr": 1775,
+                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+            }
+        }
+    }
+}

@@ -64,6 +64,109 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('streamFormatEnum', StreamFormat);
     });
 
+    it.each(['mpv', 'vlc'] as const)(
+        'keeps the %s path editor mounted after a successful probe while editing',
+        (player) => {
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.componentInstance.externalAvailability.set({
+                mpv: false,
+                vlc: false,
+            });
+            fixture.detectChanges();
+            const input = fixture.nativeElement.querySelector(
+                `#${player}PlayerPath`
+            );
+            const control =
+                fixture.componentInstance.form().controls[
+                    `${player}PlayerPath`
+                ];
+            control.markAsDirty();
+            control.setValue('D:\\Players\\portable');
+            fixture.componentInstance.externalAvailability.set({
+                mpv: true,
+                vlc: true,
+            });
+            fixture.detectChanges();
+            expect(
+                fixture.nativeElement.querySelector(`#${player}PlayerPath`)
+            ).toBe(input);
+        }
+    );
+
+    it('rejects an old probe response immediately after the paths change', async () => {
+        const previous = Object.getOwnPropertyDescriptor(window, 'electron');
+        let resolveProbe!: (result: { mpv: boolean; vlc: boolean }) => void;
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                getExternalPlayerAvailability: jest.fn(
+                    () =>
+                        new Promise((resolve) => {
+                            resolveProbe = resolve;
+                        })
+                ),
+            },
+        });
+        try {
+            fixture.componentRef.setInput(
+                'supportsExternalPlayerPathSettings',
+                true
+            );
+            fixture.detectChanges();
+            fixture.componentInstance
+                .form()
+                .controls.mpvPlayerPath.setValue('D:\\New\\mpv.exe');
+            resolveProbe({ mpv: true, vlc: true });
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(fixture.componentInstance.externalAvailability()).toEqual({
+                mpv: null,
+                vlc: null,
+            });
+        } finally {
+            if (previous) Object.defineProperty(window, 'electron', previous);
+            else Reflect.deleteProperty(window, 'electron');
+        }
+    });
+
+    it('disables only confirmed missing players and exposes configuration', () => {
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
+        fixture.componentInstance.externalAvailability.set({
+            mpv: false,
+            vlc: true,
+        });
+        fixture.detectChanges();
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(true);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.VLC)
+        ).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector('#mpvPlayerPath')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.EXTERNAL_PLAYER_INSTALL_HINT'
+        );
+    });
+
+    it('keeps unknown availability and built-in players selectable', () => {
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(VideoPlayer.MPV)
+        ).toBe(false);
+        expect(
+            fixture.componentInstance.externalPlayerUnavailable(
+                VideoPlayer.VideoJs
+            )
+        ).toBe(false);
+    });
+
     it('hides the external-player double-click option when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
@@ -173,7 +276,9 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('form', form);
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+        const checkbox = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLInputElement>(
             '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
         );
 
@@ -183,7 +288,9 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('labels the rendered native shared web controls checkbox', () => {
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+        const checkbox = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLInputElement>(
             '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
         );
 
@@ -348,9 +455,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#mpvPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#mpvPlayerArguments')
+                ?.placeholder
         ).toBe(MPV_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -369,9 +477,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#vlcPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#vlcPlayerArguments')
+                ?.placeholder
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -405,6 +514,20 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).not.toBeNull();
     });
 
+    it('offers the up next card toggle for Embedded MPV only under the frame-copy engine', () => {
+        // The native-view engine never mounts the shared controls.
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
+
+        fixture.componentRef.setInput('frameCopyActive', true);
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).not.toBeNull();
+    });
+
     it('hides the fullscreen channel panel toggle for a web player on the legacy vendor chrome', () => {
         // The vendor chrome fullscreens the engine's own element, outside
         // which the panel cannot render, so the toggle would do nothing.
@@ -414,6 +537,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(queryByTestId('fullscreen-channel-panel-setting')).toBeNull();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
     });
 
     it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
@@ -436,7 +560,9 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         player: new FormControl(player),
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
+        detailTrailerBackdrop: new FormControl(false),
         playerUpNextRail: new FormControl(true),
+        playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),

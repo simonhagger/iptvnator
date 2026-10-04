@@ -31,6 +31,8 @@ import {
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
+import { startAndConfirmPlayback } from './playable-stream-fixture';
+import { mockExternalPlayerAvailability } from './external-player-availability.fixture';
 
 /**
  * DASH + ClearKey playback in the real Electron runtime — the only automated
@@ -192,7 +194,9 @@ async function importDashPlaylistFromText(
     const dialog = app.mainWindow.locator('mat-dialog-container').last();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
-    await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
 }
@@ -403,6 +407,7 @@ for (const player of ['mpv', 'vlc']) {
         const app = await launchElectronApp(dataDir);
         const page = app.mainWindow;
         try {
+            await mockExternalPlayerAvailability(app, { mpv: true, vlc: true });
             await openSettings(page);
             await openSettingsSection(page, 'playback');
             await page.getByTestId('select-video-player').click();
@@ -529,6 +534,10 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
         try {
             // Video.js is the default; selecting it again leaves no dirty form to save.
             if (configuredPlayer !== 'videojs') {
+                await mockExternalPlayerAvailability(app, {
+                    mpv: true,
+                    vlc: true,
+                });
                 await openSettings(page);
                 await openSettingsSection(page, 'playback');
                 await page.getByTestId('select-video-player').click();
@@ -541,7 +550,8 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
                 buildDashPlaylist(fixtureServer.origin)
             );
             const channel = channelItemByTitle(page, 'ClearKey DASH').first();
-            await channel.click();
+            // Recent history records the channel once it has really played.
+            await startAndConfirmPlayback(page, () => channel.click());
             await channel.locator('.favorite-button').click();
             await expect(
                 channel.locator('.favorite-button mat-icon')

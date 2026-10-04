@@ -99,6 +99,7 @@ const WINDOW_CONFIRM_CLOSE = 'WINDOW:CONFIRM_CLOSE';
 const WINDOW_CANCEL_CLOSE = 'WINDOW:CANCEL_CLOSE';
 const WINDOW_CLOSE_REQUESTED = 'WINDOW:CLOSE_REQUESTED';
 const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
+const PARENTAL_LOCK_SET_STATE = 'PARENTAL_LOCK:SET_STATE';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -461,6 +462,8 @@ const electronApi: ElectronBridgeApi = {
     },
     setPlaybackKeepAwake: (active: boolean) =>
         ipcRenderer.invoke(PLAYBACK_SET_KEEP_AWAKE, active === true),
+    setParentalLockState: (active: boolean) =>
+        ipcRenderer.invoke(PARENTAL_LOCK_SET_STATE, active === true),
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
@@ -724,6 +727,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_CHANNEL_SEARCH', { searchTerm, limit }),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    getExternalPlayerAvailability: (paths?: { mpv?: string; vlc?: string }) =>
+        ipcRenderer.invoke('GET_EXTERNAL_PLAYER_AVAILABILITY', paths),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: Partial<Settings>) =>
@@ -827,14 +832,16 @@ const electronApi: ElectronBridgeApi = {
         playlistId: string,
         categories: XtreamCategory[],
         type: string,
-        hiddenCategoryXtreamIds?: number[]
+        hiddenCategoryXtreamIds?: number[],
+        lockedCategoryXtreamIds?: number[]
     ) =>
         ipcRenderer.invoke(
             'DB_SAVE_CATEGORIES',
             playlistId,
             categories,
             type,
-            hiddenCategoryXtreamIds
+            hiddenCategoryXtreamIds,
+            lockedCategoryXtreamIds
         ),
     dbGetAllCategories: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_GET_ALL_CATEGORIES', playlistId, type),
@@ -843,6 +850,17 @@ const electronApi: ElectronBridgeApi = {
             'DB_UPDATE_CATEGORY_VISIBILITY',
             categoryIds,
             hidden
+        ),
+    dbSetCategoryLocks: (
+        playlistId: string,
+        type: string,
+        lockedXtreamIds: number[]
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_CATEGORY_LOCKS',
+            playlistId,
+            type,
+            lockedXtreamIds
         ),
     dbHasContent: (playlistId: string, type: string) =>
         ipcRenderer.invoke('DB_HAS_CONTENT', playlistId, type),
@@ -1171,11 +1189,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }

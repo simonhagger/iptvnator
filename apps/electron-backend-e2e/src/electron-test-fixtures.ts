@@ -7,7 +7,7 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { createServer, Server } from 'http';
 import {
     accessSync,
@@ -28,7 +28,9 @@ import {
     writeDataDirOwnerMarker,
 } from './data-dir-reaper';
 import {
+    captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
+    type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
 
@@ -199,7 +201,7 @@ export { expect };
  * helper that spawns the app itself has to use the same list. `appArgs` land
  * after the entry point, which is where the OS puts an opened file's path.
  */
-function buildElectronLaunchArgs(
+export function buildElectronLaunchArgs(
     extraArgs: readonly string[] = [],
     appArgs: readonly string[] = [],
     entryPoint = electronMainPath
@@ -234,6 +236,7 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
+    const electronProcess = captureElectronProcess(electronApp);
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
@@ -242,7 +245,7 @@ export async function launchElectronApp(
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
         prepare: async (application) => {
-            attachElectronProcessDiagnostics(application);
+            attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
             await startPortalDebugCapture(mainWindow);
@@ -458,25 +461,30 @@ export async function launchPackagedElectronApp(
             NODE_ENV: 'test',
         },
     });
-    attachElectronProcessDiagnostics(electronApp);
-
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-
-    return {
-        electronApp,
-        mainWindow,
-    };
+    const electronProcess = captureElectronProcess(electronApp);
+    return prepareElectronApplication({
+        application: electronApp,
+        dispose: (application) =>
+            closeElectronApplicationAndConfirmExit(application, {
+                closeTimeoutMs: electronAppCloseTimeoutMs,
+                exitTimeoutMs: electronAppKillWaitMs,
+            }),
+        prepare: async (application) => {
+            attachElectronProcessDiagnostics(electronProcess);
+            const mainWindow = await findMainWindow(application);
+            await waitForAppReady(mainWindow);
+            return {
+                electronApp: application,
+                mainWindow,
+            };
+        },
+    });
 }
 
-function attachElectronProcessDiagnostics(
-    electronApp: ElectronApplication
-): void {
+function attachElectronProcessDiagnostics(childProcess: ChildProcess): void {
     if (!process.env['CI']) {
         return;
     }
-
-    const childProcess = electronApp.process();
 
     childProcess.stdout?.on('data', (chunk: Buffer) => {
         console.log(`[electron stdout] ${chunk.toString().trimEnd()}`);
@@ -564,81 +572,24 @@ export async function launchCompetingElectronInstance(
 export async function closeElectronApp(
     app: LaunchedElectronApp
 ): Promise<void> {
-    try {
-        const closePromise = app.electronApp.close();
-        const closed = await waitForPromiseWithTimeout(
-            closePromise,
-            electronAppCloseTimeoutMs
-        );
-
-        if (closed) {
-            return;
-        }
-
-        console.warn(
-            `Electron app did not close within ${electronAppCloseTimeoutMs}ms; killing process`
-        );
-        const childProcess = app.electronApp.process();
-
-        if (!childProcess.killed) {
-            childProcess.kill();
-        }
-
-        await waitForPromiseWithTimeout(
-            closePromise.catch(() => undefined),
-            electronAppKillWaitMs
-        );
-
-        // SIGTERM asks Electron for a graceful quit, which the app can
-        // legitimately refuse — the unsaved-settings close guard cancels the
-        // quit while it waits for an answer. A process that survives here
-        // would outlive the test, hold its data dir, and time out the worker
-        // teardown, so escalate to SIGKILL.
-        if (
-            childProcess.exitCode === null &&
-            childProcess.signalCode === null
-        ) {
-            console.warn(
-                'Electron app survived SIGTERM; escalating to SIGKILL'
-            );
-            childProcess.kill('SIGKILL');
-            await waitForPromiseWithTimeout(
-                closePromise.catch(() => undefined),
-                electronAppKillWaitMs
-            );
-        }
-    } catch (error) {
-        console.warn('Failed to close Electron app cleanly:', error);
-    }
+    await closeElectronAppAndConfirmExit(app);
 }
 
 export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
-    await closeElectronApplicationAndConfirmExit(app.electronApp, {
-        closeTimeoutMs: electronAppCloseTimeoutMs,
-        exitTimeoutMs: electronAppKillWaitMs,
-    });
+    await closeElectronApplicationAndConfirmExit(
+        app.electronApp,
+        electronAppExitConfirmationOptions()
+    );
 }
 
-async function waitForPromiseWithTimeout(
-    promise: Promise<unknown>,
-    timeoutMs: number
-): Promise<boolean> {
-    let timeoutId: NodeJS.Timeout | undefined;
-
-    try {
-        return await Promise.race([
-            promise.then(() => true),
-            new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-    }
+/** The close/exit timeouts the shared fixture applies to every launch. */
+export function electronAppExitConfirmationOptions(): ElectronExitConfirmationOptions {
+    return {
+        closeTimeoutMs: electronAppCloseTimeoutMs,
+        exitTimeoutMs: electronAppKillWaitMs,
+    };
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {
@@ -1038,6 +989,7 @@ export async function enableRemoteControl(
 
 export async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByTestId('save-settings');
+    const dialogSaveButton = page.getByTestId('unsaved-dialog-save');
 
     // The save control is a native form submit (`<button type="submit">`
     // inside `<form (ngSubmit)="onSubmit()">`). Clicking it makes Chromium
@@ -1049,7 +1001,12 @@ export async function saveSettings(page: Page): Promise<void> {
     // timeout ("waiting for scheduled navigations to finish"). We never depend
     // on a navigation here, so opt out of the barrier and instead assert the
     // deterministic post-save state below.
-    await saveButton.click({ noWaitAfter: true });
+    if (await dialogSaveButton.isVisible()) {
+        await dialogSaveButton.click();
+        await expect(dialogSaveButton).toBeHidden();
+    } else {
+        await saveButton.click({ noWaitAfter: true });
+    }
     // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
     // settings write resolves, which hides the whole unsaved-changes bar.
     // Awaiting that is a stronger, race-free confirmation that the save
@@ -1062,7 +1019,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .first();
 
     await expect(dashboardLink).toBeVisible();
@@ -1315,7 +1272,7 @@ export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
 
     const dialog = page.locator('mat-dialog-container').last();
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('button', { name: /^Yes$/i }).click();
+    await dialog.getByRole('button', { name: 'Clear', exact: true }).click();
     await expect(dialog).toBeHidden();
 }
 
@@ -1713,7 +1670,7 @@ export async function deleteSource(page: Page, title: string): Promise<void> {
 
     await expect(row).toBeVisible();
     await row.locator('.delete-btn').click();
-    await confirmDialog(page);
+    await confirmDialog(page, 'Remove playlist');
 }
 
 export async function refreshSource(
@@ -1730,7 +1687,7 @@ export async function refreshSource(
     await row.locator('.refresh-btn').click();
 
     if (confirm) {
-        await confirmDialog(page);
+        await confirmDialog(page, 'Refresh playlist');
     }
 }
 
@@ -2147,7 +2104,7 @@ async function openCommandPalette(page: Page): Promise<Locator> {
     return dialog;
 }
 
-async function confirmDialog(page: Page, buttonLabel = 'Yes'): Promise<void> {
+async function confirmDialog(page: Page, buttonLabel: string): Promise<void> {
     const dialog = page.locator('mat-dialog-container');
 
     await expect(dialog).toBeVisible();

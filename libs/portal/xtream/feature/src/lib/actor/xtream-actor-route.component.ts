@@ -68,7 +68,7 @@ export class XtreamActorRouteComponent {
         initialValue: this.route.snapshot.params,
     });
     private readonly personId = computed(() =>
-        Number(this.routeParams().personId)
+        Number(this.routeParams()['personId'])
     );
 
     readonly profile = signal<ActorProfile | null>(null);
@@ -87,8 +87,11 @@ export class XtreamActorRouteComponent {
     private readonly serialIndex = computed(() =>
         buildCatalogTitleIndex(this.xtreamStore.serialStreams())
     );
+    // Filtered on read: a relock hides matches cached while unlocked.
     private readonly globalIndex = computed(() =>
-        groupTitleMatchesByKey(this.globalMatches() ?? [])
+        groupTitleMatchesByKey(
+            this.titleMatch.visibleMatches(this.globalMatches() ?? [])
+        )
     );
 
     readonly items = computed<ActorViewItem[]>(() => {

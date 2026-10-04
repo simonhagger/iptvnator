@@ -1,5 +1,10 @@
 import { type APIRequestContext, type Page } from '@playwright/test';
-import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import {
+    closeSeriesMenu,
+    expectSeriesSurfacesInBothThemes,
+    seriesMenuRow,
+    setInputValue,
+} from './e2e-helpers';
 import {
     verifyStalkerCategorySearch,
     verifyStalkerPlaybackCategoryReturn,
@@ -240,7 +245,10 @@ async function addStalkerPortal(
     await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), mac);
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -284,7 +292,10 @@ async function addFullStalkerPortal(
         await setInputValue(dialog.locator('input#password'), password);
     }
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -1104,10 +1115,9 @@ test('@stalker season watched toggle — embedded series marks and clears every 
 
     await expectSeriesSurfacesInBothThemes(page, testInfo);
 
-    // The season header's bulk toggle (data-test-id with a dash — getByTestId
+    // The hero menu's bulk toggle (data-test-id with a dash — getByTestId
     // only matches data-testid in this suite) counts every unwatched episode.
-    const seasonToggle = page.locator('[data-test-id="toggle-season-watched"]');
-    await expect(seasonToggle).toBeVisible();
+    let seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`
     );
@@ -1116,25 +1126,25 @@ test('@stalker season watched toggle — embedded series marks and clears every 
 
     await seasonToggle.click();
 
-    // All episodes get full-progress positions: the button flips and every
+    // All episodes get full-progress positions: the row flips and every
     // episode card plus per-episode toggle shows the watched state.
-    await expect(seasonToggle).toContainText('Mark season as unwatched', {
-        timeout: 15_000,
-    });
-    await expect(watchedCards).toHaveCount(episodeCount);
+    await expect(watchedCards).toHaveCount(episodeCount, { timeout: 15_000 });
     await expect(
         page.locator(
             '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
         )
     ).toHaveCount(episodeCount);
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
+    await expect(seasonToggle).toContainText('Mark season as unwatched');
 
     // Second click clears every episode's position again.
     await seasonToggle.click();
+    await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText(
-        `Mark season as watched (${episodeCount})`,
-        { timeout: 15_000 }
+        `Mark season as watched (${episodeCount})`
     );
-    await expect(watchedCards).toHaveCount(0);
+    await closeSeriesMenu(page);
 });
 
 test('@stalker series watched toggle — embedded series marks and clears from the header menu', async ({
@@ -1173,14 +1183,10 @@ test('@stalker series watched toggle — embedded series marks and clears from t
         })
     ).toBeVisible({ timeout: 10_000 });
 
-    // The ⋮ trigger sits after the view toggle (data-test-id with a dash —
-    // getByTestId only matches data-testid in this suite; the menu item
-    // renders into the CDK overlay).
-    const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
-    await expect(menuTrigger).toBeVisible();
-    await menuTrigger.click();
-    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
-    await expect(seriesToggle).toBeVisible();
+    // The series row sits in the hero's "…" menu (data-test-id with a dash —
+    // getByTestId only matches data-testid in this suite; the row renders
+    // into the CDK overlay).
+    let seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
     );
@@ -1192,12 +1198,12 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     await expect(watchedCards).toHaveCount(episodeCount, {
         timeout: 15_000,
     });
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as unwatched');
     await seriesToggle.click();
 
     await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
     );
@@ -1205,7 +1211,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const detailUrl = page.url();
     await page.keyboard.press('Escape');
     await expect(seriesToggle).toBeHidden();
-    await menuTrigger.focus();
+    await page.locator('[data-testid="series-more-menu"]').focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
     await expect(page).toHaveURL(detailUrl);
@@ -1387,15 +1393,17 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#macAddress'), mac);
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
         await addButton.click();
 
-        await expect(
-            page.getByText(/requires a login and password/i)
-        ).toBeVisible({ timeout: 15_000 });
+        // Inline under the portal URL, like the Xtream connection test.
+        await expect(dialog.getByRole('status')).toContainText(
+            /requires a login and password/i,
+            { timeout: 15_000 }
+        );
         // The dialog stays open so the user can add the credentials.
         await expect(dialog).toBeVisible();
 
@@ -1508,7 +1516,7 @@ test.describe('@stalker full portal authentication', () => {
         );
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -1518,9 +1526,10 @@ test.describe('@stalker full portal authentication', () => {
         // stop there instead of persisting a portal that can never load. (It
         // used to be treated as success whenever the portal sent no msg text,
         // which imported a dead source.)
-        await expect(page.getByText(/refused access/i)).toBeVisible({
-            timeout: 15_000,
-        });
+        await expect(dialog.getByRole('status')).toContainText(
+            /refused access/i,
+            { timeout: 15_000 }
+        );
         await expect(dialog).toBeVisible();
         await expect(page).not.toHaveURL(/stalker/);
 
@@ -1570,7 +1579,7 @@ test.describe('@stalker full portal authentication', () => {
         );
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -1579,12 +1588,13 @@ test.describe('@stalker full portal authentication', () => {
         // The conflict gets its own headline. Asserting the generic one is
         // ABSENT is what makes this test fail if the classification is
         // removed — `blocked` would still surface the portal's text.
-        await expect(
-            page.getByText(/different device ID registered/i)
-        ).toBeVisible({ timeout: 15_000 });
+        const status = dialog.getByRole('status');
+        await expect(status).toContainText(/different device ID registered/i, {
+            timeout: 15_000,
+        });
         await expect(page.getByText(/refused access/i)).toHaveCount(0);
         // The portal's own words still travel with it, markup stripped.
-        await expect(page.getByText(/device_id mismatch/i)).toBeVisible();
+        await expect(status).toContainText(/device_id mismatch/i);
         await expect(page.locator('body')).not.toContainText('<br/>');
 
         await expect(dialog).toBeVisible();

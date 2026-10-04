@@ -306,6 +306,10 @@ tab can gate the timeline's archive window. `tv_archive_duration` is
 interpreted as **days** everywhere, matching
 `live-stream-layout.controlledArchiveDays` (issue #1138).
 
+While a programme plays from the archive, both entry points draw it on the
+player's seek bar as a titled segment; see "Timeline segments" in the
+[player controls contract](player-controls-contract.md#timeline-segments).
+
 Programme details in the Live TV and Favorites/Recent EPG timeline/list also
 offer **Copy archive URL**. This uses the same resolver and persisted server
 timezone without changing playback. See the M3U module's "Copy archive URL"
@@ -373,3 +377,31 @@ It reuses the canonical timeshift resolver and original timestamps, preserves
 playback headers and does not change playback. See
 [Download Manager](download-manager.md#xtream-archive-downloads) for identity,
 restart, expiry and transport-completion limits.
+
+## Store composition and catalog windowing
+
+`XtreamStore` is the public facade built with `signalStore()`, composing
+`signalStoreFeature()` features for portal, content, selection, search, EPG,
+player, favorites, recent and playback positions. Most features live under
+`libs/portal/xtream/data-access/src/lib/stores/features/`; favorites and recent
+items live directly under the data-access library’s `src/lib/`.
+Routed components consume that facade; features delegate persistence/networking
+to `IXtreamDataSource`, selected through `provideXtreamDataSource()`. Complete
+SQLite capability uses database-first cache reads and API fill; the PWA source
+uses API requests and session memory. This does not move screen orchestration
+into shared utility projects.
+
+Catalog lazy loading: catalog grids scroll infinitely instead of paging.
+`withSelection` keeps a `visibleCount` render window over the in-memory
+catalog plus bounded per-selection scroll snapshots for detail/tab
+round-trips; the shared `InfiniteScrollDirective`
+(`libs/portal/shared/ui`) measures container overflow to auto-fill tall
+viewports (terminating on lack of container growth, not on a load count)
+and fires `loadMore` near the bottom. The search layout routes its results
+container through the same directive (`nearEnd*` inputs). Stalker feeds the
+same contract from server-paged appends: portal pages accumulate into one
+deduplicated list, `hasMoreContent` derives from accumulated length vs
+`total_items`, a failed append keeps loaded pages and offers a tail retry,
+and the facade maps page 0 to the skeleton and later pages to the tail
+spinner. These catalog/search surfaces use incremental loading instead of
+page buttons.

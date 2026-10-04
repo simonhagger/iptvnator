@@ -1,15 +1,19 @@
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import ts from 'typescript';
+import astroConfig from '../../apps/website/astro.config.mjs';
 
 /**
  * Structural checks for the per-OS download pages in the built website.
  * The build resolves the latest release from the GitHub API and falls back to
- * package.json, so assertions accept any semver version but insist on direct
+ * the pinned published version, so assertions accept any semver but insist on direct
  * asset links, canonical URLs, structured data and internal linking.
  */
 
 const distRoot = new URL('../../dist/apps/website/', import.meta.url);
+const { version: publishedVersion } = JSON.parse(await readFile(new URL('../../apps/website/released-version.json', import.meta.url), 'utf8'));
 const SITE = 'https://4gray.github.io/iptvnator';
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
@@ -58,7 +62,7 @@ for (const [platform, page] of Object.entries(PAGES)) {
     const html = await readDist(page.path);
 
     assert.match(html, new RegExp(`<title>[^<]*IPTVnator for ${page.label}[^<]*</title>`));
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/${platform}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/${platform}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
 
     for (const suffix of page.assets) {
@@ -98,7 +102,7 @@ for (const [platform, page] of Object.entries(PAGES)) {
 
 test('docker page: canonical, schema, quick start and links', async () => {
   const html = await readDist('download/docker/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/docker/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/docker/"`));
   assert.match(html, /docker compose -f docker\/docker-compose\.yml up --build -d/);
   assert.match(html, /4gray\/iptvnator:latest/);
   assert.match(html, /href="https:\/\/hub\.docker\.com\/r\/4gray\/iptvnator"/);
@@ -127,7 +131,7 @@ test('the homepage and the platform pages link to the docker page', async () => 
 
 test('download hub links to every platform page', async () => {
   const html = await readDist('download/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/"`));
   for (const platform of Object.keys(PAGES)) {
     assert.match(html, new RegExp(`href="/iptvnator/download/${platform}/"`));
   }
@@ -149,6 +153,41 @@ test('homepage download cards point at the platform pages', async () => {
 test('sitemap lists the download pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const path of ['download/', 'download/windows/', 'download/macos/', 'download/linux/', 'download/docker/']) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/${path}</loc>`));
   }
 });
+
+// Use the real Astro defines so a development-version bump cannot silently
+// change the offline download URLs. The API is the only mocked boundary.
+for (const failure of ['offline', 'rate-limit', 'timeout']) {
+  test(`release lookup ${failure}: downloads stay on the published release`, async () => {
+    const source = await readFile(new URL('../../apps/website/src/lib/downloads.ts', import.meta.url), 'utf8');
+    const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+    const exports = {};
+    let fetchCalls = 0;
+    const warnings = [];
+    vm.runInNewContext(code, {
+      exports,
+      ...Object.fromEntries(Object.entries(astroConfig.vite.define).map(([name, value]) => [name, JSON.parse(value)])),
+      process: { env: { WEBSITE_SKIP_RELEASE_FETCH: failure === 'offline' ? '1' : '0' } },
+      AbortSignal,
+      console: { warn(message) { warnings.push(message); } },
+      fetch: async () => {
+        fetchCalls++;
+        if (failure === 'timeout') throw new Error('The operation timed out');
+        return { ok: false, status: 403 };
+      },
+    });
+    const release = await exports.getLatestRelease();
+    assert.equal(release.version, publishedVersion, 'The published release is independent of the upcoming development version');
+    assert.equal(fetchCalls, failure === 'offline' ? 0 : 1);
+    assert.equal(warnings.length, failure === 'offline' ? 0 : 1);
+    for (const platform of ['windows', 'macos', 'linux']) {
+      const downloads = exports.resolveDownloads(release, platform);
+      assert.ok(downloads.length > 0);
+      for (const download of downloads) {
+        assert.ok(download.url.includes(`/releases/download/v${publishedVersion}/iptvnator-${publishedVersion}-`), download.url);
+      }
+    }
+  });
+}

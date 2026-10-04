@@ -61,11 +61,6 @@ describe('WorkspaceShellRailComponent', () => {
     });
 
     it('renders provider context region and active settings shortcut state', () => {
-        fixture.componentRef.setInput('brandLink', '/workspace/sources');
-        fixture.componentRef.setInput(
-            'brandAriaLabelKey',
-            'WORKSPACE.SHELL.OPEN_SOURCES'
-        );
         fixture.componentRef.setInput('primaryContextLinks', [
             {
                 icon: 'movie',
@@ -87,13 +82,57 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+    });
+
+    describe('macOS zoom inset', () => {
+        const setWindowWidths = (outer: number, inner: number) => {
+            Object.defineProperty(window, 'outerWidth', {
+                configurable: true,
+                value: outer,
+            });
+            Object.defineProperty(window, 'innerWidth', {
+                configurable: true,
+                value: inner,
+            });
+        };
+        const zoomVar = () =>
+            (
+                fixture.nativeElement.querySelector('.app-rail') as HTMLElement
+            ).style.getPropertyValue('--rail-zoom-factor');
+
+        afterEach(() => setWindowWidths(1024, 1024));
+
+        it('publishes the page zoom factor on macOS and follows resize', () => {
+            setWindowWidths(1200, 1200);
+            fixture.componentRef.setInput('isMacOS', true);
+            fixture.detectChanges();
+            TestBed.tick();
+            fixture.detectChanges();
+            expect(zoomVar()).toBe('1');
+
+            // Zoomed out to 50%: the viewport holds twice the CSS pixels.
+            setWindowWidths(1200, 2400);
+            window.dispatchEvent(new Event('resize'));
+            fixture.detectChanges();
+            expect(zoomVar()).toBe('0.5');
+        });
+
+        it('leaves the inset alone off macOS', () => {
+            setWindowWidths(1200, 2400);
+            fixture.detectChanges();
+            TestBed.tick();
+            fixture.detectChanges();
+            expect(zoomVar()).toBe('');
+        });
+    });
+
+    it('has no brand mark duplicating the first workspace link', () => {
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('img')).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('.brand')?.getAttribute('href')
-        ).toContain('/workspace/sources');
-        expect(
-            fixture.nativeElement
-                .querySelector('.brand')
-                ?.getAttribute('aria-label')
-        ).toBe('WORKSPACE.SHELL.OPEN_SOURCES');
+            fixture.nativeElement.querySelector('.app-rail')?.firstElementChild
+                ?.tagName
+        ).toBe('APP-WORKSPACE-SHELL-RAIL-LINKS');
     });
 });

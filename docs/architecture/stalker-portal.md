@@ -743,8 +743,13 @@ otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
 ### Error surfacing
 
 `StalkerPortalError.portalText` holds the portal's own words. The import
-dialog shows them in its failure snackbar (with kind-specific i18n headlines,
-`HOME.STALKER_PORTAL.*`); the workspace context panel replaces the generic
+dialog shows them inline under the portal URL, in the same `role="status"`
+paragraph the Xtream form uses for its connection test, after a kind-specific
+i18n headline (`HOME.STALKER_PORTAL.*`, mapped by `toStalkerImportFeedback`).
+The template translates both parts, and any edit clears the message. Outcomes
+that close the dialog (validated with an expiry date, or added without
+validation) use translated snackbars instead. The workspace context panel
+replaces the generic
 "could not load categories" hint with the portal text (or the login-required
 guidance) when category loading failed with a portal refusal
 (`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).
@@ -839,6 +844,13 @@ profile is decoded (clamped to 30–3600 s against garbage), and otherwise uses
 the documented 120 s default. Failing to ping never invalidates the session —
 it only affects the portal's admin-panel "online" reporting — so ping failures
 are logged and never retried or escalated.
+
+The periodic ping ticks in a dedicated worker (`createBackgroundInterval`,
+an inline blob worker allowed by the renderer CSP's `worker-src 'self' blob:`).
+After five minutes hidden and silent, Chromium wakes page timers at most once
+per minute, which would halve a 30 s cadence while the window is minimized;
+worker timers are not subject to that page throttling. Where no worker can
+start, the controller falls back to a page `setInterval`.
 
 ## Request Transport and `cmd` Encoding
 

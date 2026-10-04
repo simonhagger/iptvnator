@@ -537,8 +537,9 @@ identity is the query with only its case removed (`searchQueryIdentity`):
 variants are deduplicated by it and every attempted variant is cached under
 its own key (`title:<identity>|year:<y>|v4`, in the language that variant
 was searched in), never by the folded key and never only under the first
-variant — "Феик" and "Фейк" fold to one key but are different searches with
-different answers, so a verdict for one must not be read back for the other;
+variant — "Леика" and "Лейка", an illustrative pair, fold to one key while
+staying two different searches that can get different answers, so a verdict
+for one must not be read back for the other;
 a misspelled original title must not swallow the display title that TMDB
 actually knows; and two items that share an original title but not a display
 title walk different variant lists, so a row keyed on the first variant alone
@@ -547,11 +548,13 @@ splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
 diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
 that the punctuation step then turns into a space inside the word. The key
 drops or splits on those marks, and TMDB's `/search` does not fold them the
-same way — a query of `феик` returns zero results while `Фейк` returns the
-show. Under the old single-form design every Russian title with "й"/"ё"
-("Фейк (10 серий)", "Волшебный участок", "Молодой Шерлок") was searched
-folded, missed, and cached as missing for the 7-day negative TTL. Compare
-results only through `normalized`; never send it over the wire.
+same way, so a folded query matches nothing there. Under the old single-form
+design that hit every Russian title carrying "й" or "ё" and every Arabic
+title carrying a hamza form: each was searched folded, missed, and cached as
+missing for the 7-day negative TTL. The Cyrillic and Arabic strings used
+throughout this section are illustrative stand-ins chosen to fold the same
+way, not the titles the failures were observed on. Compare results only
+through `normalized`; never send it over the wire.
 
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
@@ -730,15 +733,15 @@ since shipped.)
   does not latch and retries instead. Same gating as trending: TMDB
   opt-in + Electron DB worker, deferred behind the dashboard's own data.
 - **Hero extras**: `DashboardHeroTmdbService`
-  (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
-  backdrop (when the activity row has none), a rating badge and up to two
-  genre chips — resolved through the enrichment facade, so items already
-  opened in a detail view come from the SQLite cache without network.
-  Results are memoized per lookup identity for the session. The hero renders
-  immediately from provider data; extras appear when resolved. Series
-  heroes additionally show the tracked "S{n}·E{n}" badge from the playback
-  position (no TMDB involved); the watch-progress bar is limited to
-  movie/series heroes.
+  (`libs/workspace/dashboard/feature`) patches each movie/series hero slide
+  with a TMDB backdrop (when the activity row has none), a rating badge, up
+  to two genre chips, the overview and the release/first-air year — resolved
+  through the enrichment facade, so items already opened in a detail view
+  come from the SQLite cache without network. Results are memoized per
+  lookup identity for the session. Slides render immediately from provider
+  data; extras appear when resolved and disappear when TMDB is turned off.
+  Series slides additionally show the tracked "S{n}·E{n}" badge from the
+  playback position (no TMDB involved). Live slides never query TMDB.
 
     The query is built to **match what the detail view searched with**, not
     just what the card displays. A title alone is weaker identity than the

@@ -24,6 +24,8 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -50,6 +52,7 @@ import {
     getVideoJsTechVideo,
 } from './vjs-player.types';
 import { VjsVideoElementSession } from './vjs-video-element-session';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugVjsPlayer = createDevLogger('VjsPlayer');
 
@@ -77,13 +80,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
     readonly playbackStarted = output<void>();
@@ -280,6 +285,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.timeUpdate.emit({
             currentTime: this.player.currentTime() ?? 0,
             duration: this.player.duration() ?? 0,
+            playing: !this.player.paused() && !this.player.seeking(),
         });
     };
 
