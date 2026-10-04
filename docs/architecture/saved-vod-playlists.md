@@ -70,6 +70,12 @@ the same write transaction and return a conflict with the current document for
 stale edits or deletes. IDs and timestamps come from callers; the storage adapter
 assigns the next persisted revision and preserves the original creation time.
 
+`SavedVodPlaylistsCommandsService` coordinates pure edits with storage. Creation
+and duplication use create-only writes; edits and deletion use the observed
+revision. Conflicts return to the caller without an automatic overwrite/retry.
+No-op edits skip storage. Clear and restore affect curated entries and retain the
+active execution snapshot; the management view owns whether Undo is still eligible.
+
 Documents pass allowlist validation before IPC and persistence. Unknown fields,
 including credentials, are discarded. SQLite reads check stored identity and
 revision. Browser reads check identity. Listing reads summaries instead of parsing
