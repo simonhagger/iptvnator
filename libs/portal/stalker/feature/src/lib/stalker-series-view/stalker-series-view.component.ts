@@ -1295,6 +1295,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+    readonly seriesQueueLaunchFailure = signal(0);
 
     startSeriesQueue(request: SeriesQueueStartRequest): void {
         this.initialSeriesQueue.set(request.ids);
@@ -1466,6 +1467,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
+            this.seriesQueueLaunchFailure.update((value) => value + 1);
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(

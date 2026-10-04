@@ -49,6 +49,14 @@ describe('series queue surface', () => {
         component.selected.set(4);
         component.fromHere(true);
         expect(selected).toEqual([items[2]]);
+        fixture.componentRef.setInput(
+            'items',
+            items.map((item) => ({
+                ...item,
+                isPlaying: item.id === 3,
+            }))
+        );
+        fixture.detectChanges();
         expect(component.queue.state().upcoming).toEqual([4]);
     });
     it('play from here uses the selected episode and enables continuation', () => {
@@ -57,6 +65,14 @@ describe('series queue surface', () => {
         component.selected.set(3);
         component.fromHere();
         expect(component.queue.autoplay()).toBe(true);
+        fixture.componentRef.setInput(
+            'items',
+            items.map((item) => ({
+                ...item,
+                isPlaying: item.id === 3,
+            }))
+        );
+        fixture.detectChanges();
         expect(component.queue.state().upcoming).toEqual([4]);
     });
     it('updates the current item without restoring removed episodes', () => {
@@ -80,9 +96,22 @@ describe('series queue surface', () => {
         expect(fixture.componentInstance.queue.state().upcoming).toEqual([3]);
     });
 
+    it('retries Next after a provider reports a failed launch', () => {
+        const component = fixture.componentInstance;
+        const play = jest.fn();
+        component.playRequested.subscribe(play);
+        component.next();
+        fixture.componentRef.setInput('launchFailure', 1);
+        fixture.detectChanges();
+        component.next();
+        expect(play).toHaveBeenCalledTimes(2);
+    });
+
     it('ignores a stale initial queue containing episodes outside the loaded series', () => {
         fixture.componentRef.setInput('initialQueue', [1, 99]);
         fixture.detectChanges();
-        expect(fixture.componentInstance.queue.state().upcoming).toEqual([2, 3, 4]);
+        expect(fixture.componentInstance.queue.state().upcoming).toEqual([
+            2, 3, 4,
+        ]);
     });
 });

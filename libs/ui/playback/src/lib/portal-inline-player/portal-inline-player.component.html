@@ -115,6 +115,7 @@
                 [items]="queueCatalogue()"
                 [scope]="queueScope()"
                 [initialQueue]="initialSeriesQueue()"
+                [launchFailure]="seriesQueueLaunchFailure()"
                 [loadedOnly]="!!seasonLoadStates()"
                 (playRequested)="onUpNextEpisodeSelected($event)"
             />

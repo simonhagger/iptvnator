@@ -38,6 +38,7 @@ export class SeriesQueueComponent {
     readonly scope = input.required<string>();
     readonly loadedOnly = input(false);
     readonly initialQueue = input<readonly number[] | null>(null);
+    readonly launchFailure = input(0);
     private initializedScope: string | null = null;
     readonly playRequested = output<UpNextRailItem>();
     readonly queue = inject(SeriesPlaybackQueueService);
@@ -55,6 +56,10 @@ export class SeriesQueueComponent {
     readonly nextItem = computed(() => this.upcoming()[0] ?? null);
 
     constructor() {
+        effect(() => {
+            this.launchFailure();
+            untracked(() => this.queue.launchFailed());
+        });
         effect(() => {
             const scope = this.scope();
             const items = this.items();
@@ -114,7 +119,7 @@ export class SeriesQueueComponent {
         );
         const first = seasonOnly ? catalogue[0] : item;
         if (!first) return;
-        this.queue.fromHere(
+        this.queue.requestFromHere(
             catalogue.map((entry) => entry.id),
             first.id
         );

@@ -26,6 +26,10 @@ export class SeriesPlaybackQueueService {
     private timer: ReturnType<typeof setInterval> | null = null;
     private transitionRequested = false;
     private endedHandled = false;
+    private pendingSequence: {
+        ids: readonly number[];
+        current: number;
+    } | null = null;
 
     constructor() {
         inject(DestroyRef).onDestroy(() => this.cancel());
@@ -39,11 +43,18 @@ export class SeriesPlaybackQueueService {
             this.scope = scope;
             this.transitionRequested = false;
             this.endedHandled = false;
+            this.pendingSequence = null;
+        }
+        if (this.pendingSequence?.current === current) {
+            const pending = this.pendingSequence;
+            this.pendingSequence = null;
+            this.fromHere(pending.ids, current);
         }
         if (current !== this.state().current) {
             this.cancel();
             this.transitionRequested = false;
             this.endedHandled = false;
+            this.pendingSequence = null;
         }
         this.state.update((state) =>
             syncSeriesQueue(state, catalogue, current)
@@ -77,6 +88,7 @@ export class SeriesPlaybackQueueService {
 
     clear(): void {
         this.cancel();
+        this.pendingSequence = null;
         this.state.update(clearSeriesQueue);
     }
 
@@ -86,6 +98,23 @@ export class SeriesPlaybackQueueService {
         this.endedHandled = false;
         this.state.set({ ...seriesQueueFromHere(catalogue, id), custom: true });
         this.autoplay.set(true);
+    }
+
+    requestFromHere(catalogue: readonly number[], id: number): void {
+        this.cancel();
+        if (id === this.state().current) this.fromHere(catalogue, id);
+        else {
+            this.pendingSequence = { ids: [...catalogue], current: id };
+            this.transitionRequested = true;
+        }
+        this.autoplay.set(true);
+    }
+
+    launchFailed(): void {
+        this.cancel();
+        this.transitionRequested = false;
+        this.endedHandled = false;
+        this.pendingSequence = null;
     }
 
     ended(play: (id: number) => void): void {
@@ -111,7 +140,12 @@ export class SeriesPlaybackQueueService {
         this.cancel();
         if (id === null || this.transitionRequested) return;
         this.transitionRequested = true;
-        play(id);
+        try {
+            play(id);
+        } catch (error) {
+            this.launchFailed();
+            throw error;
+        }
     }
 
     cancel(): void {

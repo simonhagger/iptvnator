@@ -86,6 +86,21 @@ describe('series queue session', () => {
         jest.advanceTimersByTime(5000);
         expect(play).not.toHaveBeenCalled();
     });
+    it('allows retry after the host acknowledges a failed launch', () => {
+        const play = jest.fn();
+        queue.playNow(play);
+        queue.launchFailed();
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2], [2]]);
+    });
+    it('keeps a requested restart sequence pending through old-episode refreshes', () => {
+        queue.sync('playlist:series', [1, 2, 3, 4], 3);
+        queue.requestFromHere([1, 2, 3, 4], 1);
+        queue.sync('playlist:series', [1, 2, 3, 4], 3);
+        expect(queue.state().current).toBe(3);
+        queue.sync('playlist:series', [1, 2, 3, 4], 1);
+        expect(queue.state().upcoming).toEqual([2, 3, 4]);
+    });
     it('a duplicate ended notification cannot undo Cancel', () => {
         const play = jest.fn();
         queue.ended(play);

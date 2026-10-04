@@ -99,6 +99,7 @@ export class PortalInlinePlayerComponent {
      * carries the episode title, so the series name must come from the host. */
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
+    readonly seriesQueueLaunchFailure = input(0);
     /** "Up Next" entries built by the series host; null for movies/live. */
     readonly upNextEpisodes = input<UpNextRailItem[] | null>(null);
     /**
