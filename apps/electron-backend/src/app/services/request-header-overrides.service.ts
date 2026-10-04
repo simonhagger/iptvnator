@@ -298,6 +298,15 @@ export function clearRequestHeaderOverride(): void {
     activeScopedHeaderOverride = null;
 }
 
+export function releaseStreamHeaderOverride(
+    scopeUrl: string | null | undefined,
+    ownerWebContentsId: number
+): void {
+    if (streamCors.release(scopeUrl, ownerWebContentsId)) {
+        clearScopedRequestHeaderOverride();
+    }
+}
+
 function clearScopedRequestHeaderOverride(): void {
     activeScopedHeaderOverride = null;
 }

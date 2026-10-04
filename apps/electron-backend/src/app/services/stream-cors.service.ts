@@ -12,6 +12,12 @@ export class StreamCorsScope {
     private requests = new Map<number, Request>();
     private playlists = new Set<string>();
 
+    release(url: string | null | undefined, owner: number): boolean {
+        if (this.owner !== owner || this.source?.href !== url) return false;
+        this.configure();
+        return true;
+    }
+
     configure(url?: string | null, owner?: number): void {
         this.source = null;
         this.owner = owner;

@@ -821,7 +821,8 @@ export interface ElectronBridgeApi {
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
-        credentials?: ElectronBridgeStreamCredentials | null
+        credentials?: ElectronBridgeStreamCredentials | null,
+        operation?: 'apply' | 'release'
     ) => Promise<boolean>;
     openInMpv: (
         url: string,

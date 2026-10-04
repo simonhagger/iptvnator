@@ -67,7 +67,7 @@ describe('request header overrides', () => {
     });
 
     it('binds headerless playback to its IPC owner and revokes it on close', async () => {
-        const { configureRequestHeaderOverride, clearRequestHeaderOverride } =
+        const { configureRequestHeaderOverride, releaseStreamHeaderOverride } =
             await import('./request-header-overrides.service');
         const url = 'https://stream.example/live.ts';
         configureRequestHeaderOverride(null, null, url, null, 1);
@@ -89,7 +89,15 @@ describe('request header overrides', () => {
                 'Access-Control-Allow-Origin': ['http://localhost:4200'],
             },
         });
-        clearRequestHeaderOverride();
+        releaseStreamHeaderOverride(url, 2);
+        received(details, callback);
+        expect(callback).toHaveBeenLastCalledWith({
+            responseHeaders: {
+                'Access-Control-Allow-Origin': ['http://localhost:4200'],
+            },
+        });
+        releaseStreamHeaderOverride(url, 1);
+        runHeaderListener(mockOnBeforeSendHeaders.mock.calls[0][1], url);
         received(details, callback);
         expect(callback).toHaveBeenLastCalledWith({});
     });

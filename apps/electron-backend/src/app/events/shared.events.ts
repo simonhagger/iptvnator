@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import {
     configureRequestHeaderOverride,
+    releaseStreamHeaderOverride,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
 
@@ -25,7 +26,11 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
 
 ipcMain.handle(
     'set-user-agent',
-    (event, userAgent, referer, scopeUrl, credentials) => {
+    (event, userAgent, referer, scopeUrl, credentials, operation) => {
+        if (operation === 'release') {
+            releaseStreamHeaderOverride(scopeUrl, event.sender.id);
+            return true;
+        }
         setUserAgent(
             userAgent,
             referer,

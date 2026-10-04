@@ -500,14 +500,16 @@ const electronApi: ElectronBridgeApi = {
         credentials?: {
             authorization?: string | null;
             cookie?: string | null;
-        } | null
+        } | null,
+        operation?: 'apply' | 'release'
     ) =>
         ipcRenderer.invoke(
             'set-user-agent',
             userAgent,
             referer,
             scopeUrl,
-            credentials
+            credentials,
+            operation
         ),
     openInMpv: (
         url: string,
@@ -1187,11 +1189,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }
