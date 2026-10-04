@@ -87,7 +87,11 @@ describe('series queue session', () => {
         expect(play).not.toHaveBeenCalled();
     });
     it('a duplicate ended notification cannot undo Cancel', () => {
-        const play = jest.fn(); queue.ended(play); queue.cancel(); queue.ended(play);
-        jest.advanceTimersByTime(5000); expect(play).not.toHaveBeenCalled();
+        const play = jest.fn();
+        queue.ended(play);
+        queue.cancel();
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
     });
 });

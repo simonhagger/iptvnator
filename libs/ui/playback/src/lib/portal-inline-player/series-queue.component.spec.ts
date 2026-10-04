@@ -69,4 +69,20 @@ describe('series queue surface', () => {
         fixture.detectChanges();
         expect(component.queue.state().upcoming).toEqual([4]);
     });
+
+    it('applies a fresh season selection when the surface is reused for another series', () => {
+        fixture.componentRef.setInput('initialQueue', [1, 2]);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.queue.state().upcoming).toEqual([2]);
+        fixture.componentRef.setInput('scope', 'playlist:another-series');
+        fixture.componentRef.setInput('initialQueue', [1, 3]);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.queue.state().upcoming).toEqual([3]);
+    });
+
+    it('ignores a stale initial queue containing episodes outside the loaded series', () => {
+        fixture.componentRef.setInput('initialQueue', [1, 99]);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.queue.state().upcoming).toEqual([2, 3, 4]);
+    });
 });

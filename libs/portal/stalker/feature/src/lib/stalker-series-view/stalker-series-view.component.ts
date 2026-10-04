@@ -234,6 +234,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ),
     };
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    readonly canStartSeriesQueue = () => this.portalPlayer.isEmbeddedPlayer();
     private readonly router = inject(Router);
     private readonly location = inject(Location);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);

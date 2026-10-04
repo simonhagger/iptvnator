@@ -1388,7 +1388,23 @@
             "TRAILER_UNMUTE": "Włącz dźwięk zwiastuna",
             "PROGRESS_RESET": "Postęp zresetowany",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Ukryto z „Kontynuuj oglądanie”"
-        }
+        },
+        "EPISODE_ORDER": "Kolejność odcinków",
+        "PLAYBACK_QUEUE": "Kolejka odtwarzania",
+        "AUTOPLAY_NEXT_EPISODE": "Automatycznie odtwarzaj następny odcinek",
+        "PLAY_FROM_HERE": "Odtwórz od tego miejsca",
+        "PLAY_SEASON": "Odtwórz sezon",
+        "NEXT_EPISODE_COUNTDOWN": "Następny odcinek za {{seconds}} sekund:",
+        "PLAY_NOW": "Odtwórz teraz",
+        "QUEUE_LOADED_EPISODES": "Dostępne są tylko wczytane odcinki. Wczytaj inny sezon z listy odcinków, aby go dodać.",
+        "SELECT_EPISODE": "Wybierz odcinek",
+        "QUEUE_PLAY_NEXT": "Odtwórz jako następny",
+        "ADD_TO_QUEUE": "Dodaj do kolejki",
+        "CLEAR_QUEUE": "Wyczyść kolejkę",
+        "QUEUE_MOVE_UP": "Przesuń odcinek wcześniej",
+        "QUEUE_MOVE_DOWN": "Przesuń odcinek później",
+        "QUEUE_REMOVE": "Usuń z kolejki",
+        "QUEUE_EMPTY": "Brak odcinków w kolejce. Odtwarzanie zakończy się po bieżącym odcinku."
     },
     "INFORMATION": "Informacje",
     "DOWNLOADS": {

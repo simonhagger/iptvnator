@@ -164,8 +164,12 @@
         }
 
         <!-- Seasons & Episodes -->
-        @if (!inlinePlayback()) {
-            <app-series-queue-start detail-episodes [seasons]="mappedSeasons()" (requested)="startSeriesQueue($event)" />
+        @if (!inlinePlayback() && canStartSeriesQueue()) {
+            <app-series-queue-start
+                detail-episodes
+                [seasons]="mappedSeasons()"
+                (requested)="startSeriesQueue($event)"
+            />
         }
         @if (mappedSeasons()) {
             <app-season-container

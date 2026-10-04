@@ -38,7 +38,7 @@ export class SeriesQueueComponent {
     readonly scope = input.required<string>();
     readonly loadedOnly = input(false);
     readonly initialQueue = input<readonly number[] | null>(null);
-    private initialized = false;
+    private initializedScope: string | null = null;
     readonly playRequested = output<UpNextRailItem>();
     readonly queue = inject(SeriesPlaybackQueueService);
     readonly expanded = signal(false);
@@ -69,9 +69,14 @@ export class SeriesQueueComponent {
                         current.id
                     );
                 else this.queue.cancel();
-                if (current && initial && !this.initialized) {
+                if (
+                    current &&
+                    initial?.includes(current.id) &&
+                    this.initializedScope !== scope &&
+                    initial.every((id) => items.some((item) => item.id === id))
+                ) {
                     this.queue.fromHere(initial, current.id);
-                    this.initialized = true;
+                    this.initializedScope = scope;
                 }
             });
         });

@@ -1388,7 +1388,23 @@
             "TRAILER_UNMUTE": "Trailergeluid aan",
             "PROGRESS_RESET": "Voortgang gewist",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Verborgen uit ‘Verder kijken’"
-        }
+        },
+        "EPISODE_ORDER": "Afleveringsvolgorde",
+        "PLAYBACK_QUEUE": "Afspeelwachtrij",
+        "AUTOPLAY_NEXT_EPISODE": "Volgende aflevering automatisch afspelen",
+        "PLAY_FROM_HERE": "Vanaf hier afspelen",
+        "PLAY_SEASON": "Seizoen afspelen",
+        "NEXT_EPISODE_COUNTDOWN": "Volgende aflevering over {{seconds}} seconden:",
+        "PLAY_NOW": "Nu afspelen",
+        "QUEUE_LOADED_EPISODES": "Alleen geladen afleveringen zijn beschikbaar. Laad een ander seizoen vanuit de afleveringslijst om het toe te voegen.",
+        "SELECT_EPISODE": "Aflevering kiezen",
+        "QUEUE_PLAY_NEXT": "Hierna afspelen",
+        "ADD_TO_QUEUE": "Toevoegen aan wachtrij",
+        "CLEAR_QUEUE": "Wachtrij leegmaken",
+        "QUEUE_MOVE_UP": "Aflevering eerder plaatsen",
+        "QUEUE_MOVE_DOWN": "Aflevering later plaatsen",
+        "QUEUE_REMOVE": "Verwijderen uit wachtrij",
+        "QUEUE_EMPTY": "Geen afleveringen in de wachtrij. Het afspelen stopt na de huidige aflevering."
     },
     "INFORMATION": "Informatie",
     "DOWNLOADS": {

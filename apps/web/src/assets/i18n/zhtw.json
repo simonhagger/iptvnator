@@ -1388,7 +1388,23 @@
             "TRAILER_UNMUTE": "取消預告片靜音",
             "PROGRESS_RESET": "進度已重設",
             "HIDDEN_FROM_CONTINUE_WATCHING": "已從「繼續觀看」隱藏"
-        }
+        },
+        "EPISODE_ORDER": "劇集順序",
+        "PLAYBACK_QUEUE": "播放佇列",
+        "AUTOPLAY_NEXT_EPISODE": "自動播放下一集",
+        "PLAY_FROM_HERE": "從此處播放",
+        "PLAY_SEASON": "播放本季",
+        "NEXT_EPISODE_COUNTDOWN": "{{seconds}} 秒後播放下一集：",
+        "PLAY_NOW": "立即播放",
+        "QUEUE_LOADED_EPISODES": "僅提供已載入的劇集。請從劇集清單載入其他季以將其加入。",
+        "SELECT_EPISODE": "選擇劇集",
+        "QUEUE_PLAY_NEXT": "下一項播放",
+        "ADD_TO_QUEUE": "加入佇列",
+        "CLEAR_QUEUE": "清空佇列",
+        "QUEUE_MOVE_UP": "將劇集前移",
+        "QUEUE_MOVE_DOWN": "將劇集後移",
+        "QUEUE_REMOVE": "從佇列移除",
+        "QUEUE_EMPTY": "佇列中沒有劇集。目前劇集結束後將停止播放。"
     },
     "INFORMATION": "資訊",
     "DOWNLOADS": {

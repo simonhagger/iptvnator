@@ -344,10 +344,12 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             const queue = component.seriesQueue()!;
             expect(queue).toBeTruthy();
             queue.queue.enqueue(14, 'next');
+            expect(component.playerUpNext()?.title).toBe('Episode 4');
             component.onNextEpisodeRequested();
             expect(selected).toEqual([14]);
             queue.queue.clear();
             fixture.detectChanges();
+            expect(component.playerUpNext()).toBeNull();
             component.onPlaybackEnded();
             expect(component.queueNavigation()?.canNext).toBe(false);
             expect(legacyEnded).not.toHaveBeenCalled();

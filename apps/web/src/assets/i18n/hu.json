@@ -1388,7 +1388,23 @@
             "TRAILER_UNMUTE": "Előzetes hangjának bekapcsolása",
             "PROGRESS_RESET": "Haladás törölve",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Elrejtve a „Folytatás” sorból"
-        }
+        },
+        "EPISODE_ORDER": "Epizódok sorrendje",
+        "PLAYBACK_QUEUE": "Lejátszási sor",
+        "AUTOPLAY_NEXT_EPISODE": "Következő epizód automatikus lejátszása",
+        "PLAY_FROM_HERE": "Lejátszás innen",
+        "PLAY_SEASON": "Évad lejátszása",
+        "NEXT_EPISODE_COUNTDOWN": "Következő epizód {{seconds}} másodperc múlva:",
+        "PLAY_NOW": "Lejátszás most",
+        "QUEUE_LOADED_EPISODES": "Csak a betöltött epizódok érhetők el. Másik évad hozzáadásához töltse be azt az epizódlistából.",
+        "SELECT_EPISODE": "Epizód kiválasztása",
+        "QUEUE_PLAY_NEXT": "Lejátszás következőként",
+        "ADD_TO_QUEUE": "Hozzáadás a sorhoz",
+        "CLEAR_QUEUE": "Sor ürítése",
+        "QUEUE_MOVE_UP": "Epizód előrébb helyezése",
+        "QUEUE_MOVE_DOWN": "Epizód hátrébb helyezése",
+        "QUEUE_REMOVE": "Eltávolítás a sorból",
+        "QUEUE_EMPTY": "Nincs epizód a sorban. A lejátszás a jelenlegi epizód után leáll."
     },
     "INFORMATION": "Információk",
     "DOWNLOADS": {

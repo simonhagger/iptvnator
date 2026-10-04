@@ -26,6 +26,16 @@ export const DEFAULT_PASSWORD = 'pass1';
  * to the mock server. This avoids any real backend requirement.
  */
 export async function interceptXtreamRequests(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+        window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: 'http://localhost:3000' };
+    });
+    // Use the same intercepted backend in development and a static PWA build.
+    await page.route('**/assets/app-config.js', async (route) => {
+        await route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
+        });
+    });
     const providerTargets = await interceptProviderTargetRegistration(page);
 
     await page.route('**/localhost:3000/xtream**', async (route) => {

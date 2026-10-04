@@ -230,6 +230,8 @@ export class PortalInlinePlayerComponent {
     );
     /** The rail entry after the playing one, across season boundaries. */
     private readonly upNextRailNext = computed<UpNextRailItem | null>(() => {
+        const queue = this.seriesQueue();
+        if (queue) return queue.nextItem();
         const items = this.upNextEpisodes() ?? [];
         const playing = items.findIndex((item) => item.isPlaying);
         const next = playing >= 0 ? items[playing + 1] : undefined;
@@ -382,7 +384,10 @@ export class PortalInlinePlayerComponent {
 
     onNextEpisodeRequested(): void {
         const queue = this.seriesQueue();
-        if (queue) { queue.next(); return; }
+        if (queue) {
+            queue.next();
+            return;
+        }
         // Season-local navigation ends at a season's last episode; the Up
         // next card can still offer the next season's first, which only
         // the rail selection path knows how to play.

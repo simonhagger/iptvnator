@@ -8,6 +8,9 @@ import {
     selectWebPlayer,
 } from './xtream-series-playback.fixture';
 
+// Mock requests must reach Playwright routing, including in a production PWA.
+test.use({ serviceWorkers: 'block' });
+
 test('@xtream show page offers queue controls before playback and transfers a season queue', async ({
     page,
     request,

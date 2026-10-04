@@ -39,6 +39,7 @@ import {
     type PlaybackFallbackRequest,
     resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
+    type SeriesQueueStartRequest,
 } from '@iptvnator/ui/playback';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
@@ -72,6 +73,13 @@ let pageInstances = 0;
  */
 @Injectable()
 export class SerialDetailsPlaybackService {
+    readonly canStartSeriesQueue = () => this.portalPlayer.isEmbeddedPlayer();
+    readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.initialSeriesQueue.set(request.ids);
+        this.playEpisode(request.episode.episode as XtreamSerieEpisode);
+    }
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -289,6 +297,7 @@ export class SerialDetailsPlaybackService {
     }
 
     closeInlinePlayer(): void {
+        this.initialSeriesQueue.set(null);
         this.inlinePlayback.set(null);
         this.inlinePlaybackSessionEpisodeState.set(null);
         this.lastSaveTime = 0;
