@@ -7,7 +7,7 @@
         [kindLabel]="hero.kindLabel()"
         [description]="info.plot"
         [posterUrl]="info.cover"
-        [backdropUrl]="getBackdropUrl(info)"
+        [backdropUrl]="info.backdrop_path?.[0]"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
         [contentKey]="
             'xtream-series:' + currentPlaylistId() + ':' + item.series_id
@@ -114,6 +114,15 @@
                     [disabled]="primary.disabled"
                     testId="series-quick-start"
                     (pressed)="playQuickStartEpisode()"
+                />
+            }
+            @if (quickStartAction()?.kind === 'resume') {
+                <app-detail-action-button
+                    variant="secondary"
+                    icon="replay"
+                    [label]="'XTREAM.RESTART' | translate"
+                    testId="series-restart"
+                    (pressed)="restartQuickStartEpisode()"
                 />
             }
             @if (heroPresenter.trailerEmbedUrl()) {

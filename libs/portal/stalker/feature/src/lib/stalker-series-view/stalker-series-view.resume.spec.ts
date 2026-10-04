@@ -415,4 +415,48 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
             90
         );
     });
+    it('offers timed resume and restarts the same episode at zero', async () => {
+        await stabilize();
+        const episode = fixture.componentInstance.mappedSeasons()['1'][0];
+        fixture.componentInstance.episodePlaybackPositions.set(
+            new Map([
+                [
+                    Number(episode.id),
+                    {
+                        contentXtreamId: Number(episode.id),
+                        contentType: 'episode',
+                        seriesXtreamId: 30001,
+                        positionSeconds: 42,
+                        durationSeconds: 120,
+                        playlistId: 'stalker-1',
+                        updatedAt: '2026-10-04T10:00:00Z',
+                    },
+                ],
+            ])
+        );
+        fixture.detectChanges();
+        expect(fixture.componentInstance.quickStartAction()?.action?.kind).toBe(
+            'resume'
+        );
+        await fixture.componentInstance.playQuickStartEpisode();
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            '/media/file_30001.mpg',
+            'Regular Series',
+            'poster.jpg',
+            1,
+            Number(episode.id),
+            42
+        );
+        fixture.componentInstance.restartQuickStartEpisode();
+        await fixture.whenStable();
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            '/media/file_30001.mpg',
+            'Regular Series',
+            'poster.jpg',
+            1,
+            Number(episode.id),
+            0
+        );
+    });
 });

@@ -47,7 +47,6 @@ import {
     TmdbEnrichedCastMember,
     XtreamSerieDetails,
     XtreamSerieEpisode,
-    XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { buildSeasonDescriptions } from './season-descriptions.util';
 import { buildSeasonPosters } from './season-posters.util';
@@ -360,9 +359,14 @@ export class SerialDetailsComponent implements OnDestroy {
         this.playback.playEpisode(episode);
     }
 
-    playQuickStartEpisode(): void {
-        this.playback.playQuickStartEpisode();
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction();
+        if (action && !action.disabled)
+            this.playback.playEpisode(action.episode, undefined, 0);
     }
+
+    readonly playQuickStartEpisode = () =>
+        this.playback.playQuickStartEpisode();
 
     playPreviousEpisode(): void {
         this.playback.playPreviousEpisode();
@@ -425,10 +429,6 @@ export class SerialDetailsComponent implements OnDestroy {
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]
         );
-    }
-
-    getBackdropUrl(info: XtreamSerieInfo): string | undefined {
-        return info.backdrop_path?.[0];
     }
 
     goBack(): void {

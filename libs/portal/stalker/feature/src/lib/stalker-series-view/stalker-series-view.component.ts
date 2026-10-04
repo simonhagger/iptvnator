@@ -1105,8 +1105,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
         const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
-            startTimeOverride;
+            startTimeOverride ??
+            this.episodePlaybackPositions().get(trackingId)?.positionSeconds;
 
         void this.startPlayback(
             command,
@@ -1116,6 +1116,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             startTime,
             forcePlayer
         );
+    }
+
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction()?.action;
+        if (action && !action.disabled)
+            this.onEpisodeClicked(action.episode, 0);
     }
 
     async playQuickStartEpisode(): Promise<void> {

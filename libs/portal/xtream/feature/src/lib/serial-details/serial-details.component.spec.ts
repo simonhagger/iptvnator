@@ -635,10 +635,9 @@ describe('SerialDetailsComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
 
-        expect(quickStartButton?.textContent).toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.RESUME');
         expect(quickStartButton?.textContent).toContain('S01E01');
+        expect(quickStartButton?.textContent).toContain('00:42');
 
         quickStartButton?.click();
 
@@ -651,6 +650,14 @@ describe('SerialDetailsComponent', () => {
             }),
             true
         );
+        const restart: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-testid="series-restart"]'
+        );
+        restart.click();
+        expect(openResolvedPlayback.mock.calls.at(-1)?.[0]).toMatchObject({
+            startTime: 0,
+            contentInfo: { contentXtreamId: 1001 },
+        });
     });
 
     it('records the selected episode after a successful external-player launch', async () => {
@@ -799,9 +806,7 @@ describe('SerialDetailsComponent', () => {
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton()?.textContent).not.toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton()?.textContent).not.toContain('XTREAM.RESUME');
 
         positionUpdateCallback({
             playlistId: 'xtream-1',
@@ -815,9 +820,7 @@ describe('SerialDetailsComponent', () => {
         } as PlaybackPositionData);
         fixture.detectChanges();
 
-        expect(quickStartButton()?.textContent).toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton()?.textContent).toContain('XTREAM.RESUME');
         expect(quickStartButton()?.textContent).toContain('S01E01');
     });
 
