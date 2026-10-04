@@ -37,6 +37,11 @@ snapshot. A shuffle is an execution permutation and never rewrites the saved ord
 Resume uses the interrupted occurrence's per-list position. Restart list creates a
 new execution and leaves global watch history intact.
 
+Creation and rename validate trimmed names through the shared document validator.
+Duplication receives a new list ID and one new ID per occurrence from the caller,
+preserves content order and provenance, and starts without an execution or progress.
+Renaming retains the original creation time, persisted revision and run.
+
 Observations carry execution ID, occurrence ID and playback revision. Every
 transition increments the revision, including Repeat One, so late time/end events
 cannot advance a replacement run or complete the same occurrence twice. Skip does
