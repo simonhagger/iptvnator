@@ -8,3 +8,4 @@ export * from './lib/schema';
 export * from './lib/connection';
 export * from './lib/path-utils';
 export * from './lib/connection-observer';
+export { SAVED_VOD_PLAYLISTS_TABLE_SQL } from './lib/saved-vod-playlists.schema';

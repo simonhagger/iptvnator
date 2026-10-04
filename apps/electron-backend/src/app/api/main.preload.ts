@@ -1,4 +1,7 @@
-import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
+import type {
+    SourceProbeContext,
+    SavedVodPlaylist,
+} from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import {
     APP_UPDATE_CHECK,
@@ -795,6 +798,25 @@ const electronApi: ElectronBridgeApi = {
     dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
+    dbListSavedVodPlaylists: () =>
+        ipcRenderer.invoke('DB_LIST_SAVED_VOD_PLAYLISTS'),
+    dbGetSavedVodPlaylist: (id: string) =>
+        ipcRenderer.invoke('DB_GET_SAVED_VOD_PLAYLIST', id),
+    dbSaveSavedVodPlaylist: (
+        playlist: SavedVodPlaylist,
+        expectedRevision: number | null
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SAVE_SAVED_VOD_PLAYLIST',
+            playlist,
+            expectedRevision
+        ),
+    dbDeleteSavedVodPlaylist: (id: string, expectedRevision: number) =>
+        ipcRenderer.invoke(
+            'DB_DELETE_SAVED_VOD_PLAYLIST',
+            id,
+            expectedRevision
+        ),
     dbGetAppPlaylistMetas: () =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST_METAS'),
     dbGetAppPlaylist: (playlistId: string, _operationId?: string) =>
@@ -1187,11 +1209,14 @@ const electronApi: ElectronBridgeApi = {
 // the next resize. Applied at DOMContentLoaded, never earlier — see
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
-    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    requestPersistedZoomLevel: () =>
+        ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
     ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', apply, { once: true });
+            document.addEventListener('DOMContentLoaded', apply, {
+                once: true,
+            });
         } else {
             apply();
         }

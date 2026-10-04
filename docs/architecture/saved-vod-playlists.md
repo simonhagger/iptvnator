@@ -1,9 +1,9 @@
 # Saved VOD playlists
 
 This buildout adds named movie and episode lists independently of provider sources,
-which are already called playlists elsewhere in IPTVnator. The first local slice
-defines identities and pure editing/execution rules. Persistence and UI integration
-are subsequent slices; these functions alone do not expose a new user feature.
+which are already called playlists elsewhere in IPTVnator. The local foundation
+defines identities, pure editing/execution rules and persistence. The management
+and playback views are subsequent slices; storage alone exposes no new user feature.
 
 ## Ownership
 
@@ -11,7 +11,7 @@ are subsequent slices; these functions alone do not expose a new user feature.
 `@iptvnator/portal/shared/util` owns pure identity, editing, progress and transition
 rules. Functions receive IDs, timestamps and shuffle permutations from callers.
 They do not read clocks, generate random numbers, resolve streams or write storage.
-Data-access services will coordinate persistence and provider playback adapters.
+Data-access services coordinate persistence and will add provider playback adapters.
 Angular views will bind those services and use existing Material controls and theme
 tokens. Renderers report playback observations through the shared player contract.
 
@@ -48,6 +48,28 @@ allowlisted versioned format with bounded document and entry sizes. Import creat
 new local list and occurrence IDs. Unknown schemas or malformed identities fail
 without partially overwriting an existing list. Source mapping is explicit when
 referenced sources are absent.
+
+## Storage
+
+`SavedVodPlaylistsStorageService` selects an explicit runtime capability. Electron
+requires all four saved-list bridge methods and routes them through the database
+worker. A partial desktop bridge reports an update requirement instead of silently
+creating a second browser store. SQLite adds `saved_vod_playlists` on startup with
+an idempotent table statement. Lists have no foreign key to provider sources, so a
+deleted source does not delete curated entries that the user may recover or remap.
+
+The browser uses a separate `iptvnator-saved-vod` IndexedDB database with document
+and summary stores, leaving the provider-source database untouched. Document and
+summary changes commit together. Both adapters compare the expected revision in
+the same write transaction and return a conflict with the current document for
+stale edits or deletes. IDs and timestamps come from callers; the storage adapter
+assigns the next persisted revision and preserves the original creation time.
+
+Documents pass allowlist validation before IPC and persistence. Unknown fields,
+including credentials, are discarded. SQLite reads check stored identity and
+revision. Browser reads check identity. Listing reads summaries instead of parsing
+every execution snapshot. Real browser tests cover reload, competing windows and
+invalid edits; Electron E2E covers the preload/worker/SQLite path and app restart.
 
 ## Delivery and validation
 
