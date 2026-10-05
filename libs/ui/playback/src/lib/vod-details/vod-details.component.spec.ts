@@ -35,6 +35,7 @@ import {
     VodDetailsItem,
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
+import { EMPTY } from 'rxjs';
 import type { VodDetailsComponent as VodDetailsComponentInstance } from './vod-details.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -311,6 +312,7 @@ describe('VodDetailsComponent offline playback', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: jest.fn(),
                     },
                 },

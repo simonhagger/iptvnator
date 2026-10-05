@@ -32,7 +32,7 @@ import {
     VodDetailsItem,
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
-import { of, Subject } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -202,6 +202,7 @@ describe('StalkerCollectionDetailComponent', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: routerNavigate,
                         url: '/workspace/global-favorites',
                     },
@@ -279,6 +280,26 @@ describe('StalkerCollectionDetailComponent', () => {
 
     afterEach(() => {
         fixture?.destroy();
+    });
+
+    it('does not repoint the portal after a pending collection load outlives its view', async () => {
+        const pending = new Subject<Playlist>();
+        playlistsService.getPlaylistById.mockReturnValue(pending);
+        fixture.componentRef.setInput('item', buildCollectionItem({}));
+        fixture.detectChanges();
+        TestBed.tick();
+        expect(playlistsService.getPlaylistById).toHaveBeenCalled();
+
+        fixture.destroy();
+        const destination = { ...playlist, _id: 'destination' };
+        await stalkerStore.setCurrentPlaylist(destination);
+        stalkerStore.setSelectedItem({ id: 'destination-item' });
+        pending.next(playlist);
+        pending.complete();
+        for (let i = 0; i < 10; i++) await Promise.resolve();
+
+        expect(currentPlaylist()).toBe(destination);
+        expect(selectedItem()).toEqual({ id: 'destination-item' });
     });
 
     it('opens legacy VOD is_series favorites through the lazy VOD-series flow', async () => {

@@ -121,7 +121,10 @@ describe('StalkerSeriesViewComponent playback session key', () => {
                         openResolvedPlayback: jest.fn(),
                     },
                 },
-                { provide: Router, useValue: { navigateByUrl: jest.fn() } },
+                {
+                    provide: Router,
+                    useValue: { events: EMPTY, navigateByUrl: jest.fn() },
+                },
                 {
                     provide: TmdbEnrichmentService,
                     useValue: {

@@ -12,7 +12,7 @@ import {
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, EMPTY } from 'rxjs';
 import type {
     DownloadActionResult,
     DownloadItemAction,
@@ -142,6 +142,7 @@ describe('DownloadOfflineDetailComponent', () => {
         resolve: jest.Mock<Promise<DownloadMetadataSnapshot>, [unknown]>;
     };
     let router: {
+        events: typeof EMPTY;
         url: string;
         navigate: jest.Mock;
         navigateByUrl: jest.Mock;
@@ -185,6 +186,7 @@ describe('DownloadOfflineDetailComponent', () => {
             }),
         };
         router = {
+            events: EMPTY,
             url: '/workspace/downloads/17',
             navigate: jest.fn().mockResolvedValue(true),
             navigateByUrl: jest.fn().mockResolvedValue(true),
