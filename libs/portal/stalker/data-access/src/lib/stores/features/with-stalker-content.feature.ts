@@ -65,6 +65,7 @@ function withheldStalkerCategoryIds(
  */
 export interface StalkerContentState {
     categoryPlaylistKey: string | null;
+    categoryRequestVersion: number;
     totalCount: number;
     vodCategories: StalkerCategoryItem[];
     seriesCategories: StalkerCategoryItem[];
@@ -98,6 +99,7 @@ export interface StalkerContentState {
 
 const initialContentState: StalkerContentState = {
     categoryPlaylistKey: null,
+    categoryRequestVersion: 0,
     totalCount: 0,
     vodCategories: [],
     seriesCategories: [],
@@ -312,6 +314,8 @@ export function withStalkerContent() {
                             params,
                             abortSignal,
                         }): Promise<StalkerCategoryItem[]> => {
+                            const requestVersion =
+                                store.categoryRequestVersion();
                             const playlistKey = stalkerPlaylistKey(
                                 params.currentPlaylist
                             );
@@ -327,6 +331,8 @@ export function withStalkerContent() {
                             }
                             const isCurrent = () =>
                                 !abortSignal.aborted &&
+                                store.categoryRequestVersion() ===
+                                    requestVersion &&
                                 stalkerPlaylistKey(
                                     storeContext.currentPlaylist()
                                 ) === playlistKey;
@@ -1167,6 +1173,17 @@ export function withStalkerContent() {
                 StalkerContentResourceStoreContract;
             const itvCache = inject(StalkerItvCacheService);
             const dataService = inject(DataService);
+            const invalidateCategories = () => {
+                patchState(store, {
+                    categoryRequestVersion: store.categoryRequestVersion() + 1,
+                    categoryPlaylistKey: null,
+                    vodCategories: [],
+                    seriesCategories: [],
+                    itvCategories: [],
+                    radioCategories: [],
+                    categoryError: null,
+                });
+            };
 
             return {
                 /**
@@ -1214,14 +1231,11 @@ export function withStalkerContent() {
                         ...buildCategoryPatch(type, categories),
                     });
                 },
+                /** Clears abandoned state without requesting the previous portal. */
+                invalidateCategories,
+                /** Explicit same-owner refresh; route changes use invalidation. */
                 resetCategories() {
-                    patchState(store, {
-                        vodCategories: [],
-                        seriesCategories: [],
-                        itvCategories: [],
-                        radioCategories: [],
-                        categoryError: null,
-                    });
+                    invalidateCategories();
                     storeContext.categoryResource.reload();
                 },
                 setItvChannels(channels: StalkerItvChannel[]) {

@@ -397,9 +397,14 @@ Category arrays belong to `categoryPlaylistKey`, not just the content type.
 Every category reader checks that owner; a portal switch clears all four
 section caches before loading the destination. Aborted or foreign-portal
 responses (including errors and radio fallbacks) cannot write into the active
-cache. Explicit category resets reload even when the playlist object remains
-unchanged. This contract applies to collection details as well as routed
-catalogs, because both use the root Stalker store.
+cache. `invalidateCategories()` clears the owner and all section caches and
+invalidates pending responses without starting another request. Route switches
+and teardown use that silent action, so a missing or rejected destination
+cannot reload the previous portal. `resetCategories()` is an explicit refresh
+and reloads even when the playlist object remains unchanged. A route revisit
+or return from a failed handoff that retains that exact object refreshes only
+after its owner and section are restored. This contract applies to collection
+details as well as routed catalogs, because both use the root Stalker store.
 
 Failure-handling rule:
 

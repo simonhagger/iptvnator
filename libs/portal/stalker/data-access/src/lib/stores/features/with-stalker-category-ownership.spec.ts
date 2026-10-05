@@ -111,6 +111,80 @@ describe('Stalker category ownership', () => {
         expect(
             store.getCategoryResource().map((c) => c.category_name)
         ).toContain('After reset');
+        expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it('silently invalidates completed categories without requesting the abandoned owner', async () => {
+        request.mockResolvedValueOnce({ js: [{ id: '1', title: 'Portal A' }] });
+        store.selectPlaylist('a');
+        await settle();
+        expect(store.getCategoryResource()).not.toEqual([]);
+
+        store.invalidateCategories();
+        await settle();
+
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(store.getCategoryResource()).toEqual([]);
+        expect(store.getAllCategoriesForSelectedType()).toEqual([]);
+        expect(store.categoryPlaylistKey()).toBeNull();
+    });
+
+    it.each(['success', 'failure'] as const)(
+        'rejects a pending category %s after silent invalidation of the same owner',
+        async (outcome) => {
+            const pending = deferred();
+            request.mockReturnValueOnce(pending.promise);
+            store.selectPlaylist('a');
+            await settle();
+
+            store.invalidateCategories();
+            await settle();
+            expect(request).toHaveBeenCalledTimes(1);
+            if (outcome === 'success')
+                pending.resolve({ js: [{ id: '1', title: 'Abandoned A' }] });
+            else pending.reject(new Error('Abandoned request failed'));
+            await settle();
+
+            expect(store.getCategoryResource()).toEqual([]);
+            expect(store.vodCategories()).toEqual([]);
+            expect(store.isCategoryResourceFailed()).toBeNull();
+            expect(store.categoryPlaylistKey()).toBeNull();
+        }
+    );
+
+    it('loads the destination normally after silent invalidation', async () => {
+        request.mockResolvedValueOnce({ js: [{ id: '1', title: 'Portal A' }] });
+        store.selectPlaylist('a');
+        await settle();
+        store.invalidateCategories();
+        request.mockResolvedValueOnce({ js: [{ id: '1', title: 'Portal B' }] });
+        store.selectPlaylist('b');
+        await settle();
+
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(
+            store.getCategoryResource().map((c) => c.category_name)
+        ).toContain('Portal B');
+    });
+
+    it('explicitly refreshes the same owner after silent invalidation', async () => {
+        request.mockResolvedValueOnce({
+            js: [{ id: '1', title: 'Before leaving' }],
+        });
+        store.selectPlaylist('a');
+        await settle();
+        store.invalidateCategories();
+        await settle();
+        request.mockResolvedValueOnce({
+            js: [{ id: '1', title: 'After returning' }],
+        });
+        store.resetCategories();
+        await settle();
+
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(
+            store.getCategoryResource().map((c) => c.category_name)
+        ).toContain('After returning');
     });
 
     it('ignores the abandoned request after switching away and back to the same portal', async () => {

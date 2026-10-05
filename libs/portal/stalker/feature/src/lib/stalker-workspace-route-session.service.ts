@@ -34,6 +34,7 @@ export class StalkerWorkspaceRouteSession {
 
     private currentPlaylistId: string | null = null;
     private targetPlaylistId: string | null = null;
+    private invalidatedPlaylist: PlaylistMeta | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
     private readonly synced = signal(false);
 
@@ -88,7 +89,7 @@ export class StalkerWorkspaceRouteSession {
         void this.syncRouteContext();
 
         this.destroyRef.onDestroy(() => {
-            this.stalkerStore.resetCategories();
+            this.stalkerStore.invalidateCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
         });
@@ -140,7 +141,9 @@ export class StalkerWorkspaceRouteSession {
             this.currentPlaylistId !== playlistId ||
             this.stalkerStore.currentPlaylist()?._id !== playlistId
         ) {
-            this.stalkerStore.resetCategories();
+            const previousPlaylist = this.stalkerStore.currentPlaylist();
+            this.invalidatedPlaylist = previousPlaylist ?? null;
+            this.stalkerStore.invalidateCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
@@ -162,6 +165,15 @@ export class StalkerWorkspaceRouteSession {
         }
 
         this.syncRouteState(routeContext.section);
+        if (
+            this.invalidatedPlaylist &&
+            this.stalkerStore.currentPlaylist() === this.invalidatedPlaylist
+        ) {
+            // A revisit or return from a failed handoff can retain the exact
+            // owner object. Refresh only after its route section is restored.
+            this.stalkerStore.resetCategories();
+        }
+        this.invalidatedPlaylist = null;
         this.synced.set(true);
     }
 
