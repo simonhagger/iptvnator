@@ -36,7 +36,7 @@ import {
     interceptStalkerRequests,
     recordPortalRequests,
 } from './stalker-portal.fixture';
-import { expect, test } from './fixtures';
+import { expect, test } from './mock-provider.fixture';
 
 /**
  * Stalker Portal E2E Tests

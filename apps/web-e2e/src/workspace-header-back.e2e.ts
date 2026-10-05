@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, test } from './mock-provider.fixture';
 import {
     addXtreamPortal,
     interceptXtreamRequests,

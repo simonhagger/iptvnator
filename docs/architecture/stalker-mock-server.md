@@ -378,6 +378,15 @@ webServer: [
 
 Playwright waits for every server to be healthy before starting tests. If one is already running (e.g. in local dev), it reuses the existing instance.
 
+Interception-driven portal specs use `apps/web-e2e/src/mock-provider.fixture.ts`.
+It sets `window.__IPTVNATOR_CONFIG__.BACKEND_URL` to the intercepted
+`http://localhost:3000` endpoint before each document loads, including fresh
+tabs and reloads. It blocks service workers so proxy requests reach Playwright
+routes when testing a production PWA build. Mock registration responses use
+the configured `BASE_URL` origin, or the static PWA port when no override is
+set. Self-hosted backend and offline/PWA tests keep the general fixtures and
+their own runtime configuration.
+
 The mock runs as a single `node` process instead of `pnpm nx run
 stalker-mock-server:serve`, because Nx starts its command in a detached
 process group that Playwright's process-group kill never reached, so the server
