@@ -32,7 +32,7 @@ import {
     VodDetailsItem,
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
-import { of, Subject } from 'rxjs';
+import { EMPTY, of, Subject } from 'rxjs';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -202,6 +202,7 @@ describe('StalkerCollectionDetailComponent', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: routerNavigate,
                         url: '/workspace/global-favorites',
                     },

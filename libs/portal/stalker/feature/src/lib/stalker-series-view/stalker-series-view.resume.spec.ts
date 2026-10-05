@@ -149,7 +149,10 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
                     provide: STALKER_SERIES_RESUME_TARGET,
                     useValue: seriesResumeTarget,
                 },
-                { provide: Router, useValue: { navigateByUrl: jest.fn() } },
+                {
+                    provide: Router,
+                    useValue: { events: EMPTY, navigateByUrl: jest.fn() },
+                },
                 {
                     provide: TmdbEnrichmentService,
                     useValue: {

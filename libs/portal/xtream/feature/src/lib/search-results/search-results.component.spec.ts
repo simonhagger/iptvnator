@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatDialogRef } from '@angular/material/dialog';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
-import { of } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { DatabaseService } from '@iptvnator/services';
 import { SearchResultsComponent } from './search-results.component';
 import {
@@ -93,6 +93,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: routerNavigateMock,
                     },
                 },
@@ -499,7 +500,7 @@ describe('SearchResultsComponent in-portal result window', () => {
                 },
                 {
                     provide: Router,
-                    useValue: { navigate: jest.fn() },
+                    useValue: { events: EMPTY, navigate: jest.fn() },
                 },
                 {
                     provide: ActivatedRoute,

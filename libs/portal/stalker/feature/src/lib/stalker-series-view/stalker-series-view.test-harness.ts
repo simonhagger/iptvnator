@@ -184,6 +184,7 @@ export function createStalkerSeriesViewHarness<
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigateByUrl: createMock(),
                     },
                 },
