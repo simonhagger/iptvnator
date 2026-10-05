@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RecentlyAddedComponent } from './recently-added.component';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 
 jest.mock('@iptvnator/portal/shared/ui', () => ({
     ContentCardComponent: class {},
@@ -62,6 +63,15 @@ describe('RecentlyAddedComponent', () => {
         TestBed.configureTestingModule({
             providers: [
                 {
+                    provide: ContentCoverDataService,
+                    useValue: {
+                        load: jest.fn().mockResolvedValue(undefined),
+                        loadWatchPositions: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+                {
                     provide: XtreamStore,
                     useClass: MockXtreamStore,
                 },
@@ -93,6 +103,21 @@ describe('RecentlyAddedComponent', () => {
 
     afterEach(() => {
         dateNowSpy.mockRestore();
+    });
+
+    it('hydrates covers once per current source instead of each rail item', () => {
+        TestBed.runInInjectionContext(() => new RecentlyAddedComponent());
+        TestBed.flushEffects();
+        const covers = TestBed.inject(ContentCoverDataService);
+        expect(covers.loadWatchPositions).toHaveBeenCalledWith(['playlist-1']);
+        store.vodStreams.set([createItem(1), createItem(2)]);
+        TestBed.flushEffects();
+        expect(covers.loadWatchPositions).toHaveBeenCalledTimes(1);
+        store.currentPlaylist.set({ id: 'playlist-2' });
+        TestBed.flushEffects();
+        expect(covers.loadWatchPositions).toHaveBeenLastCalledWith([
+            'playlist-2',
+        ]);
     });
 
     it('shows up to 30 recently added VOD items after filtering invalid provider dates', () => {

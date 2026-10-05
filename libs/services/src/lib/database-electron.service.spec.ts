@@ -75,4 +75,39 @@ describe('DatabaseService browser guards', () => {
 
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
+
+    it.each(['playlist', 'global'] as const)(
+        'propagates actual bridge read failures for strict %s favorites',
+        async (scope) => {
+            const failure = new Error('database unavailable');
+            const read = jest.fn().mockRejectedValue(failure);
+            window.electron = {
+                dbGetFavorites: read,
+                dbGetAllGlobalFavorites: read,
+            } as unknown as Window['electron'];
+
+            const legacy =
+                scope === 'playlist'
+                    ? service.getFavorites('playlist-1')
+                    : service.getAllGlobalFavorites();
+            await expect(legacy).resolves.toEqual([]);
+            const strict =
+                scope === 'playlist'
+                    ? service.getFavorites('playlist-1', true)
+                    : service.getAllGlobalFavorites(true);
+            await expect(strict).rejects.toBe(failure);
+            expect(read).toHaveBeenCalledTimes(2);
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('keeps strict membership unknown when favorite storage is unavailable', async () => {
+        await expect(service.getFavorites('playlist-1', true)).rejects.toThrow(
+            'Favorites storage is unavailable'
+        );
+        await expect(service.getAllGlobalFavorites(true)).rejects.toThrow(
+            'Favorites storage is unavailable'
+        );
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
 });

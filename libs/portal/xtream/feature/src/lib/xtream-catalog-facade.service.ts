@@ -7,6 +7,8 @@ import {
     PORTAL_CATALOG_FACADE,
     resolvePortalSeriesWatchState,
     watchStateFromProgressPercent,
+    findLatestSeriesEpisodePosition,
+    playbackProgressPercent,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
@@ -171,7 +173,13 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         }
 
         if (isSeries) {
+            const latest = findLatestSeriesEpisodePosition(
+                this.xtreamStore.seriesPositions().get(itemId) ?? [],
+                itemId
+            );
+            const progress = playbackProgressPercent(latest);
             return {
+                ...(progress !== null ? { progress } : {}),
                 watchState: resolvePortalSeriesWatchState(
                     this.xtreamStore.hasSeriesProgress(itemId)
                 ),

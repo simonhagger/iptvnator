@@ -13,7 +13,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
@@ -38,6 +38,7 @@ import {
 import {
     CollectionLoadRequest,
     CollectionMode,
+    ContentCoverDataService,
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -70,13 +71,14 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
     templateUrl: './unified-collection-page.component.html',
     styleUrl: './unified-collection-page.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    providers: [UnifiedCollectionDataService],
+    providers: [UnifiedCollectionDataService, ContentCoverDataService],
     imports: [
         ChannelListSkeletonComponent,
         EmptyStateComponent,
         NgTemplateOutlet,
         MatButtonToggleModule,
         MatIconButton,
+        MatButton,
         MatIconModule,
         MatMenuModule,
         MatProgressBar,
@@ -124,6 +126,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly viewStateHistory = new CollectionViewStateHistory();
 
     readonly isLoading = this.data.isLoading;
+    readonly pendingFavoriteKeys = this.data.pendingFavoriteKeys;
+    readonly favoriteFailed = this.data.favoriteFailed;
     readonly isReloading = this.data.isReloading;
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
@@ -341,6 +345,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
 
         await this.data.toggleFavorite(item);
+    }
+
+    retryFavorites(): Promise<void> {
+        return this.data.retryFavorites();
     }
 
     clearAllCurrent(): void {

@@ -45,6 +45,14 @@
         </div>
     }
 } @else {
+    @if (favoriteFailed()) {
+        <p role="alert">
+            {{ 'COVER.FAVORITES_FAILED' | translate }}
+            <button mat-button type="button" (click)="retryFavorites()">
+                {{ 'RETRY' | translate }}
+            </button>
+        </p>
+    }
     <div class="collection-header">
         <span class="collection-title">{{ title() | translate }}</span>
 
@@ -211,8 +219,11 @@
                         [mode]="mode()"
                         [contentType]="'movie'"
                         [searchTerm]="workspaceSearchTerm()"
+                        [pendingFavoriteKeys]="pendingFavoriteKeys()"
+                        [favoriteActionsDisabled]="isReloading()"
                         (itemSelected)="onGridItemSelected($event)"
                         (removeItem)="onRemoveItem($event)"
+                        (favoriteToggled)="onFavoriteToggled($event)"
                     />
                 }
             }
@@ -223,8 +234,11 @@
                         [mode]="mode()"
                         [contentType]="'series'"
                         [searchTerm]="workspaceSearchTerm()"
+                        [pendingFavoriteKeys]="pendingFavoriteKeys()"
+                        [favoriteActionsDisabled]="isReloading()"
                         (itemSelected)="onGridItemSelected($event)"
                         (removeItem)="onRemoveItem($event)"
+                        (favoriteToggled)="onFavoriteToggled($event)"
                     />
                 }
             }

@@ -14,6 +14,7 @@ import {
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import { UnifiedFavoritesDataService } from '@iptvnator/portal/shared/data-access';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DashboardDataService,
@@ -106,6 +107,9 @@ describe('DashboardDataService', () => {
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
     };
+    const favoritesDataMock = {
+        removeFavorite: jest.fn().mockResolvedValue(undefined),
+    };
     const xtreamDataSourceMock = {
         getFavorites: jest.fn().mockResolvedValue([]),
         getRecentItems: jest.fn().mockResolvedValue([]),
@@ -170,6 +174,10 @@ describe('DashboardDataService', () => {
     const createTestingModuleProviders = () => ({
         providers: [
             DashboardDataService,
+            {
+                provide: UnifiedFavoritesDataService,
+                useValue: favoritesDataMock,
+            },
             { provide: Store, useValue: storeMock },
             { provide: DatabaseService, useValue: dbServiceMock },
             {
@@ -240,6 +248,8 @@ describe('DashboardDataService', () => {
         dbServiceMock.getGlobalRecentlyViewed.mockClear();
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([]);
         dbServiceMock.removeFromFavorites.mockClear();
+        favoritesDataMock.removeFavorite.mockReset();
+        favoritesDataMock.removeFavorite.mockResolvedValue(undefined);
         dbServiceMock.removeRecentItem.mockClear();
         xtreamDataSourceMock.getFavorites.mockClear();
         xtreamDataSourceMock.getFavorites.mockResolvedValue([]);
@@ -256,6 +266,75 @@ describe('DashboardDataService', () => {
 
         TestBed.configureTestingModule(createTestingModuleProviders());
         service = TestBed.inject(DashboardDataService);
+    });
+
+    it('loads the union of favourite and recently-added source positions without recent history', async () => {
+        const base = {
+            id: 10,
+            xtream_id: 7,
+            title: 'Movie',
+            type: 'movie',
+            category_id: '1',
+            rating: '8.1',
+            added_at: '2026-10-05T00:00:00Z',
+        };
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                ...base,
+                playlist_id: 'favorites-only',
+                playlist_name: 'Favorites',
+            },
+        ]);
+        dbServiceMock.getGlobalRecentlyAdded.mockResolvedValue([
+            { ...base, playlist_id: 'added-only', playlist_name: 'Added' },
+        ]);
+        await service.reloadGlobalFavorites();
+        await service.reloadXtreamRecentlyAddedItems();
+        await service.reloadPlaybackPositions();
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions.mock.calls
+                .map(([id]) => id)
+                .sort()
+        ).toEqual(['added-only', 'favorites-only']);
+        expect(service.hasLoadedPlaybackPositions('favorites-only')).toBe(true);
+        expect(service.hasLoadedPlaybackPositions('added-only')).toBe(true);
+    });
+
+    it('does not publish position results from a superseded refresh', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 10,
+                xtream_id: 7,
+                title: 'Movie',
+                type: 'movie',
+                category_id: '1',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream',
+                viewed_at: '2026-10-05T00:00:00Z',
+            },
+        ]);
+        await service.reloadGlobalRecentItems();
+        const pending = createPendingItems<PlaybackPositionData>();
+        playbackPositionsMock.getAllPlaybackPositions.mockReturnValueOnce(
+            pending.promise
+        );
+        const oldRefresh = service.reloadPlaybackPositions();
+        await service.reloadPlaybackPositions();
+        pending.resolve([
+            {
+                contentXtreamId: 7,
+                contentType: 'vod',
+                positionSeconds: 40,
+                durationSeconds: 100,
+            },
+        ]);
+        await oldRefresh;
+        expect(
+            service.getPlaybackPositionForItem(
+                service.globalRecentVodItems()[0]
+            )
+        ).toBeNull();
+        expect(service.hasLoadedPlaybackPositions('xtream-1')).toBe(true);
     });
 
     afterEach(() => {
@@ -812,6 +891,53 @@ describe('DashboardDataService', () => {
         expect(
             transform(['channel-1', 'https://example.com/stream-2.m3u8'])
         ).toEqual(['https://example.com/stream-2.m3u8']);
+    });
+
+    it('delegates a same-ID Stalker series removal with its kind and raw source identity', async () => {
+        const movie = { id: '7', title: 'Movie', category_id: 'vod' };
+        const series = { id: '7', title: 'Series', category_id: 'series' };
+        playlistsSignal.set([
+            {
+                ...createDefaultPlaylists()[0],
+                _id: 'stalker',
+                macAddress: '00:11:22:33:44:55',
+                favorites: [movie, series],
+            } as PlaylistMeta,
+        ]);
+        const selected = service
+            .stalkerGlobalFavorites()
+            .find((item) => item.type === 'series');
+        if (!selected) throw new Error('Expected same-ID series favourite');
+        await service.removeGlobalFavorite(selected);
+        expect(favoritesDataMock.removeFavorite).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'stalker',
+                sourceType: 'stalker',
+                contentType: 'series',
+                stalkerId: '7',
+                stalkerItem: series,
+            })
+        );
+        expect(storeMock.dispatch).not.toHaveBeenCalled();
+    });
+
+    it('propagates a failed shared Stalker removal without changing playlist metadata', async () => {
+        playlistsSignal.set([
+            {
+                ...createDefaultPlaylists()[0],
+                _id: 'stalker',
+                macAddress: '00:11:22:33:44:55',
+                favorites: [{ id: '7', title: 'Movie', category_id: 'vod' }],
+            } as PlaylistMeta,
+        ]);
+        const selected = service.stalkerGlobalFavorites()[0];
+        favoritesDataMock.removeFavorite.mockRejectedValueOnce(
+            new Error('write failed')
+        );
+        await expect(service.removeGlobalFavorite(selected)).rejects.toThrow(
+            'write failed'
+        );
+        expect(storeMock.dispatch).not.toHaveBeenCalled();
     });
 
     it('removes PWA Xtream favorites through the active data source', async () => {

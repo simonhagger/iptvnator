@@ -17,6 +17,7 @@ import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EMPTY, ReplaySubject, of } from 'rxjs';
 import { InfiniteScrollDirective } from '@iptvnator/portal/shared/ui';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
@@ -39,6 +40,10 @@ class MockGridListComponent {
     readonly type = input<string>('');
     readonly itemClicked = output<unknown>();
     readonly retryLoadMore = output<void>();
+    readonly actionsForItem = input<unknown>();
+    readonly identityForItem = input<unknown>();
+    readonly indicatorsForItem = input<unknown>();
+    readonly actionSelected = output<unknown>();
 }
 
 @Component({
@@ -108,9 +113,18 @@ describe('CategoryContentViewComponent', () => {
         refreshSnapshotSelection: jest.fn(),
         getItemProgress: jest.fn().mockReturnValue({}),
     };
+    const covers = {
+        load: jest.fn().mockResolvedValue(undefined),
+        failed: signal(false),
+        actionsFor: jest.fn().mockReturnValue([]),
+        favoriteFor: jest.fn().mockReturnValue(undefined),
+        toggleFavorite: jest.fn().mockResolvedValue(undefined),
+    };
 
     beforeEach(async () => {
         routeReady.set(true);
+        covers.load.mockClear();
+        covers.toggleFavorite.mockClear();
         playlist.set(null);
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
@@ -196,6 +210,9 @@ describe('CategoryContentViewComponent', () => {
         })
             .overrideComponent(CategoryContentViewComponent, {
                 set: {
+                    providers: [
+                        { provide: ContentCoverDataService, useValue: covers },
+                    ],
                     imports: [
                         NgComponentOutlet,
                         InfiniteScrollDirective,

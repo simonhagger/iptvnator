@@ -6,6 +6,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCatalogFacadeService } from './xtream-catalog-facade.service';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 const PLAYLIST_ONE: XtreamPlaylistData = {
     id: 'playlist-1',
@@ -47,6 +48,7 @@ describe('XtreamCatalogFacadeService', () => {
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
 
     const xtreamStore = {
+        seriesPositions: signal(new Map<number, PlaybackPositionData[]>()),
         selectedContentType: contentType,
         getSelectedCategory: selectedCategory,
         selectedCategoryId,
@@ -80,6 +82,7 @@ describe('XtreamCatalogFacadeService', () => {
     };
 
     beforeEach(() => {
+        xtreamStore.seriesPositions.set(new Map());
         localStorage.removeItem('xtream-category-sort-mode');
         contentType.set('vod');
         selectedCategory.set({ id: 11, name: 'Movies' });
@@ -294,6 +297,39 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.hasSeriesProgress.mockReturnValue(false);
         expect(service.getItemProgress({ series_id: 7 })).toEqual({
             watchState: 'unwatched',
+        });
+    });
+
+    it('shows latest completed episode progress as started, never whole-series watched', () => {
+        contentType.set('series');
+        xtreamStore.hasSeriesProgress.mockReturnValue(true);
+        const earlier: PlaybackPositionData = {
+            contentType: 'episode',
+            contentXtreamId: 11,
+            seriesXtreamId: 7,
+            positionSeconds: 30,
+            durationSeconds: 100,
+            updatedAt: '2026-10-01T12:00:00Z',
+        };
+        xtreamStore.seriesPositions.set(
+            new Map([
+                [
+                    7,
+                    [
+                        earlier,
+                        {
+                            ...earlier,
+                            contentXtreamId: 12,
+                            positionSeconds: 100,
+                            updatedAt: '2026-10-02T12:00:00Z',
+                        },
+                    ],
+                ],
+            ])
+        );
+        expect(service.getItemProgress({ series_id: 7 })).toEqual({
+            progress: 100,
+            watchState: 'in-progress',
         });
     });
 });

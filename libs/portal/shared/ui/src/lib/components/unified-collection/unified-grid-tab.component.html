@@ -24,6 +24,8 @@
                 [posterUrl]="item.posterUrl ?? ''"
                 [title]="item.name"
                 [type]="item.contentType"
+                [coverIndicators]="item.coverIndicators ?? null"
+                [actions]="coverActions(item)"
                 [showTypeBadge]="false"
                 [date]="item.addedAt ?? item.viewedAt"
                 [showRemoveButton]="true"
@@ -35,6 +37,7 @@
                 "
                 (cardClick)="onCardClick(item)"
                 (remove)="onRemove(item)"
+                (actionSelected)="onCoverAction(item, $event)"
             />
         }
     </div>

@@ -12,7 +12,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
@@ -27,11 +27,13 @@ import { DatabaseService } from '@iptvnator/services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 import {
     buildXtreamNavigationTarget,
     isWorkspaceLayoutRoute,
     queryParamSignal,
     workspacePortalCommands,
+    ProviderCoverContext,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
@@ -95,17 +97,34 @@ function groupResultsByPlaylistId(
         MatDialogModule,
         MatIcon,
         MatIconButton,
+        MatButton,
         MatProgressSpinner,
         SearchLayoutComponent,
         TranslatePipe,
     ],
-    providers: [],
+    providers: [ContentCoverDataService],
     templateUrl: './search-results.component.html',
     styleUrls: ['./search-results.component.scss'],
 })
 export class SearchResultsComponent implements AfterViewInit {
     readonly searchLayoutComponent = viewChild(SearchLayoutComponent);
     readonly xtreamStore = inject(XtreamStore);
+    readonly covers = inject(ContentCoverDataService);
+    coverContext(
+        item: GlobalSearchResult | XtreamSearchResultItem
+    ): ProviderCoverContext | null {
+        if (isM3uGlobalSearchResult(item as GlobalSearchResult)) return null;
+        const playlistId =
+            item.playlist_id ?? this.xtreamStore.currentPlaylist()?.id;
+        return playlistId
+            ? {
+                  provider: 'xtream',
+                  playlistId: String(playlistId),
+                  playlistName: item.playlist_name,
+                  contentType: item.type,
+              }
+            : null;
+    }
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
@@ -254,6 +273,30 @@ export class SearchResultsComponent implements AfterViewInit {
             data?.isGlobalSearch ||
             this.activatedRoute.snapshot.data?.['isGlobalSearch'] === true;
         const initialQuery = (data?.initialQuery ?? '').trim();
+        effect(() => {
+            const playlistId = this.isGlobalSearch
+                ? undefined
+                : this.xtreamStore.currentPlaylist()?.id;
+            void this.covers.load(
+                this.isGlobalSearch
+                    ? { scope: 'all' }
+                    : playlistId
+                      ? {
+                            scope: 'playlist',
+                            playlistId: String(playlistId),
+                            portalType: 'xtream',
+                        }
+                      : null
+            );
+        });
+
+        effect(() => {
+            const ids = this.xtreamStore
+                .searchResults()
+                .map((item) => this.coverContext(item)?.playlistId)
+                .filter((id): id is string => !!id);
+            void this.covers.loadWatchPositions(ids);
+        });
 
         if (this.isGlobalSearch) {
             const savedFilters = localStorage.getItem(

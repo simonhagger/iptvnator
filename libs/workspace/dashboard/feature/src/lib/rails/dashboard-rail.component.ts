@@ -14,23 +14,23 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import {
+    ContentCoverActionsComponent,
+    ContentCoverIndicatorsComponent,
+    createContentCoverDescriptionId,
+} from '@iptvnator/portal/shared/ui/content-cover';
+import type {
+    ContentCoverAction,
+    ContentCoverIndicators,
+} from '@iptvnator/portal/shared/util';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import type { DashboardRemainingLabel } from './dashboard-playback.utils';
 
-export interface DashboardRailAction {
-    id: string;
-    labelKey: string;
-    icon: string;
-    destructive?: boolean;
-    disabled?: boolean;
-    separatorBefore?: boolean;
-}
+export type DashboardRailAction = ContentCoverAction;
 
 export interface DashboardRailCard {
     id: string;
@@ -43,6 +43,7 @@ export interface DashboardRailCard {
     queryParams?: Record<string, string>;
     state?: Record<string, unknown>;
     actions?: DashboardRailAction[];
+    indicators?: ContentCoverIndicators;
     epgLookupKey?: string;
     /**
      * Playlist the live card belongs to. An XMLTV key is only unique inside
@@ -122,9 +123,9 @@ export interface DashboardRailActionSelection {
 @Component({
     selector: 'lib-dashboard-rail',
     imports: [
-        MatButtonModule,
+        ContentCoverActionsComponent,
+        ContentCoverIndicatorsComponent,
         MatIcon,
-        MatMenuModule,
         RouterLink,
         TranslatePipe,
     ],
@@ -134,6 +135,7 @@ export interface DashboardRailActionSelection {
 })
 export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
+    private readonly descriptionPrefix = createContentCoverDescriptionId();
 
     readonly label = input.required<string>();
     readonly items = input.required<DashboardRailCard[]>();
@@ -379,10 +381,6 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
         );
     }
 
-    stopActionEvent(event: Event): void {
-        event.stopPropagation();
-    }
-
     /** Prefix stripping applies to live-channel cards only, never VOD/series. */
     protected cardTitle(card: DashboardRailCard): string {
         return applyChannelNameStrip(
@@ -395,10 +393,20 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     selectAction(
         card: DashboardRailCard,
         action: DashboardRailAction,
-        event: Event
+        event?: Event
     ): void {
-        event.stopPropagation();
+        event?.stopPropagation();
         this.actionSelected.emit({ card, action });
+    }
+
+    protected cardIndicators(card: DashboardRailCard): ContentCoverIndicators {
+        return card.indicators ?? { progress: card.watchProgress };
+    }
+
+    protected cardDescriptionId(card: DashboardRailCard): string | null {
+        return card.contentType === 'movie' || card.contentType === 'series'
+            ? `${this.descriptionPrefix}-${encodeURIComponent(card.id)}`
+            : null;
     }
 
     private updateScrollState(): void {

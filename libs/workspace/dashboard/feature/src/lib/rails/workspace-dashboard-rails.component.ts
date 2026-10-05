@@ -18,7 +18,11 @@ import {
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import {
+    isPortalPlaybackWatched,
+    normalizeContentCoverRating,
+    ContentCoverIndicators,
+} from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -39,6 +43,7 @@ import {
 } from '@iptvnator/services';
 import {
     DashboardDataService,
+    DashboardCoverMetadata,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
     buildDashboardPortalLiveEpgKey,
@@ -48,6 +53,10 @@ import {
     DashboardTrendingItem,
     DashboardTrendingService,
     GlobalRecentItem,
+    buildDashboardCoverIndicators,
+    dashboardCoverIdentity,
+    dashboardFavoriteCardId,
+    findDashboardFavoriteForCard,
     resolveSourceExpiryBadge,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
@@ -56,7 +65,10 @@ import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistMeta,
+    PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import { DashboardHeroComponent } from './dashboard-hero.component';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
@@ -196,7 +208,15 @@ export class WorkspaceDashboardRailsComponent {
     );
 
     private readonly playbackPositionReloadKey = computed(() =>
-        buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
+        buildPlaybackPositionReloadKey([
+            ...this.data.globalRecentVodItems(),
+            ...this.data.globalFavoriteItems(),
+            ...this.data.xtreamRecentlyAddedItems(),
+        ])
+    );
+    private readonly favoriteIdentities = computed(
+        () =>
+            new Set(this.data.globalFavoriteItems().map(dashboardCoverIdentity))
     );
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
@@ -411,6 +431,10 @@ export class WorkspaceDashboardRailsComponent {
     onContinueWatchingActionSelected(
         selection: DashboardRailActionSelection
     ): void {
+        if (selection.action.id === 'details') {
+            this.onContentActionSelected(selection);
+            return;
+        }
         const item = this.data
             .globalRecentVodItems()
             .find(
@@ -498,21 +522,26 @@ export class WorkspaceDashboardRailsComponent {
             // moved to the ⋮ menu below. The hero CTA keeps the resume state.
             state: this.data.getRecentItemDetailNavigationState(item),
             watchProgress,
+            indicators: this.coverIndicators(item),
             episodeBadge,
             // What still separates one card from the next: where in the
             // show, and how much is left — not which provider it came from.
             remainingLabel: formatRemainingLabel(position),
             ...(item.type === 'movie' || item.type === 'series'
                 ? {
-                      actions: buildDashboardContinueWatchingActions({
-                          canResume:
-                              this.data.getRecentItemResumeNavigation(item) !==
-                              null,
-                          canMarkWatched:
-                              !!position?.durationSeconds &&
-                              position.durationSeconds > 0 &&
-                              !isPortalPlaybackWatched(position),
-                      }),
+                      actions: [
+                          ...this.detailActions(),
+                          ...buildDashboardContinueWatchingActions({
+                              canResume:
+                                  this.data.getRecentItemResumeNavigation(
+                                      item
+                                  ) !== null,
+                              canMarkWatched:
+                                  !!position?.durationSeconds &&
+                                  position.durationSeconds > 0 &&
+                                  !isPortalPlaybackWatched(position),
+                          }),
+                      ],
                   }
                 : {}),
         };
@@ -524,7 +553,7 @@ export class WorkspaceDashboardRailsComponent {
 
     private toFavoriteCard(item: DashboardFavoriteItem): DashboardRailCard {
         return {
-            id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
+            id: dashboardFavoriteCardId(item),
             title: item.title,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
@@ -534,6 +563,19 @@ export class WorkspaceDashboardRailsComponent {
             liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
+            indicators: this.coverIndicators(item, true),
+            ...(item.type !== 'live'
+                ? {
+                      actions: [
+                          ...this.detailActions(),
+                          {
+                              id: 'favorite',
+                              labelKey: 'PORTALS.REMOVE_FROM_FAVORITES',
+                              icon: 'favorite',
+                          },
+                      ],
+                  }
+                : {}),
         };
     }
 
@@ -550,13 +592,14 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             link: this.data.getRecentlyAddedLink(item),
             state: this.data.getRecentlyAddedNavigationState(item),
+            indicators: this.coverIndicators(item),
+            actions: this.detailActions(),
         };
     }
 
     private toTrendingCard(item: DashboardTrendingItem): DashboardRailCard {
         const subtitle = [
             item.year !== null ? String(item.year) : null,
-            item.rating ? `★ ${item.rating}` : null,
             item.match?.playlistName ?? null,
         ]
             .filter((value): value is string => Boolean(value))
@@ -568,6 +611,8 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.posterUrl ?? undefined,
             icon: item.mediaType === 'movie' ? 'movie' : 'video_library',
             contentType: item.mediaType === 'movie' ? 'movie' : 'series',
+            indicators: this.tmdbCoverIndicators(item),
+            ...(item.match ? { actions: this.detailActions() } : {}),
             link: item.match
                 ? [
                       '/workspace/xtreams',
@@ -586,7 +631,6 @@ export class WorkspaceDashboardRailsComponent {
     ): DashboardRailCard {
         const subtitle = [
             item.year !== null ? String(item.year) : null,
-            item.rating ? `★ ${item.rating}` : null,
             item.match.playlistName,
         ]
             .filter((value): value is string => Boolean(value))
@@ -598,6 +642,8 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.posterUrl ?? undefined,
             icon: item.mediaType === 'movie' ? 'movie' : 'video_library',
             contentType: item.mediaType === 'movie' ? 'movie' : 'series',
+            indicators: this.tmdbCoverIndicators(item),
+            actions: this.detailActions(),
             link: [
                 '/workspace/xtreams',
                 item.match.playlistId,
@@ -605,6 +651,73 @@ export class WorkspaceDashboardRailsComponent {
                 String(item.match.categoryId),
                 String(item.match.xtreamId),
             ],
+        };
+    }
+
+    onContentActionSelected(selection: DashboardRailActionSelection): void {
+        // Resolve actions against current cards: a refreshed rail may have
+        // removed or replaced the item while its menu was open.
+        const current = [
+            ...this.continueWatchingCards(),
+            ...this.favoriteMoviesAndSeriesCards(),
+            ...this.xtreamRecentlyAddedCards(),
+            ...this.trendingCards(),
+            ...this.recommendationCards(),
+        ].find((card) => card.id === selection.card.id);
+        if (!current) return;
+        if (selection.action.id === 'details') {
+            void this.router.navigate(current.link, {
+                queryParams: current.queryParams,
+                state: current.state,
+            });
+        } else if (selection.action.id === 'favorite') {
+            const item = findDashboardFavoriteForCard(
+                this.data.globalFavoriteItems(),
+                current.id
+            );
+            if (item)
+                this.runContinueWatchingMutation(() =>
+                    this.data.removeGlobalFavorite(item)
+                );
+        }
+    }
+
+    private detailActions(): NonNullable<DashboardRailCard['actions']> {
+        return [
+            { id: 'details', labelKey: 'COVER.DETAILS', icon: 'info_outline' },
+        ];
+    }
+
+    private coverIndicators(
+        item: PortalActivityItem & DashboardCoverMetadata,
+        favorite = this.favoriteIdentities().has(dashboardCoverIdentity(item))
+    ): ContentCoverIndicators {
+        return buildDashboardCoverIndicators(
+            item,
+            favorite,
+            this.data.getPlaybackPositionForItem(item),
+            this.data.hasLoadedPlaybackPositions(item.playlist_id)
+        );
+    }
+
+    private tmdbCoverIndicators(
+        item: DashboardTrendingItem | DashboardRecommendationItem
+    ): ContentCoverIndicators {
+        const identity: PortalActivityItem | null = item.match
+            ? {
+                  id: item.match.xtreamId,
+                  title: item.title,
+                  source: 'xtream',
+                  playlist_id: item.match.playlistId,
+                  playlist_name: item.match.playlistName,
+                  type: item.match.type,
+                  xtream_id: item.match.xtreamId,
+                  category_id: item.match.categoryId,
+              }
+            : null;
+        return {
+            ...(identity ? this.coverIndicators(identity) : {}),
+            rating: normalizeContentCoverRating(item.rating, 'tmdb'),
         };
     }
 

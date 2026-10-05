@@ -25,8 +25,13 @@ import {
     getPortalPlaybackProgressPercent,
     resolvePortalSeriesWatchState,
     resolvePortalWatchState,
+    findLatestSeriesEpisodePosition,
+    playbackProgressPercent,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    isStalkerSeriesItem,
+} from '@iptvnator/shared/interfaces';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 @Injectable()
@@ -271,11 +276,16 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             this.stalkerSeriesPositions().get(numericId)?.length
         );
         const isSeries =
-            this.contentType() === 'series' ||
-            isStalkerSeriesFlag(item.is_series);
+            this.contentType() === 'series' || isStalkerSeriesItem(item);
 
         if (hasSeriesProgress || isSeries) {
+            const latest = findLatestSeriesEpisodePosition(
+                this.stalkerSeriesPositions().get(numericId) ?? [],
+                numericId
+            );
+            const progress = playbackProgressPercent(latest);
             return {
+                ...(progress !== null ? { progress } : {}),
                 watchState: resolvePortalSeriesWatchState(hasSeriesProgress),
             };
         }

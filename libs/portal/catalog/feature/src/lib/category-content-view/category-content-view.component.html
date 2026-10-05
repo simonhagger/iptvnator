@@ -205,6 +205,12 @@
                     </mat-menu>
                 }
             </div>
+            @if (covers.failed()) {
+                <p role="alert">{{ 'COVER.FAVORITES_FAILED' | translate }}</p>
+                <button mat-button (click)="covers.retry()">
+                    {{ 'RETRY' | translate }}
+                </button>
+            }
             <app-grid-list
                 appInfiniteScroll
                 [infiniteHasMore]="infiniteHasMore()"
@@ -217,6 +223,10 @@
                 [appendError]="infiniteAppendError()"
                 (retryLoadMore)="onRetryAppend()"
                 [items]="contentWithProgress()"
+                [actionsForItem]="coverActions"
+                [identityForItem]="coverIdentity"
+                [indicatorsForItem]="coverIndicators"
+                (actionSelected)="onCoverAction($event)"
                 (itemClicked)="onItemClick($event)"
                 [searchTerm]="searchTerm()"
                 [type]="contentType() ?? ''"

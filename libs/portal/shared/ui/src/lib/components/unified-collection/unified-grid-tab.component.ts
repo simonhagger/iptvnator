@@ -9,7 +9,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     CollectionContentType,
+    ContentCoverAction,
     UnifiedCollectionItem,
+    contentCoverIdentity,
 } from '@iptvnator/portal/shared/util';
 import { ContentCardComponent } from '../content-card/content-card.component';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
@@ -26,9 +28,12 @@ export class UnifiedGridTabComponent {
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly contentType = input<CollectionContentType>('movie');
     readonly searchTerm = input('');
+    readonly pendingFavoriteKeys = input<ReadonlySet<string>>(new Set());
+    readonly favoriteActionsDisabled = input(false);
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly itemSelected = output<UnifiedCollectionItem>();
+    readonly favoriteToggled = output<UnifiedCollectionItem>();
 
     private readonly normalizedSearchTerm = computed(() =>
         foldSearchText(this.searchTerm().trim())
@@ -57,7 +62,34 @@ export class UnifiedGridTabComponent {
         this.removeItem.emit(item);
     }
 
+    coverActions(item: UnifiedCollectionItem): readonly ContentCoverAction[] {
+        const favorite = item.coverIndicators?.favorite;
+        if (this.mode() !== 'recent' || favorite === undefined) return [];
+        return [
+            {
+                id: 'favorite',
+                icon: favorite ? 'favorite' : 'favorite_border',
+                labelKey: favorite
+                    ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                    : 'PORTALS.ADD_TO_FAVORITES',
+                disabled:
+                    this.favoriteActionsDisabled() ||
+                    this.pendingFavoriteKeys().has(contentCoverIdentity(item)),
+            },
+        ];
+    }
+
+    onCoverAction(
+        item: UnifiedCollectionItem,
+        action: ContentCoverAction
+    ): void {
+        if (action.id === 'favorite' && !action.disabled)
+            this.favoriteToggled.emit(item);
+    }
+
     trackByUid(_: number, item: UnifiedCollectionItem): string {
-        return item.uid;
+        return item.contentType === 'live'
+            ? item.uid
+            : contentCoverIdentity(item);
     }
 }

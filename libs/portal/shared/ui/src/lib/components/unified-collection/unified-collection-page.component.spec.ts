@@ -70,6 +70,9 @@ class StubUnifiedLiveTabComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class StubUnifiedGridTabComponent {
+    readonly favoriteActionsDisabled = input(false);
+    readonly pendingFavoriteKeys = input<ReadonlySet<string>>(new Set());
+    readonly favoriteToggled = output<UnifiedCollectionItem>();
     readonly items = input.required<UnifiedCollectionItem[]>();
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly contentType = input<'movie' | 'series'>('movie');
@@ -145,6 +148,7 @@ describe('UnifiedCollectionPageComponent', () => {
     const favoritesData = {
         addFavorite: jest.fn().mockResolvedValue(undefined),
         getFavorites: jest.fn().mockResolvedValue([]),
+        getFavoritesStrict: jest.fn().mockResolvedValue([]),
         clearFavorites: jest.fn().mockResolvedValue(undefined),
         removeFavorite: jest.fn().mockResolvedValue(undefined),
         reorder: jest.fn().mockResolvedValue(undefined),

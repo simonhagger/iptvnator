@@ -11,6 +11,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { GlobalSearchResult } from '@iptvnator/shared/interfaces';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 
 jest.mock('@iptvnator/portal/shared/ui', () => ({
     ContentCardComponent: class {},
@@ -55,6 +56,7 @@ function createDeferred<T>() {
 }
 
 class MockXtreamStore {
+    readonly currentPlaylist = signal({ id: 'playlist-1' });
     readonly searchTerm = signal('');
     readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
     readonly searchResults = signal<XtreamContentItem[]>([]);
@@ -87,6 +89,15 @@ describe('SearchResultsComponent initialQuery contract', () => {
         TestBed.configureTestingModule({
             providers: [
                 {
+                    provide: ContentCoverDataService,
+                    useValue: {
+                        load: jest.fn().mockResolvedValue(undefined),
+                        loadWatchPositions: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
+                {
                     provide: XtreamStore,
                     useClass: MockXtreamStore,
                 },
@@ -118,6 +129,29 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 },
             ],
         });
+    });
+
+    it('hydrates only represented provider source IDs as global search results change', () => {
+        TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    { isGlobalSearch: true },
+                    NO_DIALOG_REF
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        TestBed.flushEffects();
+        store.searchResults.set([
+            createSearchItem({ playlist_id: 'source-a' }),
+            createSearchItem({ playlist_id: 'source-b', type: 'series' }),
+        ]);
+        TestBed.flushEffects();
+        const covers = TestBed.inject(ContentCoverDataService);
+        expect(covers.loadWatchPositions).toHaveBeenLastCalledWith([
+            'source-a',
+            'source-b',
+        ]);
+        expect(covers.load).toHaveBeenCalledTimes(1);
     });
 
     it('applies initialQuery when opened as global search', () => {
@@ -494,6 +528,15 @@ describe('SearchResultsComponent in-portal result window', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({
             providers: [
+                {
+                    provide: ContentCoverDataService,
+                    useValue: {
+                        load: jest.fn().mockResolvedValue(undefined),
+                        loadWatchPositions: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
                 {
                     provide: XtreamStore,
                     useClass: MockXtreamStore,

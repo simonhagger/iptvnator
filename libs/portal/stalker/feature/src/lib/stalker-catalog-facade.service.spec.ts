@@ -224,6 +224,23 @@ describe('StalkerCatalogFacadeService', () => {
         });
     });
 
+    it('shows completed episode progress without claiming an embedded VOD show is watched', () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        playbackUpdateHandler?.({
+            playlistId: playlist._id,
+            contentType: 'episode',
+            contentXtreamId: 12,
+            seriesXtreamId: 7,
+            positionSeconds: 100,
+            durationSeconds: 100,
+            updatedAt: '2026-10-02T12:00:00Z',
+        });
+        expect(service.getItemProgress({ id: '7', series: ['12'] })).toEqual({
+            progress: 100,
+            watchState: 'in-progress',
+        });
+    });
+
     it('ignores external playback updates for other playlists', async () => {
         TestBed.inject(StalkerCatalogFacadeService);
         await Promise.resolve();

@@ -91,7 +91,9 @@ describe('StalkerItvAllItemsComponent', () => {
         fixture.detectChanges();
 
         (
-            fixture.nativeElement.querySelector('mat-card') as HTMLElement
+            fixture.nativeElement.querySelector(
+                '.grid-card-primary[role="button"]'
+            ) as HTMLElement
         ).click();
 
         expect(activated).toHaveBeenCalledWith(

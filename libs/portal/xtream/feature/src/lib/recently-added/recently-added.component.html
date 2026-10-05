@@ -2,6 +2,12 @@
     <h2 class="recently-added-page__title">
         {{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}
     </h2>
+    @if (covers.failed()) {
+        <p role="alert">{{ 'COVER.FAVORITES_FAILED' | translate }}</p>
+        <button mat-button (click)="covers.retry()">
+            {{ 'RETRY' | translate }}
+        </button>
+    }
 
     @if (isLoading()) {
         <!-- Three skeleton rails cover the typical shape of this view. -->
@@ -30,13 +36,32 @@
                 [seeAllLink]="vodSeeAllLink()"
                 [seeAllLabel]="vodSeeAllLabel()"
             >
-                @for (item of recentlyAddedVod(); track item.xtream_id) {
+                @for (
+                    item of recentlyAddedVod();
+                    track covers.identityForProvider(coverContext('vod'), item)
+                ) {
                     <app-content-card
                         [allowPostersOnly]="false"
                         [title]="item.title || item.name || ''"
                         [posterUrl]="item.poster_url || item.stream_icon"
                         [type]="'movie'"
                         [date]="getDate(item)"
+                        [coverIndicators]="
+                            covers.indicatorsForProvider(
+                                coverContext('vod'),
+                                item
+                            )
+                        "
+                        [actions]="
+                            covers.actionsForProvider(coverContext('vod'), item)
+                        "
+                        (actionSelected)="
+                            covers.onProviderAction(
+                                coverContext('vod'),
+                                item,
+                                $event
+                            )
+                        "
                         (cardClick)="openItem(item, 'vod')"
                     />
                 }
@@ -51,13 +76,38 @@
                 [seeAllLink]="seriesSeeAllLink()"
                 [seeAllLabel]="seriesSeeAllLabel()"
             >
-                @for (item of recentlyAddedSeries(); track item.xtream_id) {
+                @for (
+                    item of recentlyAddedSeries();
+                    track covers.identityForProvider(
+                        coverContext('series'),
+                        item
+                    )
+                ) {
                     <app-content-card
                         [allowPostersOnly]="false"
                         [title]="item.title || item.name || ''"
                         [posterUrl]="item.poster_url || item.cover"
                         [type]="'series'"
                         [date]="getDate(item, true)"
+                        [coverIndicators]="
+                            covers.indicatorsForProvider(
+                                coverContext('series'),
+                                item
+                            )
+                        "
+                        [actions]="
+                            covers.actionsForProvider(
+                                coverContext('series'),
+                                item
+                            )
+                        "
+                        (actionSelected)="
+                            covers.onProviderAction(
+                                coverContext('series'),
+                                item,
+                                $event
+                            )
+                        "
                         (cardClick)="openItem(item, 'series')"
                     />
                 }

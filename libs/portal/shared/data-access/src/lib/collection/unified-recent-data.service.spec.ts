@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
@@ -242,6 +242,81 @@ describe('UnifiedRecentDataService', () => {
         );
         expect(recorded.viewedAt).toBeTruthy();
     });
+
+    it('removes Stalker VOD history with the source content kind', async () => {
+        await service.removeRecentItem({
+            uid: 'stalker::stalker-1::100',
+            name: 'Series',
+            contentType: 'series',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '100',
+        });
+
+        expect(
+            playlistsService.removeFromPortalRecentlyViewed
+        ).toHaveBeenCalledWith('stalker-1', '100', 'series');
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlist: expect.objectContaining({
+                    _id: 'stalker-1',
+                    recentlyViewed: [],
+                }),
+            })
+        );
+    });
+
+    it('does not publish removed Stalker history when persistence fails', async () => {
+        playlistsService.removeFromPortalRecentlyViewed.mockReturnValue(
+            throwError(() => new Error('storage unavailable'))
+        );
+
+        await expect(
+            service.removeRecentItem({
+                uid: 'stalker::stalker-1::100',
+                name: 'Movie',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker',
+                stalkerId: '100',
+            })
+        ).rejects.toThrow('storage unavailable');
+
+        expect(store.dispatch).not.toHaveBeenCalled();
+    });
+
+    it.each(['all', 'playlist'] as const)(
+        'preserves native Xtream ratings in %s Recent covers',
+        async (scope) => {
+            const row = {
+                id: 22,
+                xtream_id: 100,
+                title: 'Rated Movie',
+                type: 'movie',
+                rating: '8.2',
+                playlist_id: 'xtream-1',
+                viewed_at: '2026-04-21T20:42:27.000Z',
+            };
+            dbService.getGlobalRecentlyViewed.mockResolvedValue([row]);
+            dbService.getRecentItems.mockResolvedValue([row]);
+
+            const items = await service.getRecentItems(
+                scope,
+                'xtream-1',
+                'xtream'
+            );
+
+            expect(
+                items.find((item) => item.sourceType === 'xtream')
+            ).toMatchObject({
+                xtreamId: 100,
+                contentType: 'movie',
+                rating: '8.2',
+            });
+        }
+    );
 
     it('records Xtream playback with a type-aware fallback lookup', async () => {
         dbService.getContentByXtreamId.mockResolvedValue({
