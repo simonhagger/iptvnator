@@ -42,6 +42,16 @@ export async function captureCover(
     });
     if (withMenu) {
         const trigger = await openCoverMenu(page, card);
+        // Capture the finished surface, rather than a translucent opening frame.
+        await page.getByRole('menu').evaluate(async (element) => {
+            await Promise.all(
+                element
+                    .getAnimations({ subtree: true })
+                    .map((animation) =>
+                        animation.finished.catch(() => undefined)
+                    )
+            );
+        });
         const menuPath = test.info().outputPath(`${name}-menu.png`);
         await page.screenshot({ path: menuPath });
         await test.info().attach(`${name}-menu`, {
@@ -204,6 +214,27 @@ export async function persistCoverPosition(
     );
 }
 
+/** Verify a UI mutation reached storage through the real Electron IPC API. */
+export async function expectSavedCoverPosition(
+    page: Page,
+    playlistId: string,
+    position: PlaybackPositionData
+): Promise<void> {
+    await expect
+        .poll(() =>
+            page.evaluate(
+                ({ playlistId, position }) =>
+                    window.electron.dbGetPlaybackPosition(
+                        playlistId,
+                        position.contentXtreamId,
+                        position.contentType
+                    ),
+                { playlistId, position }
+            )
+        )
+        .toMatchObject(position);
+}
+
 export async function expectCoverState(
     card: Locator,
     state: 'in-progress' | 'watched',
@@ -217,7 +248,7 @@ export async function expectCoverState(
     );
     await expect(
         card.getByRole('img', {
-            name: state === 'watched' ? 'Watched' : 'Started',
+            name: state === 'watched' ? 'watched' : 'Started',
             exact: true,
         })
     ).toBeVisible();
@@ -230,7 +261,7 @@ export async function expectCoverState(
         progressScope === 'episode'
             ? 'Current episode progress'
             : 'Viewing progress';
-    const watchLabel = state === 'watched' ? 'Watched' : 'Started';
+    const watchLabel = state === 'watched' ? 'watched' : 'Started';
     await expect(activation).toHaveAccessibleDescription(
         new RegExp(
             `Favorite.*${watchLabel}` +

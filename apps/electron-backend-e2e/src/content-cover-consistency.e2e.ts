@@ -36,6 +36,7 @@ import {
     dismissCoverMenu,
     expectAvailableRating,
     expectCoverState,
+    expectSavedCoverPosition,
     exerciseCoverSearch,
     firstCatalogTitle,
     persistCoverPosition,
@@ -331,6 +332,12 @@ for (const provider of ['xtream', 'stalker'] as const) {
                     .getByTestId('dashboard-continue-watching-rail-card')
                     .filter({ hasText: movieTitle });
                 await selectCoverAction(page, continueMovie, 'mark-watched');
+                await expectSavedCoverPosition(page, playlistId!, {
+                    contentXtreamId: movieId,
+                    contentType: 'vod',
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                });
                 await expectCoverState(dashboardMovie, 'watched');
                 await expect(
                     dashboardMovie.getByTestId('content-cover-progress')
