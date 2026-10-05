@@ -6,6 +6,7 @@ import {
     contentCardByTitle,
     expect,
     expectPathname,
+    expectWorkspaceSearchScope,
     fillWorkspaceSearch,
     goToDashboard,
     openSettings,
@@ -337,6 +338,8 @@ export async function exerciseCoverSearch(
     const { provider, movieTitle, seriesTitle } = options;
     if (provider === 'stalker') {
         await openWorkspaceSection(page, 'Advanced search');
+        await expectPathname(page, /\/workspace\/stalker\/[^/]+\/search$/);
+        await expectWorkspaceSearchScope(page, 'Advanced search');
     } else {
         // This is the existing Xtream playlist-search journey from Dashboard.
         await goToDashboard(page);
