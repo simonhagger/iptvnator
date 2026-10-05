@@ -110,4 +110,43 @@ describe('DatabaseService browser guards', () => {
         );
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
+
+    it('reads complete membership from its dedicated bridge without using the display query', async () => {
+        const rows = Array.from({ length: 501 }, (_, id) => ({ id }));
+        const read = jest.fn().mockResolvedValue(rows);
+        const display = jest.fn();
+        window.electron = {
+            dbGetAllGlobalFavoriteMembership: read,
+            dbGetAllGlobalFavorites: display,
+        } as unknown as Window['electron'];
+
+        await expect(service.getAllGlobalFavoriteMembership()).resolves.toBe(
+            rows
+        );
+        expect(read).toHaveBeenCalledTimes(1);
+        expect(display).not.toHaveBeenCalled();
+    });
+
+    it('rejects unavailable, failed and invalid complete-membership reads', async () => {
+        await expect(service.getAllGlobalFavoriteMembership()).rejects.toThrow(
+            'Favorites storage is unavailable'
+        );
+        const failure = new Error('storage failed');
+        const read = jest.fn().mockRejectedValue(failure);
+        window.electron = {
+            dbGetAllGlobalFavoriteMembership: read,
+        } as unknown as Window['electron'];
+        await expect(service.getAllGlobalFavoriteMembership()).rejects.toBe(
+            failure
+        );
+        read.mockResolvedValue(null);
+        await expect(service.getAllGlobalFavoriteMembership()).rejects.toThrow(
+            'Favorite membership response is invalid'
+        );
+        read.mockResolvedValue([]);
+        await expect(service.getAllGlobalFavoriteMembership()).resolves.toEqual(
+            []
+        );
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
 });

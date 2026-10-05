@@ -101,6 +101,7 @@ describe('DashboardDataService', () => {
     };
 
     const dbServiceMock = {
+        getAllGlobalFavoriteMembership: jest.fn().mockResolvedValue([]),
         getGlobalRecentlyAdded: jest.fn().mockResolvedValue([]),
         getGlobalRecentlyViewed: jest.fn().mockResolvedValue([]),
         getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
@@ -243,6 +244,10 @@ describe('DashboardDataService', () => {
         );
         dbServiceMock.getAllGlobalFavorites.mockClear();
         dbServiceMock.getAllGlobalFavorites.mockResolvedValue([]);
+        dbServiceMock.getAllGlobalFavoriteMembership.mockReset();
+        dbServiceMock.getAllGlobalFavoriteMembership.mockImplementation(() =>
+            dbServiceMock.getAllGlobalFavorites()
+        );
         dbServiceMock.getGlobalRecentlyAdded.mockClear();
         dbServiceMock.getGlobalRecentlyAdded.mockResolvedValue([]);
         dbServiceMock.getGlobalRecentlyViewed.mockClear();
@@ -2023,6 +2028,165 @@ describe('DashboardDataService', () => {
         expect(
             playlistsServiceMock.removeFromM3uRecentlyViewed
         ).toHaveBeenCalledWith('m3u-1', 'https://example.com/stream-1.m3u8');
+    });
+
+    it('keeps catalog series progress separate from an unrelated same-ID episode while retaining history resume', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 7,
+                title: 'Episode history',
+                type: 'series',
+                xtream_id: 7,
+                playlist_id: 'xtream-1',
+                category_id: 1,
+                viewed_at: '',
+            },
+        ]);
+        const episode: PlaybackPositionData = {
+            playlistId: 'xtream-1',
+            contentXtreamId: 7,
+            contentType: 'episode',
+            seriesXtreamId: 99,
+            positionSeconds: 40,
+            durationSeconds: 100,
+        };
+        playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+            episode,
+        ]);
+        await service.reloadGlobalRecentItems();
+        await service.reloadPlaybackPositions();
+        const untouchedSeries = {
+            ...service.globalRecentVodItems()[0],
+            title: 'Untouched series 7',
+        };
+        const catalogPosition = service.getPlaybackPositionForItem as (
+            item: GlobalRecentItem,
+            scope: 'catalog'
+        ) => PlaybackPositionData | null;
+        expect(
+            catalogPosition.call(service, untouchedSeries, 'catalog')
+        ).toBeNull();
+        expect(service.getPlaybackPositionForItem(untouchedSeries)).toEqual(
+            episode
+        );
+        expect(
+            catalogPosition.call(
+                service,
+                { ...untouchedSeries, xtream_id: 99 },
+                'catalog'
+            )
+        ).toEqual(episode);
+    });
+
+    it('hydrates match-only playlists and retains that scope during a later refresh', async () => {
+        const reload = service.reloadPlaybackPositions as (
+            matchedPlaylistIds: readonly string[]
+        ) => Promise<void>;
+        playbackPositionsMock.getAllPlaybackPositions.mockClear();
+        await reload.call(service, ['matched-only', 'matched-only']);
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions
+        ).toHaveBeenCalledWith('matched-only');
+        expect(service.hasLoadedPlaybackPositions('matched-only')).toBe(true);
+        playbackPositionsMock.getAllPlaybackPositions.mockClear();
+        await service.reloadPlaybackPositions();
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions
+        ).toHaveBeenCalledWith('matched-only');
+        playbackPositionsMock.getAllPlaybackPositions.mockClear();
+        await reload.call(service, ['replacement-match']);
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions
+        ).toHaveBeenCalledWith('replacement-match');
+        expect(service.hasLoadedPlaybackPositions('matched-only')).toBe(false);
+    });
+
+    it('preserves attributed provider ratings on PWA recent covers', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getRecentItems.mockResolvedValueOnce([
+            {
+                id: 91,
+                title: 'Rated movie',
+                type: 'movie',
+                xtream_id: 7,
+                category_id: 1,
+                viewed_at: '',
+                rating: '8.1',
+            },
+        ]);
+        await service.reloadGlobalRecentItems();
+        expect(service.globalRecentVodItems()[0]).toMatchObject({
+            coverRating: { value: 8.1, scale: 10, source: 'provider' },
+        });
+    });
+
+    it('retains complete favourite membership beyond the display cap with a single native read', async () => {
+        const rows = Array.from({ length: 201 }, (_, index) => ({
+            id: index,
+            title: `Movie ${index}`,
+            type: 'movie',
+            xtream_id: index,
+            playlist_id: 'xtream-1',
+            category_id: 1,
+            added_at: new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString(),
+        }));
+        dbServiceMock.getAllGlobalFavoriteMembership.mockResolvedValueOnce(
+            rows
+        );
+        await service.reloadGlobalFavorites();
+        expect(
+            dbServiceMock.getAllGlobalFavoriteMembership
+        ).toHaveBeenCalledTimes(1);
+        expect(dbServiceMock.getAllGlobalFavorites).not.toHaveBeenCalled();
+        expect(service.globalFavoriteItems()).toHaveLength(200);
+        expect(
+            service.globalFavoriteItems().some((item) => item.id === 0)
+        ).toBe(false);
+        expect(service.globalFavoriteMembership()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 0,
+                    source: 'xtream',
+                    type: 'movie',
+                }),
+            ])
+        );
+    });
+
+    it('preserves the last complete membership when the strict native read fails', async () => {
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        dbServiceMock.getAllGlobalFavoriteMembership.mockResolvedValueOnce([
+            {
+                id: 7,
+                title: 'Movie',
+                type: 'movie',
+                xtream_id: 7,
+                playlist_id: 'xtream-1',
+                category_id: 1,
+                added_at: '',
+            },
+        ]);
+        await service.reloadGlobalFavorites();
+        const previous = service.globalFavoriteMembership();
+        dbServiceMock.getAllGlobalFavoriteMembership.mockRejectedValueOnce(
+            new Error('bridge failed')
+        );
+        await service.reloadGlobalFavorites();
+        expect(service.globalFavoriteMembership()).toEqual(previous);
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ id: 7, type: 'movie' }),
+            ])
+        );
+        warn.mockRestore();
     });
 
     it('removes PWA Xtream recently viewed through the active data source', async () => {

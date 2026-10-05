@@ -32,6 +32,7 @@ describe('UnifiedFavoritesDataService', () => {
         dbRemoveRecentItemsBatch: jest.Mock;
     };
     let databaseService: {
+        getAllGlobalFavoriteMembership: jest.Mock;
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
@@ -160,6 +161,7 @@ describe('UnifiedFavoritesDataService', () => {
             ),
         };
         databaseService = {
+            getAllGlobalFavoriteMembership: jest.fn().mockResolvedValue([]),
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
@@ -324,9 +326,13 @@ describe('UnifiedFavoritesDataService', () => {
                 runtime === 'pwa'
                     ? xtreamDataSource.getFavorites
                     : scope === 'all'
-                      ? databaseService.getAllGlobalFavorites
+                      ? databaseService.getAllGlobalFavoriteMembership
                       : databaseService.getFavorites;
             read.mockRejectedValue(new Error('storage failed'));
+            if (runtime === 'electron' && scope === 'all')
+                databaseService.getAllGlobalFavorites.mockRejectedValue(
+                    new Error('storage failed')
+                );
             await expect(
                 service.getFavoritesStrict(
                     scope,

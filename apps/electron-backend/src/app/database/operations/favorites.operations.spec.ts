@@ -30,6 +30,7 @@ import type { AppDatabase } from '../database.types';
 import { createDbMock } from './operations.test-helpers';
 import {
     getAllGlobalFavorites,
+    getAllGlobalFavoriteMembership,
     getFavorites,
     getGlobalFavorites,
     reorderGlobalFavorites,
@@ -50,7 +51,9 @@ function createGlobalFavoritesDbMock(rows: unknown[]) {
     query.innerJoin.mockReturnValue(query);
     query.where.mockReturnValue(query);
     query.orderBy.mockReturnValue(query);
-    query.limit.mockResolvedValue(rows);
+    query.limit.mockImplementation((limit: number) =>
+        Promise.resolve(rows.slice(0, limit))
+    );
     const select = jest.fn().mockReturnValue(query);
 
     return {
@@ -126,6 +129,27 @@ describe('favorites.operations', () => {
                 })
             );
         }
+    });
+
+    it('keeps membership beyond the display cap with the same metadata projection', async () => {
+        const rows = Array.from({ length: 501 }, (_, index) => ({
+            id: index + 1,
+            xtream_id: index + 1001,
+            playlist_id: 'portal-1',
+            type: 'movie',
+            rating: '8.1',
+        }));
+        const { db, query, select } = createGlobalFavoritesDbMock(rows);
+
+        const display = await getAllGlobalFavorites(db);
+        expect(display).toHaveLength(500);
+        expect(query.limit).toHaveBeenCalledWith(500);
+        query.limit.mockClear();
+        const membership = await getAllGlobalFavoriteMembership(db);
+        expect(membership).toEqual(rows);
+        expect(membership[500]).toEqual(rows[500]);
+        expect(query.limit).not.toHaveBeenCalled();
+        expect(select.mock.calls[1][0]).toEqual(select.mock.calls[0][0]);
     });
 
     describe('reorderGlobalFavorites', () => {

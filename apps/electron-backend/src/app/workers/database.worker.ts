@@ -33,6 +33,7 @@ import { setParentalLockActive } from '../database/parental-lock-state';
 import {
     addFavorite,
     getAllGlobalFavorites,
+    getAllGlobalFavoriteMembership,
     getFavorites,
     getGlobalFavorites,
     isFavorite,
@@ -1082,6 +1083,8 @@ async function executeRequest(
 
         case 'DB_GET_ALL_GLOBAL_FAVORITES':
             return getAllGlobalFavorites(db);
+        case 'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP':
+            return getAllGlobalFavoriteMembership(db);
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {

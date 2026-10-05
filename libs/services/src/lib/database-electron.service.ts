@@ -746,6 +746,20 @@ export class DatabaseService {
         }
     }
 
+    async getAllGlobalFavoriteMembership(): Promise<GlobalFavoriteItem[]> {
+        if (
+            typeof window.electron?.dbGetAllGlobalFavoriteMembership !==
+            'function'
+        ) {
+            throw new Error('Favorites storage is unavailable');
+        }
+        const items = await window.electron.dbGetAllGlobalFavoriteMembership();
+        if (!Array.isArray(items)) {
+            throw new Error('Favorite membership response is invalid');
+        }
+        return items;
+    }
+
     /**
      * Clear recently viewed items
      */

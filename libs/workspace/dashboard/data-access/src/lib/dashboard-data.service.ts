@@ -294,6 +294,7 @@ export class DashboardDataService {
 
     readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
     private playbackPositionGeneration = 0;
+    private matchedPlaybackPlaylistIds: readonly string[] = [];
     private readonly playbackPositionLoadedPlaylists = signal<
         ReadonlySet<string>
     >(new Set());
@@ -303,7 +304,8 @@ export class DashboardDataService {
     }
 
     getPlaybackPositionForItem(
-        item: PortalActivityItem
+        item: PortalActivityItem,
+        scope: 'history' | 'catalog' = 'history'
     ): PlaybackPositionData | null {
         // The progress model, not the routing type: a Stalker embedded-VOD
         // row routes as a movie but tracks episodes under its parent id,
@@ -333,13 +335,16 @@ export class DashboardDataService {
         // landing page writes the series itself) or, for direct-play flows,
         // the episode id. Match both shapes through keyed maps so card renders
         // do not scan every saved playback position.
-        const episodePosition =
-            this.playbackPositionsMap().get(
-                playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
-            ) ?? null;
         const seriesPosition =
             this.playbackPositionsBySeriesMap().get(
                 seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
+            ) ?? null;
+        // Catalog covers identify the parent show. A coincidentally equal
+        // episode id from another show must never make this show Started.
+        if (scope === 'catalog') return seriesPosition;
+        const episodePosition =
+            this.playbackPositionsMap().get(
+                playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
             ) ?? null;
         return newestPlaybackPosition(episodePosition, seriesPosition);
     }
@@ -350,9 +355,14 @@ export class DashboardDataService {
      * round-trip each (vs N+1 per content item), so this stays cheap even
      * on heavy libraries.
      */
-    async reloadPlaybackPositions(): Promise<void> {
+    async reloadPlaybackPositions(
+        matchedPlaylistIds?: readonly string[]
+    ): Promise<void> {
+        if (matchedPlaylistIds !== undefined) {
+            this.matchedPlaybackPlaylistIds = [...matchedPlaylistIds];
+        }
         const generation = ++this.playbackPositionGeneration;
-        const playlistIds = new Set<string>();
+        const playlistIds = new Set(this.matchedPlaybackPlaylistIds);
         for (const item of [
             ...this.globalRecentItems(),
             ...this.globalFavoriteItems(),
@@ -433,14 +443,16 @@ export class DashboardDataService {
         );
     });
 
-    readonly globalFavoriteItems = computed(() =>
+    /** Complete membership is independent of the dashboard display cap. */
+    readonly globalFavoriteMembership = computed(() =>
         [
             ...this.xtreamGlobalFavorites(),
             ...this.m3uGlobalFavorites(),
             ...this.stalkerGlobalFavorites(),
-        ]
-            .sort((a, b) => toTimestamp(b.added_at) - toTimestamp(a.added_at))
-            .slice(0, 200)
+        ].sort((a, b) => toTimestamp(b.added_at) - toTimestamp(a.added_at))
+    );
+    readonly globalFavoriteItems = computed(() =>
+        this.globalFavoriteMembership().slice(0, 200)
     );
 
     private readonly recentPlaylistActivityTimestamps = computed(() => {
@@ -657,7 +669,8 @@ export class DashboardDataService {
         }
 
         try {
-            const favorites = await this.dbService.getAllGlobalFavorites();
+            const favorites =
+                await this.dbService.getAllGlobalFavoriteMembership();
             const normalized = favorites.map((item) =>
                 mapDbFavoriteToItem(item)
             );
@@ -667,7 +680,8 @@ export class DashboardDataService {
                 '[DashboardData] Failed to reload global favorites',
                 err
             );
-            this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
+            // A strict membership read failure is not evidence of removal.
+            // Keep the last successful snapshot until a later reload succeeds.
         }
     }
 
@@ -730,6 +744,7 @@ export class DashboardDataService {
             xtream_id: item.xtream_id,
             poster_url: item.poster_url,
             backdrop_url: item.backdrop_url ?? undefined,
+            coverRating: resolveProviderCoverRating(item),
             source: 'xtream',
         };
     }

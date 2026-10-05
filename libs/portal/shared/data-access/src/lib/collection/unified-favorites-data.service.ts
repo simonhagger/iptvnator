@@ -572,7 +572,7 @@ export class UnifiedFavoritesDataService {
 
         try {
             const rows = (await (strict
-                ? this.dbService.getAllGlobalFavorites(true)
+                ? this.dbService.getAllGlobalFavoriteMembership()
                 : this.dbService.getAllGlobalFavorites())) as XtreamFavoriteRow[];
             return rows.map((r) => this.mapXtreamRow(r));
         } catch (error) {

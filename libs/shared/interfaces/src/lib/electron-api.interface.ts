@@ -1102,6 +1102,9 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbGetGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbGetAllGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
+    dbGetAllGlobalFavoriteMembership: () => Promise<
+        ElectronBridgeGlobalFavoriteItem[]
+    >;
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;

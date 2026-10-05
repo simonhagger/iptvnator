@@ -77,6 +77,7 @@ import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import { createSourceExpiryClock } from './dashboard-source-expiry-clock';
 import {
     buildDashboardEpisodeBadge,
+    buildDashboardMatchedPlaybackItems,
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,
     isContinueWatchingRecentItem,
@@ -207,16 +208,31 @@ export class WorkspaceDashboardRailsComponent {
         )
     );
 
+    private readonly matchedPlaybackItems = computed(() =>
+        buildDashboardMatchedPlaybackItems([
+            ...(this.dashboardRails().tmdbTrending &&
+            this.trendingService.isAvailable
+                ? this.trendingService.items()
+                : []),
+            ...(this.dashboardRails().tmdbRecommendations &&
+            this.recommendationsService.isAvailable
+                ? this.recommendationsService.items()
+                : []),
+        ])
+    );
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey([
             ...this.data.globalRecentVodItems(),
             ...this.data.globalFavoriteItems(),
             ...this.data.xtreamRecentlyAddedItems(),
+            ...this.matchedPlaybackItems(),
         ])
     );
     private readonly favoriteIdentities = computed(
         () =>
-            new Set(this.data.globalFavoriteItems().map(dashboardCoverIdentity))
+            new Set(
+                this.data.globalFavoriteMembership().map(dashboardCoverIdentity)
+            )
     );
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
@@ -348,7 +364,14 @@ export class WorkspaceDashboardRailsComponent {
         // The primitive key keeps live-only recent churn out of the IPC path.
         effect(() => {
             this.playbackPositionReloadKey();
-            untracked(() => void this.data.reloadPlaybackPositions());
+            untracked(
+                () =>
+                    void this.data.reloadPlaybackPositions(
+                        this.matchedPlaybackItems().map(
+                            (item) => item.playlist_id
+                        )
+                    )
+            );
         });
 
         // Subscription-expiry badges for the source cards. Xtream rides the
@@ -522,7 +545,7 @@ export class WorkspaceDashboardRailsComponent {
             // moved to the ⋮ menu below. The hero CTA keeps the resume state.
             state: this.data.getRecentItemDetailNavigationState(item),
             watchProgress,
-            indicators: this.coverIndicators(item),
+            indicators: this.coverIndicators(item, undefined, 'history'),
             episodeBadge,
             // What still separates one card from the next: where in the
             // show, and how much is left — not which provider it came from.
@@ -690,12 +713,13 @@ export class WorkspaceDashboardRailsComponent {
 
     private coverIndicators(
         item: PortalActivityItem & DashboardCoverMetadata,
-        favorite = this.favoriteIdentities().has(dashboardCoverIdentity(item))
+        favorite = this.favoriteIdentities().has(dashboardCoverIdentity(item)),
+        scope: 'history' | 'catalog' = 'catalog'
     ): ContentCoverIndicators {
         return buildDashboardCoverIndicators(
             item,
             favorite,
-            this.data.getPlaybackPositionForItem(item),
+            this.data.getPlaybackPositionForItem(item, scope),
             this.data.hasLoadedPlaybackPositions(item.playlist_id)
         );
     }

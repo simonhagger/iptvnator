@@ -958,6 +958,8 @@ const electronApi: ElectronBridgeApi = {
     dbGetGlobalFavorites: () => ipcRenderer.invoke('DB_GET_GLOBAL_FAVORITES'),
     dbGetAllGlobalFavorites: () =>
         ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITES'),
+    dbGetAllGlobalFavoriteMembership: () =>
+        ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP'),
     dbReorderGlobalFavorites: (
         updates: { content_id: number; playlist_id: string; position: number }[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),

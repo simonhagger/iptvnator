@@ -339,13 +339,20 @@ favourite changes using provider + playlist + content kind + provider ID.
 Recent VOD menus offer favourite changes alongside history removal; favourites
 offer collection removal. Reuse the scoped favourite controller for membership,
 serialized writes and persisted readback. Failed reads omit the favourite action
-and offer Retry. Removing, clearing or reordering a Stalker item must preserve
+and offer Retry. Membership uses the complete persisted set, independently of
+display caps.
+Native callers use the dedicated complete-membership read; the bounded display
+query retains its existing limit.
+Removing, clearing or reordering a Stalker item must preserve
 other content kinds that reuse its provider ID. Continue Watching keeps explicit
 resume/history controls. Do not advertise unavailable actions.
 Material menus preserve keyboard navigation, Escape and focus restoration;
 opening or selecting a menu must not also activate its cover. Live/radio tiles
 retain their channel-specific controls. Use shared Material icons and app theme
 tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
+Dashboard scopes include matched Trending and Recommendations cards, and changes
+to their matches refresh the scope. Catalogue-backed series progress matches
+the parent series ID; direct episode IDs are reserved for episode history.
 Catalogue arrival explicitly refreshes its provider's persisted watch positions,
 including return from other views that can change them. Coalesce only overlapping
 reads; a completed initial load must not suppress a later arrival refresh.

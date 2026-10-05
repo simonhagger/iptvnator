@@ -233,7 +233,7 @@ export async function expectSavedCoverPosition(
                 { playlistId, position }
             )
         )
-        .toMatchObject(position);
+        .toMatchObject({ ...position });
 }
 
 export async function expectCoverState(
