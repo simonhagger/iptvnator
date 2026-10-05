@@ -1,4 +1,4 @@
-import { SavedVodValidationError } from '@iptvnator/shared/interfaces';
+import { SavedVodValidationError } from '@iptvnator/shared/interfaces/saved-vod-validation';
 import {
     createSavedVodPlaylist,
     duplicateSavedVodPlaylist,

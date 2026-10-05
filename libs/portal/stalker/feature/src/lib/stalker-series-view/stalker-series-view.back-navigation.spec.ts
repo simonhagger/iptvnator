@@ -19,7 +19,7 @@ import { StalkerSeriesViewComponent } from './stalker-series-view.component';
 
 describe('StalkerSeriesViewComponent back navigation', () => {
     let fixture: ComponentFixture<StalkerSeriesViewComponent>;
-    const routerMock = { navigateByUrl: jest.fn() };
+    const routerMock = { events: EMPTY, navigateByUrl: jest.fn() };
     const locationMock = { back: jest.fn() };
     const clearSelectedItem = jest.fn();
     const originalHistoryState = window.history.state;

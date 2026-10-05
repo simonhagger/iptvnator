@@ -271,6 +271,7 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: jest.fn(),
                         navigateByUrl: jest.fn(),
                     },

@@ -5,9 +5,13 @@ interface ProviderTargetPayload {
 }
 
 const BACKEND_ORIGIN = 'http://localhost:3000';
+const DEFAULT_APP_URL =
+    process.env['IPTVNATOR_E2E_STATIC_PWA'] === '1'
+        ? `http://localhost:${process.env['IPTVNATOR_E2E_STATIC_PORT'] ?? '4300'}`
+        : 'http://localhost:4200';
 const APP_ORIGIN = process.env['BASE_URL']
     ? new URL(process.env['BASE_URL']).origin
-    : 'http://localhost:4200';
+    : DEFAULT_APP_URL;
 const CORS_HEADERS = {
     'access-control-allow-headers': 'content-type',
     'access-control-allow-methods': 'POST, OPTIONS',

@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures';
+import { expect, test } from './mock-provider.fixture';
 import {
     interceptXtreamRequests,
     MOCK_SERVER,

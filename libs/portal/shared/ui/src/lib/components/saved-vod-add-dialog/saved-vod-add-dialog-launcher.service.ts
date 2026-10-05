@@ -8,10 +8,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatDialog, type MatDialogRef } from '@angular/material/dialog';
-import {
-    normalizeSavedVodCandidates,
-    type SavedVodCandidate,
-} from '@iptvnator/shared/interfaces';
+import { normalizeSavedVodCandidates } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type { SavedVodCandidate } from '@iptvnator/shared/interfaces';
 import { SavedVodAddDialogComponent } from './saved-vod-add-dialog.component';
 
 /** Provide per detail owner. Navigation closes only the dialog this owner opened. */

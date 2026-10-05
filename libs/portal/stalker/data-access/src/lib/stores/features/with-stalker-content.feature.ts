@@ -64,6 +64,8 @@ function withheldStalkerCategoryIds(
  * Content/categories/channels feature state.
  */
 export interface StalkerContentState {
+    categoryPlaylistKey: string | null;
+    categoryRequestVersion: number;
     totalCount: number;
     vodCategories: StalkerCategoryItem[];
     seriesCategories: StalkerCategoryItem[];
@@ -96,6 +98,8 @@ export interface StalkerContentState {
 }
 
 const initialContentState: StalkerContentState = {
+    categoryPlaylistKey: null,
+    categoryRequestVersion: 0,
     totalCount: 0,
     vodCategories: [],
     seriesCategories: [],
@@ -134,9 +138,13 @@ interface StalkerContentResourceStoreContract extends StalkerContentFeatureStore
 }
 
 function getCategoriesByType(
-    store: StalkerCategorySliceContract,
-    contentType: StalkerContentType
+    store: StalkerCategorySliceContract & {
+        categoryPlaylistKey(): string | null;
+    },
+    contentType: StalkerContentType,
+    playlistKey: string | null
 ): StalkerCategoryItem[] {
+    if (store.categoryPlaylistKey() !== playlistKey) return [];
     switch (contentType) {
         case 'vod':
             return store.vodCategories();
@@ -304,7 +312,30 @@ export function withStalkerContent() {
                         }),
                         loader: async ({
                             params,
+                            abortSignal,
                         }): Promise<StalkerCategoryItem[]> => {
+                            const requestVersion =
+                                store.categoryRequestVersion();
+                            const playlistKey = stalkerPlaylistKey(
+                                params.currentPlaylist
+                            );
+                            if (store.categoryPlaylistKey() !== playlistKey) {
+                                patchState(store, {
+                                    categoryPlaylistKey: playlistKey,
+                                    vodCategories: [],
+                                    seriesCategories: [],
+                                    itvCategories: [],
+                                    radioCategories: [],
+                                    categoryError: null,
+                                });
+                            }
+                            const isCurrent = () =>
+                                !abortSignal.aborted &&
+                                store.categoryRequestVersion() ===
+                                    requestVersion &&
+                                stalkerPlaylistKey(
+                                    storeContext.currentPlaylist()
+                                ) === playlistKey;
                             if (!params.currentPlaylist) {
                                 patchState(store, { categoryError: null });
                                 return [];
@@ -312,7 +343,8 @@ export function withStalkerContent() {
 
                             const cachedCategories = getCategoriesByType(
                                 store,
-                                params.contentType
+                                params.contentType,
+                                playlistKey
                             );
                             if (cachedCategories.length > 0) {
                                 patchState(store, { categoryError: null });
@@ -332,6 +364,7 @@ export function withStalkerContent() {
                                         }
                                     );
 
+                                if (!isCurrent()) return [];
                                 if (!Array.isArray(response?.js)) {
                                     const invalidResponseError = new Error(
                                         'Invalid categories response'
@@ -391,6 +424,7 @@ export function withStalkerContent() {
 
                                 return categories;
                             } catch (error) {
+                                if (!isCurrent()) return [];
                                 logger.warn('Error loading categories', {
                                     contentType: params.contentType,
                                     error,
@@ -442,7 +476,10 @@ export function withStalkerContent() {
                                     : 0,
                             availableCategoryCount: getCategoriesByType(
                                 store,
-                                storeContext.selectedContentType()
+                                storeContext.selectedContentType(),
+                                stalkerPlaylistKey(
+                                    storeContext.currentPlaylist()
+                                )
                             ).filter(
                                 (category) =>
                                     String(category.category_id) !== '*'
@@ -945,7 +982,11 @@ export function withStalkerContent() {
                     storeContext.currentPlaylist(),
                     contentType
                 );
-                const categories = getCategoriesByType(store, contentType);
+                const categories = getCategoriesByType(
+                    store,
+                    contentType,
+                    stalkerPlaylistKey(storeContext.currentPlaylist())
+                );
                 return withheld.size === 0
                     ? categories
                     : categories.filter(
@@ -1070,7 +1111,11 @@ export function withStalkerContent() {
                     }
 
                     const contentType = storeContext.selectedContentType();
-                    const categories = getCategoriesByType(store, contentType);
+                    const categories = getCategoriesByType(
+                        store,
+                        contentType,
+                        stalkerPlaylistKey(storeContext.currentPlaylist())
+                    );
 
                     return (
                         categories.find(
@@ -1093,7 +1138,8 @@ export function withStalkerContent() {
 
                     const category = getCategoriesByType(
                         store,
-                        storeContext.selectedContentType()
+                        storeContext.selectedContentType(),
+                        stalkerPlaylistKey(storeContext.currentPlaylist())
                     ).find(
                         (item) =>
                             String(item.category_id) ===
@@ -1112,7 +1158,8 @@ export function withStalkerContent() {
                 getAllCategoriesForSelectedType: computed(() =>
                     getCategoriesByType(
                         store,
-                        storeContext.selectedContentType()
+                        storeContext.selectedContentType(),
+                        stalkerPlaylistKey(storeContext.currentPlaylist())
                     )
                 ),
                 isCategoryResourceLoading: computed(() =>
@@ -1126,6 +1173,17 @@ export function withStalkerContent() {
                 StalkerContentResourceStoreContract;
             const itvCache = inject(StalkerItvCacheService);
             const dataService = inject(DataService);
+            const invalidateCategories = () => {
+                patchState(store, {
+                    categoryRequestVersion: store.categoryRequestVersion() + 1,
+                    categoryPlaylistKey: null,
+                    vodCategories: [],
+                    seriesCategories: [],
+                    itvCategories: [],
+                    radioCategories: [],
+                    categoryError: null,
+                });
+            };
 
             return {
                 /**
@@ -1166,16 +1224,19 @@ export function withStalkerContent() {
                     type: StalkerContentType,
                     categories: StalkerCategoryItem[]
                 ) {
-                    patchState(store, buildCategoryPatch(type, categories));
-                },
-                resetCategories() {
                     patchState(store, {
-                        vodCategories: [],
-                        seriesCategories: [],
-                        itvCategories: [],
-                        radioCategories: [],
-                        categoryError: null,
+                        categoryPlaylistKey: stalkerPlaylistKey(
+                            storeContext.currentPlaylist()
+                        ),
+                        ...buildCategoryPatch(type, categories),
                     });
+                },
+                /** Clears abandoned state without requesting the previous portal. */
+                invalidateCategories,
+                /** Explicit same-owner refresh; route changes use invalidation. */
+                resetCategories() {
+                    invalidateCategories();
+                    storeContext.categoryResource.reload();
                 },
                 setItvChannels(channels: StalkerItvChannel[]) {
                     patchState(store, {

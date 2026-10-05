@@ -51,10 +51,14 @@ import {
 } from '@iptvnator/services';
 import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
 import { createVodDetailsHeroState } from './vod-details-hero.state';
+import {
+    buildVodActorRoute,
+    findSimilarByRailKey,
+} from './vod-details-navigation.util';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
-import { createVodDownloadState } from './vod-download-state.util';
-import { createVodSimilarMatches } from './vod-similar-matches.state';
+import { createVodLocalDownloadState } from './vod-download-state.util';
+import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
 
 /**
  * Unified VOD details component for both Xtream and Stalker portals.
@@ -233,10 +237,11 @@ export class VodDetailsComponent {
      * TMDB recommendations found in the user's OTHER portals (batched DB
      * match, Electron only). Loaded async — the section appears when
      * resolved; staleness-guarded against item changes in flight.
+     * Filtered on read: a relock hides matches cached while unlocked.
      */
-    readonly similarInPortals = createVodSimilarMatches(
-        this.crossPortalSimilar,
-        this.normalizedMeta
+    readonly similarInPortals = createVodSimilarInPortals(
+        this.normalizedMeta,
+        this.crossPortalSimilar
     );
 
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
@@ -251,19 +256,14 @@ export class VodDetailsComponent {
         () => (this.playbackPosition() ?? 0) > 0 && !this.isWatched()
     );
 
-    private readonly downloadState = createVodDownloadState(
-        this.downloadsService,
-        this.item
-    );
-    readonly isDownloaded = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloaded()
-    );
-    readonly isDownloading = computed(
-        () => !this.providerOnly() && this.downloadState.isDownloading()
-    );
-    readonly isPausedDownload = computed(
-        () => !this.providerOnly() && this.downloadState.isPausedDownload()
-    );
+    private readonly localDownload = createVodLocalDownloadState({
+        downloadsService: this.downloadsService,
+        item: this.item,
+        providerOnly: this.providerOnly,
+    });
+    readonly isDownloaded = this.localDownload.isDownloaded;
+    readonly isDownloading = this.localDownload.isDownloading;
+    readonly isPausedDownload = this.localDownload.isPausedDownload;
 
     private readonly externalButton = createExternalPlaybackButtonState({
         session: this.externalPlayback,
@@ -340,11 +340,7 @@ export class VodDetailsComponent {
     readonly scrollToCast = scrollToCastCrewRow;
 
     openSimilarRailItem(item: SimilarRailItem): void {
-        const match = this.similarInPortals().find(
-            (candidate) =>
-                `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
-                item.key
-        );
+        const match = findSimilarByRailKey(this.similarInPortals(), item.key);
         if (match) {
             this.openSimilarInPortals(match);
         }
@@ -430,20 +426,10 @@ export class VodDetailsComponent {
 
     /** Handle back navigation - emit event for parent to handle */
     openActor(member: TmdbEnrichedCastMember): void {
-        if (!member.tmdbPersonId) {
-            return;
+        const commands = buildVodActorRoute(this.item(), member);
+        if (commands) {
+            void this.router.navigate(commands);
         }
-        const item = this.item();
-        const basePath =
-            item.type === 'stalker'
-                ? '/workspace/stalker'
-                : '/workspace/xtreams';
-        void this.router.navigate([
-            basePath,
-            item.playlistId,
-            'actor',
-            member.tmdbPersonId,
-        ]);
     }
 
     goBack(): void {
@@ -474,13 +460,8 @@ export class VodDetailsComponent {
     }
 
     /** Resume the paused download of this VOD */
-    async resumePausedDownload(): Promise<void> {
-        const item = this.item();
-        await this.downloadsService.resumeDownloadByContent(
-            getVodNumericId(item),
-            item.playlistId,
-            'vod'
-        );
+    resumePausedDownload(): Promise<void> {
+        return this.localDownload.resumePausedDownload();
     }
 
     onInlineTimeUpdate(event: { currentTime: number; duration: number }): void {
@@ -506,18 +487,7 @@ export class VodDetailsComponent {
     }
 
     /** Play from local downloaded file */
-    async playFromLocal(): Promise<void> {
-        const item = this.item();
-        const vodId = getVodNumericId(item);
-
-        const filePath = this.downloadsService.getDownloadedFilePath(
-            vodId,
-            item.playlistId,
-            'vod'
-        );
-
-        if (filePath) {
-            await this.downloadsService.playDownload(filePath);
-        }
+    playFromLocal(): Promise<void> {
+        return this.localDownload.playFromLocal();
     }
 }

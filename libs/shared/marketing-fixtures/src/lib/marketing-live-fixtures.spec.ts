@@ -24,6 +24,14 @@ describe('marketing live fixtures', () => {
         expect(marketingTitleFromSlug('aurora-news.svg')).toBe('Aurora News');
     });
 
+    it('trims collapsed separators while preserving internal words', () => {
+        expect(marketingSlug(' ---Aurora---News--- ')).toBe('aurora-news');
+        expect(marketingSlug('-'.repeat(100_000))).toBe('');
+        expect(marketingSlug(`Aurora${'-'.repeat(100_000)}News`)).toBe(
+            'aurora-news'
+        );
+    });
+
     it('renders a self-contained SVG logo with the channel initials', () => {
         const svg = renderMarketingLogoSvg('aurora-news.svg', '128x128');
 

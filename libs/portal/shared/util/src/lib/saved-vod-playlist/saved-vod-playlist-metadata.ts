@@ -1,7 +1,7 @@
-import {
-    normalizeSavedVodPlaylist,
-    type SavedVodEntry,
-    type SavedVodPlaylist,
+import { normalizeSavedVodPlaylist } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodEntry,
+    SavedVodPlaylist,
 } from '@iptvnator/shared/interfaces';
 
 /** Callers own IDs/time; persistence owns the next stored revision. */

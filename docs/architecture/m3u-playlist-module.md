@@ -1755,6 +1755,15 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 
 ### XMLTV source lifecycle
 
+Normal `FETCH_EPG` skips sources with data newer than 12 hours and sources already
+processed in the session. Settings source refresh and **Refresh all** use
+`EPG_FORCE_FETCH`, which forwards `force` through the fetch orchestrator and
+parser-worker service to bypass both caches. Clearing the session marker alone
+does not bypass database freshness. Forced imports still apply local-file
+authorization and the normal progress/error protocol. The Electron
+`epg-force-refresh.e2e.ts` flow saves Settings, verifies ordinary fetching skips
+fresh data, then verifies both refresh controls replace it with updated XMLTV.
+
 Electron treats `Settings.epgUrl` as the committed global source list. Removing
 an input is a draft edit; only a successful IndexedDB write authorizes source
 reconciliation. A storage write failure restores the previous in-memory EPG

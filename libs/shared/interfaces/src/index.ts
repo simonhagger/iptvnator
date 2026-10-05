@@ -110,5 +110,4 @@ export * from './lib/catchup-download.interface';
 export * from './lib/xtream-connection-test';
 
 export * from './lib/source-health';
-export * from './lib/saved-vod-playlist.interface';
-export * from './lib/saved-vod-playlist.validation';
+export type * from './lib/saved-vod-playlist.interface';

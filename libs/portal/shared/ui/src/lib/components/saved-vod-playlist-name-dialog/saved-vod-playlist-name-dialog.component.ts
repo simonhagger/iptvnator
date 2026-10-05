@@ -8,7 +8,7 @@ import {
 } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces';
+import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces/saved-vod-validation';
 import { TranslatePipe } from '@ngx-translate/core';
 import { savedVodPlaylistNameValidator } from './saved-vod-playlist-name.validator';
 

@@ -83,6 +83,10 @@ async function buildWorker() {
                 sourcemap: isPerformance || !isProduction,
                 minify: isProduction || isPerformance,
                 alias: {
+                    '@iptvnator/shared/interfaces/saved-vod-validation': path.join(
+                        __dirname,
+                        '../../libs/shared/interfaces/src/lib/saved-vod-playlist.validation.ts'
+                    ),
                     '@iptvnator/shared/interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'

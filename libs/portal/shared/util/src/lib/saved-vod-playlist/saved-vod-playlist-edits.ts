@@ -1,8 +1,8 @@
-import {
-    normalizeSavedVodEntries,
-    type SavedVodEntry,
-    type SavedVodPlaylist,
-    type SavedVodReference,
+import { normalizeSavedVodEntries } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodEntry,
+    SavedVodPlaylist,
+    SavedVodReference,
 } from '@iptvnator/shared/interfaces';
 
 /** Tuple encoding preserves boundaries and Stalker's raw provider identifiers. */

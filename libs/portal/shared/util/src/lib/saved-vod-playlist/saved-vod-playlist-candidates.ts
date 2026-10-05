@@ -1,7 +1,7 @@
-import {
-    normalizeSavedVodCandidates,
-    type SavedVodCandidate,
-    type XtreamSerieEpisode,
+import { normalizeSavedVodCandidates } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodCandidate,
+    XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 
 interface MovieCandidateInput {

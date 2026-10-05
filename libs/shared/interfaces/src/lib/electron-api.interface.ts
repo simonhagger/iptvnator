@@ -927,6 +927,10 @@ export interface ElectronBridgeApi {
     updateSettings: (settings: Partial<Settings>) => Promise<void>;
     getAiSettings: () => Promise<ElectronBridgeAiSettings>;
     setMpvPlayerPath: (mpvPlayerPath: string) => Promise<void>;
+    getExternalPlayerAvailability?: (paths?: {
+        mpv?: string;
+        vlc?: string;
+    }) => Promise<{ mpv: boolean | null; vlc: boolean | null }>;
     setVlcPlayerPath: (vlcPlayerPath: string) => Promise<void>;
     stalkerRequest: (
         payload: ElectronBridgeStalkerRequestPayload
@@ -1272,6 +1276,7 @@ export interface ElectronBridgeApi {
         sessionId: string
     ) => Promise<ExternalPlayerSession | null>;
     getEmbeddedMpvSupport: () => Promise<EmbeddedMpvSupport>;
+    openEmbeddedMpvFloatingPlayer?: (sessionId: string) => Promise<boolean>;
     prepareEmbeddedMpv?: () => Promise<EmbeddedMpvSupport>;
     createEmbeddedMpvSession: (
         bounds: EmbeddedMpvBounds,

@@ -3,10 +3,12 @@ import {
     parseSavedVodPlaylist,
     serializeSavedVodPlaylist,
     SavedVodValidationError,
-    type SavedVodDeleteResult,
-    type SavedVodPlaylist,
-    type SavedVodPlaylistSummary,
-    type SavedVodWriteResult,
+} from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodDeleteResult,
+    SavedVodPlaylist,
+    SavedVodPlaylistSummary,
+    SavedVodWriteResult,
 } from '@iptvnator/shared/interfaces';
 
 const DOCUMENTS = 'documents';

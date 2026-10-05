@@ -1,4 +1,5 @@
 import { writeFileSync } from 'fs';
+import { createServer, type ServerResponse } from 'http';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 import {
@@ -27,6 +28,47 @@ import {
     expectOverlayContrastOnWhite,
 } from './theme-contrast';
 
+/** Keep the real native loader waiting until its disabled controls are checked. */
+async function createNativeMediaGate(targetUrl: string) {
+    const pending = new Set<ServerResponse>();
+    let released = false;
+    const redirect = (response: ServerResponse) => {
+        response.writeHead(302, { Location: targetUrl }).end();
+    };
+    const server = createServer((_request, response) => {
+        if (released) {
+            redirect(response);
+            return;
+        }
+        pending.add(response);
+        response.once('close', () => pending.delete(response));
+    });
+    await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+        server.closeAllConnections();
+        server.close();
+        throw new Error('Unable to resolve the native media gate address.');
+    }
+    return {
+        url: `http://127.0.0.1:${address.port}/native-theme.y4m`,
+        release: () => {
+            released = true;
+            for (const response of pending) redirect(response);
+            pending.clear();
+        },
+        close: async () => {
+            server.closeAllConnections();
+            await new Promise<void>((resolve, reject) => {
+                server.close((error) => (error ? reject(error) : resolve()));
+            });
+        },
+    };
+}
+
 for (const engine of [
     'native',
     'frame-copy',
@@ -39,6 +81,8 @@ for (const engine of [
     }) => {
         const embedded = engine === 'native' || engine === 'frame-copy';
         const media = embedded ? await createLocalMediaServer() : undefined;
+        let nativeMediaGate:
+            Awaited<ReturnType<typeof createNativeMediaGate>> | undefined;
         const app = await launchElectronApp(dataDir, {
             env: {
                 IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT: '1',
@@ -46,6 +90,9 @@ for (const engine of [
                     engine === 'frame-copy' ? '1' : '0',
                 IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW: '1',
             },
+        }).catch(async (error) => {
+            await media?.close();
+            throw error;
         });
         try {
             if (embedded) {
@@ -66,8 +113,12 @@ for (const engine of [
                 .click();
             await saveSettings(app.mainWindow);
             await goToDashboard(app.mainWindow);
+            if (engine === 'native') {
+                nativeMediaGate = await createNativeMediaGate(media!.url);
+            }
             const playlist = join(dataDir, 'theme.m3u');
             const url =
+                nativeMediaGate?.url ??
                 media?.url ??
                 pathToFileURL(
                     join(
@@ -91,6 +142,55 @@ for (const engine of [
             await channelItemByTitle(app.mainWindow, 'Theme fixture')
                 .first()
                 .click();
+            if (nativeMediaGate) {
+                const loadingControls = app.mainWindow.locator(
+                    '.embedded-mpv-player__controls'
+                );
+                const disabled = loadingControls.getByRole('button', {
+                    name: 'Back 10 seconds',
+                    exact: true,
+                });
+                const fullscreenButton = loadingControls.getByRole('button', {
+                    name: /^(Enter|Exit) fullscreen$/,
+                });
+                for (const fullscreen of [false, true]) {
+                    if (fullscreen) await fullscreenButton.click();
+                    for (const theme of ['light', 'dark', 'light'] as const) {
+                        await applyTheme(app.mainWindow, theme);
+                        await fullscreenButton.hover();
+                        await expect
+                            .poll(() =>
+                                app.mainWindow.evaluate(
+                                    () =>
+                                        window.__packagedEmbeddedMpvSessions?.at(
+                                            -1
+                                        )?.status
+                                )
+                            )
+                            .toBe('loading');
+                        await expect(
+                            app.mainWindow.locator(
+                                '.embedded-mpv-player__loader'
+                            )
+                        ).toBeVisible();
+                        await expect(disabled).toBeDisabled();
+                        await expect(fullscreenButton).toBeEnabled();
+                        await expectThemeSurface(loadingControls, theme);
+                        await expectTextContrast(disabled, 1.5);
+                        expect(
+                            await disabled.evaluate(
+                                (element) => getComputedStyle(element).color
+                            )
+                        ).not.toEqual(
+                            await fullscreenButton.evaluate(
+                                (element) => getComputedStyle(element).color
+                            )
+                        );
+                    }
+                }
+                await fullscreenButton.click();
+                nativeMediaGate.release();
+            }
             if (engine === 'frame-copy') {
                 // The experimental local runtime can fail its first frame-view
                 // initialization. Cover the themed error UI and one user Retry;
@@ -242,22 +342,20 @@ for (const engine of [
                             )
                         );
                         await expect(play).toHaveCSS('outline-width', '2px');
-                        const disabled = controls
-                            .locator(
-                                '.embedded-mpv-player__transport button:disabled'
-                            )
-                            .first();
-                        await expect(disabled).toBeDisabled();
-                        await expectTextContrast(disabled, 1.5);
-                        expect(
-                            await disabled.evaluate(
-                                (el) => getComputedStyle(el).color
-                            )
-                        ).not.toEqual(
-                            await play.evaluate(
-                                (el) => getComputedStyle(el).color
-                            )
-                        );
+                        // A buffered finite clip remains seekable while paused,
+                        // including at either boundary (seeks are clamped).
+                        await expect(
+                            controls.getByRole('button', {
+                                name: 'Back 10 seconds',
+                                exact: true,
+                            })
+                        ).toBeEnabled();
+                        await expect(
+                            controls.getByRole('button', {
+                                name: 'Forward 10 seconds',
+                                exact: true,
+                            })
+                        ).toBeEnabled();
                         await expectTextContrast(
                             controls.locator('.embedded-mpv-player__time')
                         );
@@ -322,8 +420,16 @@ for (const engine of [
                 }
             }
         } finally {
-            await closeElectronApp(app);
-            await media?.close();
+            nativeMediaGate?.release();
+            try {
+                await closeElectronApp(app);
+            } finally {
+                try {
+                    await nativeMediaGate?.close();
+                } finally {
+                    await media?.close();
+                }
+            }
         }
     });
 }

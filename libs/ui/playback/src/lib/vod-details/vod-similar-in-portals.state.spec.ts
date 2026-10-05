@@ -5,7 +5,7 @@ import {
     type CrossPortalSimilarItem,
 } from '@iptvnator/services';
 import type { NormalizedVodMeta } from '@iptvnator/shared/interfaces';
-import { createVodSimilarMatches } from './vod-similar-matches.state';
+import { createVodSimilarInPortals } from './vod-similar-in-portals.state';
 
 @Component({ template: '' })
 class DetailOwner {
@@ -13,9 +13,9 @@ class DetailOwner {
         title: 'First',
         tmdbRecommendations: [{ id: 1 }],
     } as unknown as NormalizedVodMeta);
-    readonly matches = createVodSimilarMatches(
-        inject(CrossPortalSimilarService),
-        this.meta
+    readonly matches = createVodSimilarInPortals(
+        this.meta,
+        inject(CrossPortalSimilarService)
     );
 }
 
@@ -73,6 +73,37 @@ describe('shared VOD similar match ownership', () => {
         expect(fixture.componentInstance.matches()).toEqual(expected);
         visible.set(false);
         expect(fixture.componentInstance.matches()).toEqual([]);
+    });
+
+    it('ignores an earlier request when the same metadata is selected again', async () => {
+        const first = deferred();
+        const middle = deferred();
+        const latest = deferred();
+        matchRecommendations
+            .mockReturnValueOnce(first.promise)
+            .mockReturnValueOnce(middle.promise)
+            .mockReturnValueOnce(latest.promise);
+        const fixture = TestBed.createComponent(DetailOwner);
+        const original = fixture.componentInstance.meta();
+        fixture.detectChanges();
+        fixture.componentInstance.meta.set({
+            title: 'Middle',
+            tmdbRecommendations: [{ id: 2 }],
+        } as unknown as NormalizedVodMeta);
+        fixture.detectChanges();
+        fixture.componentInstance.meta.set(original);
+        fixture.detectChanges();
+        const expected = [
+            { key: 'latest' },
+        ] as unknown as CrossPortalSimilarItem[];
+        latest.resolve(expected);
+        await fixture.whenStable();
+        first.resolve([
+            { key: 'obsolete' },
+        ] as unknown as CrossPortalSimilarItem[]);
+        middle.resolve([]);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.matches()).toEqual(expected);
     });
 
     it('ignores a pending result after its detail owner is destroyed', async () => {

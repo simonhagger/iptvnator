@@ -7,12 +7,12 @@ import {
     removeSavedVodEntries,
     renameSavedVodPlaylist,
 } from '@iptvnator/portal/shared/util';
-import {
-    normalizeSavedVodCandidates,
-    type SavedVodCandidate,
-    type SavedVodEntry,
-    type SavedVodPlaylist,
-    type SavedVodWriteResult,
+import { normalizeSavedVodCandidates } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodCandidate,
+    SavedVodEntry,
+    SavedVodPlaylist,
+    SavedVodWriteResult,
 } from '@iptvnator/shared/interfaces';
 import { SavedVodPlaylistsStorageService } from './saved-vod-playlists-storage.service';
 

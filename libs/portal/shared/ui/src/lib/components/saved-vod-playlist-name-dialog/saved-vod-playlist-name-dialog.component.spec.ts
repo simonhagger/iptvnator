@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces';
+import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces/saved-vod-validation';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SavedVodPlaylistNameDialogComponent } from './saved-vod-playlist-name-dialog.component';

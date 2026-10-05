@@ -7,7 +7,13 @@ import {
     signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router } from '@angular/router';
+import {
+    NavigationCancel,
+    NavigationEnd,
+    NavigationError,
+    NavigationStart,
+    Router,
+} from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
@@ -27,6 +33,8 @@ export class StalkerWorkspaceRouteSession {
     private readonly stalkerStore = inject(StalkerStore);
 
     private currentPlaylistId: string | null = null;
+    private targetPlaylistId: string | null = null;
+    private invalidatedPlaylist: PlaylistMeta | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
     private readonly synced = signal(false);
 
@@ -56,24 +64,32 @@ export class StalkerWorkspaceRouteSession {
         this.router.events
             .pipe(
                 filter(
-                    (event): event is NavigationEnd =>
-                        event instanceof NavigationEnd
+                    (event) =>
+                        event instanceof NavigationStart ||
+                        event instanceof NavigationEnd ||
+                        event instanceof NavigationCancel ||
+                        event instanceof NavigationError
                 ),
                 takeUntilDestroyed(this.destroyRef)
             )
-            .subscribe(() => {
+            .subscribe((event) => {
                 // Synchronous, and before the async sync: this session's
                 // subscription is registered from an ENVIRONMENT_INITIALIZER
                 // when the route injector is created, so it runs ahead of the
                 // components that read `isReady`.
                 this.synced.set(false);
+                if (event instanceof NavigationStart) {
+                    this.targetPlaylistId = null;
+                    ++this.syncGeneration;
+                    return;
+                }
                 void this.syncRouteContext();
             });
 
         void this.syncRouteContext();
 
         this.destroyRef.onDestroy(() => {
-            this.stalkerStore.resetCategories();
+            this.stalkerStore.invalidateCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
         });
@@ -85,6 +101,10 @@ export class StalkerWorkspaceRouteSession {
         // playlist context, and deferring it onto the queue would leave every
         // consumer of that context a tick behind the navigation.
         const routeContext = this.playlistContext.syncFromUrl(this.router.url);
+        this.targetPlaylistId =
+            routeContext.provider === 'stalker'
+                ? routeContext.playlistId
+                : null;
         const run = async (): Promise<void> => {
             try {
                 await this.applyRouteContext(generation, routeContext);
@@ -109,22 +129,51 @@ export class StalkerWorkspaceRouteSession {
                 ? routeContext.playlistId
                 : null;
 
-        if (playlistId && this.currentPlaylistId !== playlistId) {
-            this.stalkerStore.resetCategories();
+        if (
+            !playlistId ||
+            this.targetPlaylistId !== playlistId ||
+            this.destroyRef.destroyed
+        ) {
+            return;
+        }
+
+        if (
+            this.currentPlaylistId !== playlistId ||
+            this.stalkerStore.currentPlaylist()?._id !== playlistId
+        ) {
+            const previousPlaylist = this.stalkerStore.currentPlaylist();
+            this.invalidatedPlaylist = previousPlaylist ?? null;
+            this.stalkerStore.invalidateCategories();
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
             const playlist = await this.resolveStalkerPlaylist(playlistId);
+            if (
+                this.targetPlaylistId !== playlistId ||
+                this.destroyRef.destroyed ||
+                playlist?._id !== playlistId
+            ) {
+                return;
+            }
             await this.stalkerStore.setCurrentPlaylist(playlist);
             this.currentPlaylistId = playlistId;
         }
 
-        if (generation !== this.syncGeneration) {
+        if (generation !== this.syncGeneration || this.destroyRef.destroyed) {
             // A newer arrival is queued behind this one and owns readiness.
             return;
         }
 
         this.syncRouteState(routeContext.section);
+        if (
+            this.invalidatedPlaylist &&
+            this.stalkerStore.currentPlaylist() === this.invalidatedPlaylist
+        ) {
+            // A revisit or return from a failed handoff can retain the exact
+            // owner object. Refresh only after its route section is restored.
+            this.stalkerStore.resetCategories();
+        }
+        this.invalidatedPlaylist = null;
         this.synced.set(true);
     }
 
@@ -166,7 +215,7 @@ export class StalkerWorkspaceRouteSession {
         const activePlaylist = this.playlistContext.activePlaylist();
 
         if (this.hasExplicitStalkerPortalMode(playlistId, activePlaylist)) {
-            return activePlaylist;
+            return activePlaylist ?? undefined;
         }
 
         const storedPlaylist = await firstValueFrom(
@@ -174,13 +223,17 @@ export class StalkerWorkspaceRouteSession {
             { defaultValue: null }
         );
 
-        return storedPlaylist ?? activePlaylist ?? undefined;
+        return storedPlaylist?._id === playlistId
+            ? storedPlaylist
+            : activePlaylist?._id === playlistId
+              ? activePlaylist
+              : undefined;
     }
 
     private hasExplicitStalkerPortalMode(
         playlistId: string,
         playlist: PlaylistMeta | null
-    ): playlist is PlaylistMeta {
+    ): boolean {
         return (
             playlist?._id === playlistId &&
             playlist.isFullStalkerPortal !== undefined

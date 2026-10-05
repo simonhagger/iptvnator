@@ -297,6 +297,7 @@ describe('StalkerSeriesViewComponent position compatibility', () => {
                 {
                     provide: Router,
                     useValue: {
+                        events: EMPTY,
                         navigate: jest.fn(),
                         navigateByUrl: jest.fn(),
                     },

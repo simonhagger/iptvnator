@@ -32,7 +32,7 @@ import {
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { BehaviorSubject, NEVER, of } from 'rxjs';
+import { BehaviorSubject, EMPTY, NEVER, of } from 'rxjs';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
@@ -219,7 +219,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                 },
                 {
                     provide: Router,
-                    useValue: { navigate: jest.fn() },
+                    useValue: { events: EMPTY, navigate: jest.fn() },
                 },
                 {
                     provide: TranslateService,

@@ -1,5 +1,5 @@
 import type { ValidatorFn } from '@angular/forms';
-import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces';
+import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces/saved-vod-validation';
 
 /** Form adapters share the persisted trimmed-name limit. */
 export const savedVodPlaylistNameValidator: ValidatorFn = (control) => {

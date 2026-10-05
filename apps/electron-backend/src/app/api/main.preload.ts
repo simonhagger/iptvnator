@@ -562,6 +562,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('CLOSE_EXTERNAL_PLAYER_SESSION', sessionId),
     getEmbeddedMpvSupport: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SUPPORT'),
+    openEmbeddedMpvFloatingPlayer: (sessionId: string): Promise<boolean> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_FLOATING_OPEN', sessionId),
     prepareEmbeddedMpv: (): Promise<EmbeddedMpvSupport> =>
         ipcRenderer.invoke('EMBEDDED_MPV_PREPARE'),
     createEmbeddedMpvSession: (
@@ -730,6 +732,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_CHANNEL_SEARCH', { searchTerm, limit }),
     setMpvPlayerPath: (mpvPlayerPath: string) =>
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
+    getExternalPlayerAvailability: (paths?: { mpv?: string; vlc?: string }) =>
+        ipcRenderer.invoke('GET_EXTERNAL_PLAYER_AVAILABILITY', paths),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: Partial<Settings>) =>

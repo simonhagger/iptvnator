@@ -3,8 +3,10 @@ import {
     normalizeSavedVodCandidates,
     normalizeSavedVodPlaylist,
     SavedVodValidationError,
-    type SavedVodEntry,
-    type SavedVodReference,
+} from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodEntry,
+    SavedVodReference,
 } from '@iptvnator/shared/interfaces';
 import { savedVodReferenceKey } from './saved-vod-playlist-edits';
 import type {

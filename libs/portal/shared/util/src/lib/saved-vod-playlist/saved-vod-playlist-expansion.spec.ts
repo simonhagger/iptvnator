@@ -1,7 +1,7 @@
 import {
     MAX_SAVED_VOD_ENTRIES,
     SavedVodValidationError,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/saved-vod-validation';
 import {
     expandSavedVodGroup,
     previewSavedVodGroupRefresh,

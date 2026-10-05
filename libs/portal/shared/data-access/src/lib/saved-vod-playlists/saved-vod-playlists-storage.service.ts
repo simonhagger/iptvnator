@@ -1,11 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
-import {
-    normalizeSavedVodPlaylist,
-    type SavedVodDeleteResult,
-    type SavedVodPlaylist,
-    type SavedVodPlaylistSummary,
-    type SavedVodWriteResult,
+import { normalizeSavedVodPlaylist } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import type {
+    SavedVodDeleteResult,
+    SavedVodPlaylist,
+    SavedVodPlaylistSummary,
+    SavedVodWriteResult,
 } from '@iptvnator/shared/interfaces';
 import { BrowserSavedVodPlaylists } from './browser-saved-vod-playlists';
 

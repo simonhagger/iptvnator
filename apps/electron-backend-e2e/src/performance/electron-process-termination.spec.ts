@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import { spawn, type execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { describe, it } from 'node:test';
+import { createInterface } from 'node:readline';
 import { terminateElectronProcess } from '../electron-process-termination';
+import {
+    captureElectronProcess,
+    closeElectronApplicationAndConfirmExit,
+} from '../electron-process-lifecycle';
 
 describe('Electron forced termination', () => {
     it('terminates the Windows shell and its Electron descendants together', () => {
@@ -75,12 +80,24 @@ describe('Electron forced termination', () => {
                 `"${process.execPath}"`,
                 [
                     '-e',
-                    '"setInterval(() => {}, 1000); console.log(process.pid)"',
+                    '"setInterval(() => {}, 1000); process.stdout.write(String(process.pid) + String.fromCharCode(10))"',
                 ],
-                { shell: true, stdio: ['ignore', 'pipe', 'pipe'] }
+                {
+                    shell: true,
+                    windowsHide: true,
+                    stdio: ['ignore', 'pipe', 'pipe'],
+                }
             );
+            const application = {
+                process: () => shell,
+                close: async () => {
+                    throw new Error('Exercise forced termination');
+                },
+            };
+            captureElectronProcess(application);
+            const pidOutput = createInterface({ input: shell.stdout });
             try {
-                const [output] = await once(shell.stdout, 'data', {
+                const [output] = await once(pidOutput, 'line', {
                     signal: AbortSignal.timeout(5000),
                 });
                 const descendantPid = Number(String(output).trim());
@@ -90,7 +107,15 @@ describe('Electron forced termination', () => {
                 assert.notEqual(descendantPid, shell.pid);
                 process.kill(descendantPid, 0);
 
-                terminateElectronProcess(shell);
+                // taskkill may reap the descendant before cmd.exe naturally
+                // exits, then report that the shell is gone. Use the same
+                // exit-confirmation path as the real fixture; still verify
+                // that neither shell nor descendant remains alive.
+                await closeElectronApplicationAndConfirmExit(application, {
+                    closeTimeoutMs: 1000,
+                    exitTimeoutMs: 2000,
+                });
+                assert.ok(shell.exitCode !== null || shell.signalCode !== null);
                 await assert.rejects(
                     async () => process.kill(descendantPid, 0),
                     {
@@ -98,6 +123,7 @@ describe('Electron forced termination', () => {
                     }
                 );
             } finally {
+                pidOutput.close();
                 if (shell.exitCode === null && shell.signalCode === null) {
                     // The successful taskkill can precede Node's exit event.
                     try {

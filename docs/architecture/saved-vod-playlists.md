@@ -9,6 +9,10 @@ and portable import/export remain subsequent slices.
 ## Ownership
 
 `@iptvnator/shared/interfaces` owns the persisted versioned contracts.
+Its saved-list contracts are type-only exports. Pure document and candidate
+validation is value-imported from
+`@iptvnator/shared/interfaces/saved-vod-validation`, keeping it with the lazy
+saved-list consumers instead of the initial renderer bundle.
 `@iptvnator/portal/shared/util` owns pure identity, editing, progress and transition
 rules. Functions receive IDs, timestamps and shuffle permutations from callers.
 They do not read clocks, generate random numbers, resolve streams or write storage.

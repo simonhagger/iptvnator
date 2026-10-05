@@ -62,7 +62,7 @@ for (const [platform, page] of Object.entries(PAGES)) {
     const html = await readDist(page.path);
 
     assert.match(html, new RegExp(`<title>[^<]*IPTVnator for ${page.label}[^<]*</title>`));
-    assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/${platform}/"`));
+    assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/${platform}/"`));
     assert.match(html, /<meta name="robots" content="index, follow/);
 
     for (const suffix of page.assets) {
@@ -102,7 +102,7 @@ for (const [platform, page] of Object.entries(PAGES)) {
 
 test('docker page: canonical, schema, quick start and links', async () => {
   const html = await readDist('download/docker/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/docker/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/docker/"`));
   assert.match(html, /docker compose -f docker\/docker-compose\.yml up --build -d/);
   assert.match(html, /4gray\/iptvnator:latest/);
   assert.match(html, /href="https:\/\/hub\.docker\.com\/r\/4gray\/iptvnator"/);
@@ -131,7 +131,7 @@ test('the homepage and the platform pages link to the docker page', async () => 
 
 test('download hub links to every platform page', async () => {
   const html = await readDist('download/index.html');
-  assert.match(html, new RegExp(`<link rel="canonical" href="${SITE}/download/"`));
+  assert.ok(html.includes(`<link rel="canonical" href="${SITE}/download/"`));
   for (const platform of Object.keys(PAGES)) {
     assert.match(html, new RegExp(`href="/iptvnator/download/${platform}/"`));
   }
@@ -153,7 +153,7 @@ test('homepage download cards point at the platform pages', async () => {
 test('sitemap lists the download pages', async () => {
   const sitemap = await readDist('sitemap-0.xml');
   for (const path of ['download/', 'download/windows/', 'download/macos/', 'download/linux/', 'download/docker/']) {
-    assert.match(sitemap, new RegExp(`<loc>${SITE}/${path}</loc>`));
+    assert.ok(sitemap.includes(`<loc>${SITE}/${path}</loc>`));
   }
 });
 

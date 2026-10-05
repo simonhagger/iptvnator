@@ -3,7 +3,7 @@ import {
     createSavedVodPlaylist,
     startSavedVodExecution,
 } from '@iptvnator/portal/shared/util';
-import { MAX_SAVED_VOD_ENTRIES } from '@iptvnator/shared/interfaces';
+import { MAX_SAVED_VOD_ENTRIES } from '@iptvnator/shared/interfaces/saved-vod-validation';
 import {
     SAVED_VOD_PLAYLIST_RUNTIME,
     SavedVodPlaylistsCommandsService,

@@ -20,7 +20,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatSelectModule } from '@angular/material/select';
-import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces';
+import { MAX_SAVED_VOD_NAME_LENGTH } from '@iptvnator/shared/interfaces/saved-vod-validation';
 import {
     SavedVodAddDialogController,
     type SavedVodAddResult,
