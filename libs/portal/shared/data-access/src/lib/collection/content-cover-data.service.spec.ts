@@ -319,6 +319,63 @@ describe('ContentCoverDataService', () => {
         expect(service.favoriteFor(second)).toBe(true);
     });
 
+    it.each(['add', 'remove'] as const)(
+        'keeps accepted queued %s intent when an earlier refresh observes an external membership change',
+        async (intent) => {
+            const second = {
+                ...item,
+                xtreamId: 8,
+                uid: 'xtream::a::movie:8',
+                contentId: 108,
+            };
+            favorites.getFavoritesStrict
+                .mockResolvedValueOnce(intent === 'add' ? [] : [second])
+                .mockResolvedValueOnce(
+                    intent === 'add' ? [item, second] : [item]
+                )
+                .mockResolvedValueOnce(
+                    intent === 'add' ? [item, second] : [item]
+                );
+            await service.load(scope);
+            await Promise.all([
+                service.toggleFavorite(item),
+                service.toggleFavorite(second),
+            ]);
+            if (intent === 'add') {
+                expect(favorites.addFavorite.mock.calls).toEqual([
+                    [item],
+                    [second],
+                ]);
+                expect(favorites.removeFavorite).not.toHaveBeenCalled();
+            } else {
+                expect(favorites.addFavorite.mock.calls).toEqual([[item]]);
+                expect(favorites.removeFavorite).toHaveBeenCalledWith(second);
+            }
+            expect(service.favoriteFor(second)).toBe(intent === 'add');
+        }
+    );
+
+    it('uses refreshed persisted metadata without changing an accepted queued Remove intent', async () => {
+        const second = {
+            ...item,
+            xtreamId: 8,
+            uid: 'xtream::a::movie:8',
+            contentId: 108,
+        };
+        const refreshed = { ...second, contentId: 208 };
+        favorites.getFavoritesStrict
+            .mockResolvedValueOnce([second])
+            .mockResolvedValueOnce([item, refreshed])
+            .mockResolvedValueOnce([item]);
+        await service.load(scope);
+        await Promise.all([
+            service.toggleFavorite(item),
+            service.toggleFavorite(second),
+        ]);
+        expect(favorites.removeFavorite).toHaveBeenCalledWith(refreshed);
+        expect(service.favoriteFor(second)).toBe(false);
+    });
+
     it('reloads the same surface only after a pending write settles', async () => {
         const write = deferred<void>();
         favorites.addFavorite.mockReturnValue(write.promise);

@@ -932,10 +932,11 @@ test('@xtream posters-only wall — hides VOD titles behind a hover caption afte
     await expect(caption).toHaveCSS('opacity', '1');
     await page.mouse.move(0, 0);
     await expect(caption).toHaveCSS('opacity', '0');
-    await firstCard.focus();
+    const primary = firstCard.locator('.grid-card-primary');
+    await primary.focus();
     await page.keyboard.press('Tab');
     await page.keyboard.press('Shift+Tab');
-    await expect(firstCard).toBeFocused();
+    await expect(primary).toBeFocused();
     await expect(caption).toHaveCSS('opacity', '1');
 });
 

@@ -308,6 +308,49 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 season tabs on series detail pages; medium equals the About block's 120px
 poster so browse and watch share one secondary-poster size.
 
+### Shared VOD indicators and actions
+
+Catalog tiles, content cards and Dashboard rails use the passive
+`app-content-cover-indicators` and sibling `app-content-cover-actions` components
+from `@iptvnator/portal/shared/ui/content-cover`. The secondary entry keeps these
+components out of unrelated shared-UI imports. Hosts supply immutable indicator
+and action models; shared presentation never reads provider state or writes data.
+
+Cover controllers keep writable signals private and expose readonly selectors.
+Pure helpers calculate identity, ratings and watch indicators from their inputs.
+Explicit commands own reads, queued writes, errors and pending state. An awaited
+persistence command publishes its committed snapshot with `persist: false` when
+synchronizing NgRx playlist metadata, so the effect does not save it a second time.
+Readonly signals do not deeply freeze their values; replace collections rather
+than mutating objects or maps returned by a selector.
+
+Favourite, watched/started and rating markers stay visible without hovering.
+Watch progress uses the existing 90% movie completion policy. A series marker
+describes episode progress and says Started, including a completed episode;
+it cannot establish that the entire show was watched. Failed or pending reads
+omit unknown state. Ratings accept finite ten-point values and retain provider,
+provider-supplied IMDb, TMDB or Kinopoisk attribution. A generic provider score
+must not inherit an IMDb label. Status markers occupy the upper left, ratings
+sit below them and progress occupies the poster bottom without moving artwork.
+
+The labelled three-dot menu is a sibling of the cover activation element.
+Details uses the existing detail/show navigation; source owners implement
+favourite changes using provider + playlist + content kind + provider ID.
+Recent VOD menus offer favourite changes alongside history removal; favourites
+offer collection removal. Reuse the scoped favourite controller for membership,
+serialized writes and persisted readback. Failed reads omit the favourite action
+and offer Retry. Removing, clearing or reordering a Stalker item must preserve
+other content kinds that reuse its provider ID. Continue Watching keeps explicit
+resume/history controls. Do not advertise unavailable actions.
+Material menus preserve keyboard navigation, Escape and focus restoration;
+opening or selecting a menu must not also activate its cover. Live/radio tiles
+retain their channel-specific controls. Use shared Material icons and app theme
+tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
+Named cover activation elements reference the shared translated status summary
+through `aria-describedby`, so favourite, watch, rating and progress information
+is available on keyboard focus. Track scoped content identity rather than row
+index; an open menu must remain owned by its original content after reordering.
+
 ### Posters-only wall
 
 `Settings.showCoverTitles` (Settings > General, default on, only an explicit
@@ -347,8 +390,8 @@ row under VOD and series covers so the grid shows more rows per screen.
   labelled by the title, activated by Enter and Space (Space prevents the
   page scroll) and carrying a `:focus-visible` ring (`card-focus-ring`
   mixin in `libs/ui/styles/_content-grid.scss`). On `app-content-card` that
-  surface is the inner `.content-card__activation` element, and the Remove
-  control (labelled by `removeTooltip`) is a SIBLING positioned over the
+  surface is the inner `.content-card__activation` element, and the VOD menu
+  or live Remove control is a SIBLING positioned over the
   poster corner — an interactive control nested inside a `role="button"`
   is an invalid accessibility structure. Its ring is drawn on the OUTER
   `.content-card` via `:has(> .content-card__activation:focus-visible)`,

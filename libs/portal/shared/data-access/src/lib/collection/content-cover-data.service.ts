@@ -261,11 +261,15 @@ export class ContentCoverDataService {
         try {
             const current = this.rows();
             if (this.failedSnapshotGeneration === generation) return;
-            const stored =
-                generation === this.generation && current
-                    ? current.get(key)
-                    : capturedStored;
-            if (stored) await this.favorites.removeFavorite(stored);
+            // Capture the desired membership at click time. A newer snapshot
+            // can enrich a removal target, but cannot turn Add into Remove.
+            const removalTarget = capturedStored
+                ? ((generation === this.generation
+                      ? current?.get(key)
+                      : undefined) ?? capturedStored)
+                : undefined;
+            if (removalTarget)
+                await this.favorites.removeFavorite(removalTarget);
             else await this.favorites.addFavorite(item);
             persisted = true;
             // A write may be a no-op when the provider row cannot be resolved.
