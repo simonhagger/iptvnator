@@ -346,6 +346,10 @@ Material menus preserve keyboard navigation, Escape and focus restoration;
 opening or selecting a menu must not also activate its cover. Live/radio tiles
 retain their channel-specific controls. Use shared Material icons and app theme
 tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
+Catalogue arrival explicitly refreshes its provider's persisted watch positions,
+including return from other views that can change them. Coalesce only overlapping
+reads; a completed initial load must not suppress a later arrival refresh.
+Favourite removal uses the heart icon consistently; history removal uses delete.
 Named cover activation elements reference the shared translated status summary
 through `aria-describedby`, so favourite, watch, rating and progress information
 is available on keyboard focus. Track scoped content identity rather than row

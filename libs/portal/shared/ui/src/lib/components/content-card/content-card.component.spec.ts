@@ -151,6 +151,7 @@ describe('ContentCardComponent', () => {
     it('keeps the menu outside the card button and removes without opening the item', () => {
         fixture.componentRef.setInput('showRemoveButton', true);
         fixture.componentRef.setInput('removeTooltip', 'Remove from favorites');
+        fixture.componentRef.setInput('removeIcon', 'favorite');
         fixture.detectChanges();
         const clicked = jest.fn();
         const removed = jest.fn();
@@ -180,6 +181,9 @@ describe('ContentCardComponent', () => {
                 '[data-test-id="content-cover-action-remove"]'
             ) as HTMLButtonElement;
         expect(removeButton.textContent).toContain('Remove from favorites');
+        expect(removeButton.querySelector('mat-icon')?.textContent).toBe(
+            'favorite'
+        );
         removeButton.click();
 
         // The button's own activation removes the item; the card must

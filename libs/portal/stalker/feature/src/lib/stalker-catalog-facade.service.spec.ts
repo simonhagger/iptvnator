@@ -205,6 +205,82 @@ describe('StalkerCatalogFacadeService', () => {
         );
     });
 
+    it('rereads persisted movie watch changes on each catalogue arrival without duplicate initial reads', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        let savedPercent = 40;
+        playbackPositions.getAllPlaybackPositions.mockImplementation(
+            async () =>
+                savedPercent
+                    ? [
+                          {
+                              playlistId: playlist._id,
+                              contentType: 'vod',
+                              contentXtreamId: 17359,
+                              positionSeconds: savedPercent,
+                              durationSeconds: 100,
+                          },
+                      ]
+                    : []
+        );
+        for (const percent of [40, 100, 0]) {
+            savedPercent = percent;
+            const arrival = service.initialize('5');
+            TestBed.tick();
+            await arrival;
+            expect(service.getItemProgress({ id: '17359' })).toEqual({
+                progress: percent,
+                watchState:
+                    percent === 100
+                        ? 'watched'
+                        : percent === 40
+                          ? 'in-progress'
+                          : 'unwatched',
+            });
+        }
+        expect(playbackPositions.getAllPlaybackPositions).toHaveBeenCalledTimes(
+            3
+        );
+    });
+
+    it('does not publish an old catalogue read after a newer source arrival', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        const currentPlaylist = stalkerStoreMock[
+            'currentPlaylist'
+        ] as ReturnType<typeof signal<typeof playlist>>;
+        let finishOld: ((rows: PlaybackPositionData[]) => void) | undefined;
+        playbackPositions.getAllPlaybackPositions
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishOld = resolve;
+                    })
+            )
+            .mockResolvedValueOnce([]);
+        const oldArrival = service.initialize('5');
+        TestBed.tick();
+        currentPlaylist.set({ ...playlist, _id: 'playlist-2' });
+        const newArrival = service.initialize('5');
+        TestBed.tick();
+        await newArrival;
+        finishOld?.([
+            {
+                contentXtreamId: 17359,
+                contentType: 'vod',
+                positionSeconds: 100,
+                durationSeconds: 100,
+            },
+        ]);
+        await oldArrival;
+        expect(service.getItemProgress({ id: '17359' })).toEqual({
+            progress: 0,
+            watchState: 'unwatched',
+        });
+        expect(playbackPositions.getAllPlaybackPositions.mock.calls).toEqual([
+            ['playlist-1'],
+            ['playlist-2'],
+        ]);
+    });
+
     it('reports a fully played movie as watched on its catalog card', async () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
         await Promise.resolve();

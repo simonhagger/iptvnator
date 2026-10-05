@@ -5,6 +5,7 @@ import {
     closeElectronApp,
     contentCardByTitle,
     expect,
+    expectPathname,
     goToDashboard,
     launchElectronApp,
     openGlobalRecent,
@@ -353,6 +354,16 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 await sourceRowByTitle(page, sourceName).first().click();
                 await openWorkspaceSection(page, 'Movies');
                 await selectCoverCategory(page, provider, movieFixture);
+                await expectPathname(
+                    page,
+                    new RegExp(`/(?:xtreams|stalker)/${playlistId}/vod/[^/]+$`)
+                );
+                await expectSavedCoverPosition(page, playlistId!, {
+                    contentXtreamId: movieId,
+                    contentType: 'vod',
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                });
                 await expectCoverState(
                     catalogCard(page, movieTitle).first(),
                     'watched'

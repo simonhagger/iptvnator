@@ -174,7 +174,7 @@ describe('XtreamCatalogFacadeService', () => {
         expect(service.appendError()).toBe(false);
     });
 
-    it('restores saved sort mode, sets the selected category, and loads positions once per playlist', () => {
+    it('restores saved sort mode, sets the selected category, and refreshes positions per arrival', () => {
         localStorage.setItem('xtream-category-sort-mode', 'name-asc');
 
         service.initialize('42');
@@ -182,16 +182,42 @@ describe('XtreamCatalogFacadeService', () => {
 
         expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith('name-asc');
         expect(xtreamStore.setSelectedCategory).toHaveBeenLastCalledWith(77);
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
         expect(xtreamStore.loadAllPositions).toHaveBeenCalledWith('playlist-1');
 
         currentPlaylist.set(PLAYLIST_TWO);
         service.initialize('88');
 
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(3);
         expect(xtreamStore.loadAllPositions).toHaveBeenLastCalledWith(
             'playlist-2'
         );
+    });
+
+    it('rereads persisted movie watch changes after leaving and returning to the same catalogue', async () => {
+        let savedPercent = 40;
+        xtreamStore.loadAllPositions.mockImplementation(async () => {
+            xtreamStore.getProgressPercent.mockReturnValue(savedPercent);
+        });
+        try {
+            for (const percent of [40, 100, 0]) {
+                savedPercent = percent;
+                service.initialize('42');
+                await Promise.resolve();
+                expect(service.getItemProgress({ xtream_id: 1 })).toEqual({
+                    progress: percent,
+                    watchState:
+                        percent === 100
+                            ? 'watched'
+                            : percent === 40
+                              ? 'in-progress'
+                              : 'unwatched',
+                });
+            }
+            expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(3);
+        } finally {
+            xtreamStore.loadAllPositions.mockResolvedValue(undefined);
+        }
     });
 
     it('persists sort mode changes and delegates them to the store', () => {

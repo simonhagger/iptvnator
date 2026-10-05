@@ -86,7 +86,7 @@ export class ContentCardComponent {
                 actions.push({
                     id: 'remove',
                     label: this.removeTooltip(),
-                    icon: 'delete',
+                      icon: this.removeIcon(),
                     separatorBefore: true,
                 });
             }
@@ -102,6 +102,9 @@ export class ContentCardComponent {
 
     /** Tooltip text for the remove button */
     readonly removeTooltip = input<string>('Remove');
+
+    /** The host distinguishes favourite removal from history deletion. */
+    readonly removeIcon = input<string>('delete');
 
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);

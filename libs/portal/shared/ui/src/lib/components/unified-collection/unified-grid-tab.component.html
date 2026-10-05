@@ -29,6 +29,7 @@
                 [showTypeBadge]="false"
                 [date]="item.addedAt ?? item.viewedAt"
                 [showRemoveButton]="true"
+                [removeIcon]="mode() === 'favorites' ? 'favorite' : 'delete'"
                 [removeTooltip]="
                     (mode() === 'favorites'
                         ? 'PORTALS.REMOVE_FROM_FAVORITES'
