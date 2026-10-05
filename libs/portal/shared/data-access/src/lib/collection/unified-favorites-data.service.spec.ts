@@ -847,6 +847,61 @@ describe('UnifiedFavoritesDataService', () => {
         );
     });
 
+    it.each([0, 2])(
+        'removes a legacy no-ID Stalker row using its stored index %s',
+        async (index) => {
+            const legacyMovie = { title: 'Legacy Film', category_id: 'vod' };
+            const fallbackId = `stalker-1-${index}`;
+            const collidingSeries = {
+                id: fallbackId,
+                title: 'Other Show',
+                category_id: 'series',
+            };
+            const retainedMovie = {
+                title: 'Another Legacy Film',
+                category_id: 'vod',
+            };
+            const prefix = index
+                ? ['legacy-string', { id: '8', category_id: 'itv' }]
+                : [];
+            const persisted = [
+                ...prefix,
+                legacyMovie,
+                collidingSeries,
+                retainedMovie,
+            ];
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({ _id: 'stalker-1', favorites: persisted })
+            );
+            const mapped = await service.getFavoritesStrict(
+                'playlist',
+                'stalker-1',
+                'stalker'
+            );
+            const target = mapped.find(
+                (item) => item.name === legacyMovie.title
+            );
+            expect(target?.stalkerId).toBe(fallbackId);
+            if (!target) throw new Error('Legacy fixture was not mapped');
+            await service.removeFavorite(target);
+            expect(store.dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    persist: false,
+                    playlist: {
+                        _id: 'stalker-1',
+                        favorites: [...prefix, collidingSeries, retainedMovie],
+                    },
+                })
+            );
+            expect(persisted).toEqual([
+                ...prefix,
+                legacyMovie,
+                collidingSeries,
+                retainedMovie,
+            ]);
+        }
+    );
+
     it.each(['clear', 'reorder'] as const)(
         'preserves colliding Stalker kinds and legacy entries during %s',
         async (operation) => {

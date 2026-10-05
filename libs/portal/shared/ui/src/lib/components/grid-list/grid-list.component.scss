@@ -21,7 +21,12 @@ mat-card {
 }
 
 .grid-card-primary {
-    @include grid.card-focus-ring;
+    border-radius: inherit;
+    outline: none;
+}
+
+mat-card:has(> .grid-card-primary:focus-visible) {
+    @include grid.focus-ring-declarations;
 }
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────

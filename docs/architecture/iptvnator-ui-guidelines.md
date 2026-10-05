@@ -399,6 +399,7 @@ row under VOD and series covers so the grid shows more rows per screen.
   poster corner — an interactive control nested inside a `role="button"`
   is an invalid accessibility structure. Its ring is drawn on the OUTER
   `.content-card` via `:has(> .content-card__activation:focus-visible)`,
+  and on grid `mat-card` via `:has(> .grid-card-primary:focus-visible)`,
   because the card's `overflow: hidden` would clip an outline on the inner
   surface on every edge. Poster `alt` is the title, not a literal.
 

@@ -129,12 +129,15 @@ export class UnifiedFavoritesDataService {
                         item.playlistId,
                         (current) =>
                             current.filter(
-                                (favorite) =>
+                                (favorite, index) =>
                                     typeof favorite === 'string' ||
                                     extractStalkerItemType(favorite) !==
                                         item.contentType ||
-                                    extractStalkerItemId(favorite) !==
-                                        sourceItemId
+                                    extractStalkerItemId(
+                                        favorite,
+                                        item.playlistId,
+                                        index
+                                    ) !== sourceItemId
                             )
                     )
                 );
@@ -720,10 +723,17 @@ export class UnifiedFavoritesDataService {
         if (strict && !playlist)
             throw new Error('Favourite source unavailable');
         const favs = Array.isArray(playlist?.favorites)
-            ? playlist.favorites.filter(isStalkerItem)
+            ? playlist.favorites
+                  .map((fav, index) => ({ fav, index }))
+                  .filter(
+                      (
+                          entry
+                      ): entry is { fav: StalkerPortalItem; index: number } =>
+                          isStalkerItem(entry.fav)
+                  )
             : [];
 
-        return favs.map((fav, index) => {
+        return favs.map(({ fav, index }) => {
             const ct = extractStalkerItemType(fav);
             const isRadio = isStalkerRadioItem(fav);
             const stalkerId = extractStalkerItemId(fav, meta._id, index);
