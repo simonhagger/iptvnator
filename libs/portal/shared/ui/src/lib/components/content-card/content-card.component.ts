@@ -86,7 +86,7 @@ export class ContentCardComponent {
                 actions.push({
                     id: 'remove',
                     label: this.removeTooltip(),
-                      icon: this.removeIcon(),
+                    icon: this.removeIcon(),
                     separatorBefore: true,
                 });
             }
