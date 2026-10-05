@@ -19,8 +19,31 @@ const skippedDirectories = new Set([
     'test-stubs',
 ]);
 // Test-only files follow the repository's `.spec` / `.test` naming, with an
-// optional suffix (`.spec-stubs.ts`, `.test-helpers.ts`, `.test-stubs.ts`).
-const testOnlyFile = /(\.(spec|test)(-[\w]+)?|^test-setup)\.ts$/;
+// optional suffix segments (`.spec-stubs.ts`, `.test-data-stubs.ts`).
+const testOnlyFile = /(\.(spec|test)(-[\w]+)*|^test-setup)\.ts$/;
+
+test('inventory excludes test fixtures without excluding production sources', () => {
+    for (const filename of [
+        'component.spec.ts',
+        'component.test.ts',
+        'component.spec-stubs.ts',
+        'component.test-helpers.ts',
+        'component.spec-data-stubs.ts',
+        'component.test-data-stubs.ts',
+        'test-setup.ts',
+    ]) {
+        assert.ok(testOnlyFile.test(filename), `${filename} is test-only`);
+    }
+    for (const filename of [
+        'component.ts',
+        'contest.ts',
+        'spec-helper.ts',
+        'component.testing.ts',
+        'test-setup.component.ts',
+    ]) {
+        assert.ok(!testOnlyFile.test(filename), `${filename} is production`);
+    }
+});
 
 function listProductionSources(directory: string): string[] {
     const files: string[] = [];
