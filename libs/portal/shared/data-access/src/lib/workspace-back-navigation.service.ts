@@ -7,8 +7,10 @@ import {
     InjectionToken,
     signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationStart, Router } from '@angular/router';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 
 /** The parts of the browser's Navigation API the history fallback reads. */
 export type WorkspaceHistoryNavigation = Pick<
@@ -57,9 +59,12 @@ function hasInAppPreviousEntry(history: WorkspaceHistoryNavigation): boolean {
 export class WorkspaceBackNavigationService {
     private readonly location = inject(Location);
     private readonly router = inject(Router);
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly logger = createLogger('WorkspaceBackNavigation');
     private readonly history = inject(WORKSPACE_HISTORY_NAVIGATION);
     private readonly targets = signal<readonly WorkspaceBackTarget[]>([]);
     private readonly canGoBackInApp = signal(false);
+    private parentRequest = 0;
 
     /**
      * Generic Back to the previous page. It advertises no Escape (no page
@@ -82,15 +87,22 @@ export class WorkspaceBackNavigationService {
     });
 
     constructor() {
+        // A parent still resolving belongs to the page that requested it.
+        // Any later navigation, even one cancelled by a guard, takes priority.
+        this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
+            if (event instanceof NavigationStart) this.parentRequest++;
+        });
         const history = this.history;
         if (!history) return;
         // Fires for router pushes and replacements and for traversals,
         // including a guard-cancelled Back that the router rewrites.
-        const sync = () =>
+        const sync = () => {
+            this.parentRequest++;
             this.canGoBackInApp.set(hasInAppPreviousEntry(history));
+        };
         sync();
         history.addEventListener('currententrychange', sync);
-        inject(DestroyRef).onDestroy(() =>
+        this.destroyRef.onDestroy(() =>
             history.removeEventListener('currententrychange', sync)
         );
     }
@@ -106,11 +118,14 @@ export class WorkspaceBackNavigationService {
     back(
         resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
     ): void {
+        const request = ++this.parentRequest;
         if (!this.history || this.canGoBackInApp()) {
             this.location.back();
             return;
         }
-        void this.openParent(resolveParent);
+        void this.openParent(resolveParent, request).catch(() =>
+            this.logger.warn('Could not open the parent view')
+        );
     }
 
     /**
@@ -138,9 +153,11 @@ export class WorkspaceBackNavigationService {
     }
 
     private async openParent(
-        resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
+        resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>,
+        request: number
     ): Promise<void> {
         const parent = await resolveParent();
+        if (this.destroyRef.destroyed || request !== this.parentRequest) return;
         if (parent === null) {
             this.location.back();
         } else if (typeof parent === 'string') {

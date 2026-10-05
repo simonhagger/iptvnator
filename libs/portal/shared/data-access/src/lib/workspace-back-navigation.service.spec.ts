@@ -2,6 +2,7 @@ import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { EMPTY } from 'rxjs';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import {
     WORKSPACE_HISTORY_NAVIGATION,
@@ -56,7 +57,10 @@ describe('WorkspaceBackNavigationService', () => {
         TestBed.configureTestingModule({
             providers: [
                 { provide: Location, useValue: { back } },
-                { provide: Router, useValue: { navigate, navigateByUrl } },
+                {
+                    provide: Router,
+                    useValue: { navigate, navigateByUrl, events: EMPTY },
+                },
                 {
                     provide: WORKSPACE_HISTORY_NAVIGATION,
                     useValue: history as unknown as WorkspaceHistoryNavigation,
