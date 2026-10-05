@@ -280,6 +280,26 @@ export async function expectCoverState(
     }
 }
 
+/** The collection omits its type selector when only a Series bucket remains. */
+export async function expectSeriesOnlyFavorites(
+    page: Page,
+    seriesTitle: string
+): Promise<void> {
+    await expect(page.locator('.content-toggle')).toHaveCount(0);
+    await expect(
+        page.getByRole('button', {
+            name: 'Clear Series favorites',
+            exact: true,
+        })
+    ).toBeVisible();
+    await expectCoverState(
+        contentCardByTitle(page, seriesTitle).first(),
+        'in-progress',
+        100,
+        'episode'
+    );
+}
+
 /** Unknown collection metadata stays absent; a known rating must not drift. */
 export async function expectAvailableRating(
     card: Locator,

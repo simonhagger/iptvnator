@@ -38,6 +38,7 @@ import {
     expectAvailableRating,
     expectCoverState,
     expectSavedCoverPosition,
+    expectSeriesOnlyFavorites,
     exerciseCoverSearch,
     firstCatalogTitle,
     persistCoverPosition,
@@ -379,7 +380,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                         .getByTestId('content-cover-favorite')
                 ).toHaveCount(0);
                 await openPlaylistFavorites(page);
-                await switchUnifiedCollectionContent(page, 'Movies');
+                await expectSeriesOnlyFavorites(page, seriesTitle);
                 await expect(contentCardByTitle(page, movieTitle)).toHaveCount(
                     0
                 );
@@ -411,7 +412,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                     'episode'
                 );
                 await openPlaylistFavorites(page);
-                await switchUnifiedCollectionContent(page, 'Series');
+                await expectSeriesOnlyFavorites(page, seriesTitle);
                 await selectCoverAction(
                     page,
                     contentCardByTitle(page, seriesTitle).first(),
