@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "Іншыя дзеянні для {{title}}",
+        "DETAILS": "Адкрыць звесткі",
+        "FAVORITE": "Абранае",
+        "STARTED": "Пачата",
+        "RATING_PROVIDER": "Ацэнка правайдара",
+        "RATING_IMDB": "Ацэнка IMDb ад правайдара",
+        "RATING_TMDB": "Ацэнка TMDB",
+        "RATING_KINOPOISK": "Ацэнка Кінапошуку",
+        "PROGRESS": "Прагрэс прагляду",
+        "EPISODE_PROGRESS": "Прагрэс бягучага эпізоду",
+        "FAVORITES_FAILED": "Не ўдалося абнавіць або загрузіць абранае. Паспрабуйце яшчэ раз."
+    },
     "CANCEL": "Адмена",
     "CLEAR": "Ачысціць",
     "CLOSE": "Закрыць",

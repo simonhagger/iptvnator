@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "المزيد من الإجراءات لـ {{title}}",
+        "DETAILS": "فتح التفاصيل",
+        "FAVORITE": "مفضّل",
+        "STARTED": "بدأت المشاهدة",
+        "RATING_PROVIDER": "تقييم المزوّد",
+        "RATING_IMDB": "تقييم IMDb مقدّم من المزوّد",
+        "RATING_TMDB": "تقييم TMDB",
+        "RATING_KINOPOISK": "تقييم Kinopoisk",
+        "PROGRESS": "تقدّم المشاهدة",
+        "EPISODE_PROGRESS": "تقدّم الحلقة الحالية",
+        "FAVORITES_FAILED": "تعذّر تحديث المفضّلة أو تحميلها. يرجى المحاولة مجددًا."
+    },
     "CANCEL": "إلغاء",
     "CLEAR": "مسح",
     "CLOSE": "إغلاق",

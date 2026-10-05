@@ -1,8 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { TranslateModule } from '@ngx-translate/core';
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { SettingsStore } from '@iptvnator/services';
 import { ContentCardComponent } from './content-card.component';
 
@@ -13,17 +13,9 @@ describe('ContentCardComponent', () => {
     beforeEach(async () => {
         showCoverTitles = signal(false);
         await TestBed.configureTestingModule({
-            imports: [ContentCardComponent],
+            imports: [ContentCardComponent, TranslateModule.forRoot()],
             providers: [
                 { provide: SettingsStore, useValue: { showCoverTitles } },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        onLangChange: of(),
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                    },
-                },
             ],
         }).compileComponents();
 
@@ -44,9 +36,7 @@ describe('ContentCardComponent', () => {
             'content-card--posters-only'
         );
         expect(info()).toBeNull();
-        expect(overlay().nativeElement.textContent.trim()).toBe(
-            'Blade Runner'
-        );
+        expect(overlay().nativeElement.textContent.trim()).toBe('Blade Runner');
     });
 
     it('keeps the info row when the host opts the card out (search results)', () => {
@@ -158,7 +148,7 @@ describe('ContentCardComponent', () => {
         expect(space.defaultPrevented).toBe(true);
     });
 
-    it('keeps the Remove control outside the card button so its keys never open the item', () => {
+    it('keeps the menu outside the card button and removes without opening the item', () => {
         fixture.componentRef.setInput('showRemoveButton', true);
         fixture.componentRef.setInput('removeTooltip', 'Remove from favorites');
         fixture.detectChanges();
@@ -166,17 +156,14 @@ describe('ContentCardComponent', () => {
         const removed = jest.fn();
         fixture.componentInstance.cardClick.subscribe(clicked);
         fixture.componentInstance.remove.subscribe(removed);
-        const removeButton = fixture.debugElement.query(
-            By.css('.remove-button')
+        const menuButton = fixture.debugElement.query(
+            By.css('[data-test-id="content-cover-actions"]')
         ).nativeElement as HTMLElement;
 
         // No interactive control nested inside a role="button".
-        expect(removeButton.closest('[role="button"]')).toBeNull();
-        expect(removeButton.getAttribute('aria-label')).toBe(
-            'Remove from favorites'
-        );
+        expect(menuButton.closest('[role="button"]')).toBeNull();
 
-        removeButton.dispatchEvent(
+        menuButton.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
         );
         const space = new KeyboardEvent('keydown', {
@@ -184,7 +171,15 @@ describe('ContentCardComponent', () => {
             bubbles: true,
             cancelable: true,
         });
-        removeButton.dispatchEvent(space);
+        menuButton.dispatchEvent(space);
+        menuButton.click();
+        fixture.detectChanges();
+        const removeButton = TestBed.inject(OverlayContainer)
+            .getContainerElement()
+            .querySelector(
+                '[data-test-id="content-cover-action-remove"]'
+            ) as HTMLButtonElement;
+        expect(removeButton.textContent).toContain('Remove from favorites');
         removeButton.click();
 
         // The button's own activation removes the item; the card must
@@ -192,5 +187,24 @@ describe('ContentCardComponent', () => {
         expect(clicked).not.toHaveBeenCalled();
         expect(space.defaultPrevented).toBe(false);
         expect(removed).toHaveBeenCalledTimes(1);
+    });
+
+    it('routes details through the existing navigation output and custom actions separately', () => {
+        const clicked = jest.fn();
+        const selected = jest.fn();
+        fixture.componentInstance.cardClick.subscribe(clicked);
+        fixture.componentInstance.actionSelected.subscribe(selected);
+        fixture.componentInstance.onCoverAction({
+            id: 'details',
+            labelKey: 'COVER.DETAILS',
+            icon: 'info',
+        });
+        fixture.componentInstance.onCoverAction({
+            id: 'favorite',
+            label: 'Favorite',
+            icon: 'favorite',
+        });
+        expect(clicked).toHaveBeenCalledTimes(1);
+        expect(selected).toHaveBeenCalledTimes(2);
     });
 });

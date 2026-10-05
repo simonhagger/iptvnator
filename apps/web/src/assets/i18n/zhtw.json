@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "{{title}}的更多操作",
+        "DETAILS": "開啟詳細資料",
+        "FAVORITE": "收藏",
+        "STARTED": "已開始觀看",
+        "RATING_PROVIDER": "供應商評分",
+        "RATING_IMDB": "供應商提供的 IMDb 評分",
+        "RATING_TMDB": "TMDB 評分",
+        "RATING_KINOPOISK": "Kinopoisk 評分",
+        "PROGRESS": "觀看進度",
+        "EPISODE_PROGRESS": "目前集數的進度",
+        "FAVORITES_FAILED": "無法更新或載入收藏。請重試。"
+    },
     "CANCEL": "取消",
     "CLEAR": "清除",
     "CLOSE": "關閉",

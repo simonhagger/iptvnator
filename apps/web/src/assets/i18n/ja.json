@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "{{title}}のその他の操作",
+        "DETAILS": "詳細を開く",
+        "FAVORITE": "お気に入り",
+        "STARTED": "視聴開始済み",
+        "RATING_PROVIDER": "配信元の評価",
+        "RATING_IMDB": "配信元によるIMDb評価",
+        "RATING_TMDB": "TMDB評価",
+        "RATING_KINOPOISK": "Kinopoisk評価",
+        "PROGRESS": "視聴の進行状況",
+        "EPISODE_PROGRESS": "現在のエピソードの進行状況",
+        "FAVORITES_FAILED": "お気に入りを更新または読み込めませんでした。もう一度お試しください。"
+    },
     "CANCEL": "キャンセル",
     "CLEAR": "クリア",
     "CLOSE": "閉じる",

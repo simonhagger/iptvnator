@@ -7,6 +7,7 @@
         role="button"
         tabindex="0"
         [attr.aria-label]="title()"
+        [attr.aria-describedby]="isVod() ? coverDescriptionId : null"
         (click)="onCardClick()"
         (keydown.enter)="onCardKey($event)"
         (keydown.space)="onCardKey($event)"
@@ -47,6 +48,13 @@
                 </div>
             }
 
+            @if (isVod()) {
+                <app-content-cover-indicators
+                    [indicators]="coverIndicators()"
+                    [descriptionId]="coverDescriptionId"
+                />
+            }
+
             @if (type() && showTypeBadge()) {
                 <span class="type-badge" [class]="type()">
                     {{ type() }}
@@ -61,7 +69,10 @@
                     <p class="date-info">
                         {{
                             date()
-                                | date: 'd MMM, HH:mm' : undefined : currentLocale()
+                                | date
+                                    : 'd MMM, HH:mm'
+                                    : undefined
+                                    : currentLocale()
                         }}
                     </p>
                 }
@@ -69,7 +80,13 @@
         }
     </div>
 
-    @if (showRemoveButton()) {
+    @if (isVod()) {
+        <app-content-cover-actions
+            [title]="title()"
+            [actions]="menuActions()"
+            (actionSelected)="onCoverAction($event)"
+        />
+    } @else if (showRemoveButton()) {
         <button
             mat-icon-button
             type="button"

@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "Περισσότερες ενέργειες για {{title}}",
+        "DETAILS": "Άνοιγμα λεπτομερειών",
+        "FAVORITE": "Αγαπημένο",
+        "STARTED": "Ξεκίνησε",
+        "RATING_PROVIDER": "Βαθμολογία παρόχου",
+        "RATING_IMDB": "Βαθμολογία IMDb από τον πάροχο",
+        "RATING_TMDB": "Βαθμολογία TMDB",
+        "RATING_KINOPOISK": "Βαθμολογία Kinopoisk",
+        "PROGRESS": "Πρόοδος προβολής",
+        "EPISODE_PROGRESS": "Πρόοδος τρέχοντος επεισοδίου",
+        "FAVORITES_FAILED": "Δεν ήταν δυνατή η ενημέρωση ή φόρτωση αγαπημένων. Δοκιμάστε ξανά."
+    },
     "CANCEL": "Ακύρωση",
     "CLEAR": "Εκκαθάριση",
     "CLOSE": "Κλείσιμο",

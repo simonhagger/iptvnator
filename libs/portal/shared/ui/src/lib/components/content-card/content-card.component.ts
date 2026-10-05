@@ -13,9 +13,16 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import {
+    ContentCoverAction,
+    ContentCoverIndicators,
+} from '@iptvnator/portal/shared/util';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
+import { ContentCoverActionsComponent } from '../content-cover/content-cover-actions.component';
+import { ContentCoverIndicatorsComponent } from '../content-cover/content-cover-indicators.component';
+import { createContentCoverDescriptionId } from '../content-cover/content-cover-description-id';
 
 /** Channel-like cards always keep their label: logos rarely identify them. */
 const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
@@ -23,13 +30,24 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 @Component({
     selector: 'app-content-card',
     standalone: true,
-    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
+    imports: [
+        DatePipe,
+        MatIcon,
+        MatIconButton,
+        MatTooltip,
+        ContentCoverActionsComponent,
+        ContentCoverIndicatorsComponent,
+    ],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
-    host: { '[class.content-card--posters-only]': 'postersOnly()' },
+    host: {
+        '[class.content-card--posters-only]': 'postersOnly()',
+        '[class.content-card--vod]': 'isVod()',
+    },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
+    protected readonly coverDescriptionId = createContentCoverDescriptionId();
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
     private readonly languageTick = toSignal(
@@ -45,6 +63,36 @@ export class ContentCardComponent {
 
     /** Content type (live, movie, series) */
     readonly type = input<string>();
+    readonly coverIndicators = input<ContentCoverIndicators | null>(null);
+    readonly actions = input<readonly ContentCoverAction[]>([]);
+    readonly actionSelected = output<ContentCoverAction>();
+    protected readonly isVod = computed(() =>
+        ['movie', 'vod', 'series'].includes(this.type() ?? '')
+    );
+    protected readonly menuActions = computed<readonly ContentCoverAction[]>(
+        () => {
+            const actions = [...this.actions()];
+            if (!actions.some((action) => action.id === 'details')) {
+                actions.unshift({
+                    id: 'details',
+                    labelKey: 'COVER.DETAILS',
+                    icon: 'info',
+                });
+            }
+            if (
+                this.showRemoveButton() &&
+                !actions.some((action) => action.id === 'remove')
+            ) {
+                actions.push({
+                    id: 'remove',
+                    label: this.removeTooltip(),
+                    icon: 'delete',
+                    separatorBefore: true,
+                });
+            }
+            return actions;
+        }
+    );
 
     /** Optional date to display (Date, string, or timestamp number) */
     readonly date = input<Date | string | number>();
@@ -126,6 +174,12 @@ export class ContentCardComponent {
     onRemoveClick(event: Event): void {
         event.stopPropagation();
         this.remove.emit();
+    }
+
+    onCoverAction(action: ContentCoverAction): void {
+        if (action.id === 'details') this.cardClick.emit();
+        if (action.id === 'remove') this.remove.emit();
+        this.actionSelected.emit(action);
     }
 
     onImageError(): void {

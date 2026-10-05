@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "More actions for {{title}}",
+        "DETAILS": "Open details",
+        "FAVORITE": "Favorite",
+        "STARTED": "Started",
+        "RATING_PROVIDER": "Provider rating",
+        "RATING_IMDB": "Provider-supplied IMDb rating",
+        "RATING_TMDB": "TMDB rating",
+        "RATING_KINOPOISK": "Kinopoisk rating",
+        "PROGRESS": "Viewing progress",
+        "EPISODE_PROGRESS": "Current episode progress",
+        "FAVORITES_FAILED": "Could not update or load favorites. Please try again."
+    },
     "CANCEL": "Cancel",
     "CLEAR": "Clear",
     "CLOSE": "Close",

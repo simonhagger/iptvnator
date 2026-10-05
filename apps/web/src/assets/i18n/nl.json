@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "Meer acties voor {{title}}",
+        "DETAILS": "Details openen",
+        "FAVORITE": "Favoriet",
+        "STARTED": "Gestart",
+        "RATING_PROVIDER": "Beoordeling van aanbieder",
+        "RATING_IMDB": "IMDb-beoordeling van aanbieder",
+        "RATING_TMDB": "TMDB-beoordeling",
+        "RATING_KINOPOISK": "Kinopoisk-beoordeling",
+        "PROGRESS": "Kijkvoortgang",
+        "EPISODE_PROGRESS": "Voortgang van huidige aflevering",
+        "FAVORITES_FAILED": "Favorieten konden niet worden bijgewerkt of geladen. Probeer opnieuw."
+    },
     "CANCEL": "Annuleren",
     "CLEAR": "Wissen",
     "CLOSE": "Afsluiten",

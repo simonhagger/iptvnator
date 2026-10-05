@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "Другие действия для {{title}}",
+        "DETAILS": "Открыть сведения",
+        "FAVORITE": "Избранное",
+        "STARTED": "Начато",
+        "RATING_PROVIDER": "Оценка провайдера",
+        "RATING_IMDB": "Оценка IMDb от провайдера",
+        "RATING_TMDB": "Оценка TMDB",
+        "RATING_KINOPOISK": "Оценка Кинопоиска",
+        "PROGRESS": "Прогресс просмотра",
+        "EPISODE_PROGRESS": "Прогресс текущего эпизода",
+        "FAVORITES_FAILED": "Не удалось обновить или загрузить избранное. Повторите попытку."
+    },
     "CANCEL": "Отмена",
     "CLEAR": "Очистить",
     "CLOSE": "Закрыть",

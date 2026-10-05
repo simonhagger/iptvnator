@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "{{title}} 추가 작업",
+        "DETAILS": "상세 정보 열기",
+        "FAVORITE": "즐겨찾기",
+        "STARTED": "시청 시작됨",
+        "RATING_PROVIDER": "제공업체 평점",
+        "RATING_IMDB": "제공업체의 IMDb 평점",
+        "RATING_TMDB": "TMDB 평점",
+        "RATING_KINOPOISK": "Kinopoisk 평점",
+        "PROGRESS": "시청 진행률",
+        "EPISODE_PROGRESS": "현재 에피소드 진행률",
+        "FAVORITES_FAILED": "즐겨찾기를 업데이트하거나 불러올 수 없습니다. 다시 시도하세요."
+    },
     "CANCEL": "취소",
     "CLEAR": "지우기",
     "CLOSE": "닫기",

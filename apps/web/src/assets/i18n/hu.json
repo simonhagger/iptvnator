@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "További műveletek: {{title}}",
+        "DETAILS": "Részletek megnyitása",
+        "FAVORITE": "Kedvenc",
+        "STARTED": "Elkezdve",
+        "RATING_PROVIDER": "Szolgáltatói értékelés",
+        "RATING_IMDB": "Szolgáltató által megadott IMDb-értékelés",
+        "RATING_TMDB": "TMDB-értékelés",
+        "RATING_KINOPOISK": "Kinopoisk-értékelés",
+        "PROGRESS": "Megtekintési folyamat",
+        "EPISODE_PROGRESS": "Aktuális epizód előrehaladása",
+        "FAVORITES_FAILED": "A kedvencek frissítése vagy betöltése sikertelen. Próbálja újra."
+    },
     "CANCEL": "Mégse",
     "CLEAR": "Törlés",
     "CLOSE": "Bezárás",

@@ -1,4 +1,17 @@
 {
+    "COVER": {
+        "MORE_ACTIONS": "Más acciones para {{title}}",
+        "DETAILS": "Abrir detalles",
+        "FAVORITE": "Favorito",
+        "STARTED": "Comenzado",
+        "RATING_PROVIDER": "Valoración del proveedor",
+        "RATING_IMDB": "Valoración IMDb facilitada por el proveedor",
+        "RATING_TMDB": "Valoración TMDB",
+        "RATING_KINOPOISK": "Valoración Kinopoisk",
+        "PROGRESS": "Progreso de reproducción",
+        "EPISODE_PROGRESS": "Progreso del episodio actual",
+        "FAVORITES_FAILED": "No se pudieron actualizar o cargar los favoritos. Inténtalo de nuevo."
+    },
     "CANCEL": "Cancelar",
     "CLEAR": "Borrar",
     "CLOSE": "Cerrar",

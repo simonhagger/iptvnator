@@ -6,6 +6,7 @@
  * all content types: live TV, movies, and series.
  */
 import { Channel } from '@iptvnator/shared/interfaces';
+import type { ContentCoverIndicators } from '../content-cover';
 
 export type CollectionSourceType = 'm3u' | 'xtream' | 'stalker';
 export type CollectionContentType = 'live' | 'movie' | 'series';
@@ -73,6 +74,8 @@ export interface UnifiedCollectionItem {
 
     /** Content rating (VOD) */
     rating?: string;
+    /** Hydrated presentation data; never persisted as a favourite or position. */
+    coverIndicators?: ContentCoverIndicators;
 
     /** ISO timestamp when added to favorites */
     addedAt?: string;

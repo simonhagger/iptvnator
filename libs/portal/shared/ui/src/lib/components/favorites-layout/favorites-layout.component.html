@@ -46,7 +46,7 @@
     <div class="scrollable-content">
         @if (favorites().length) {
             <div class="items-grid">
-                @for (item of favorites(); track $index) {
+                @for (item of favorites(); track item) {
                     <app-content-card
                         [posterUrl]="item.poster_url || item.cover"
                         [title]="
@@ -55,6 +55,7 @@
                             'Unknown'
                         "
                         [type]="item.type"
+                        [coverIndicators]="{ favorite: true }"
                         [showTypeBadge]="false"
                         [date]="item.added_at"
                         [showRemoveButton]="true"
