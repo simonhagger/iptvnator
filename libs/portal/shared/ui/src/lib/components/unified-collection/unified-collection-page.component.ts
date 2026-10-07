@@ -237,7 +237,16 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         portalType: this.portalType,
         detailTemplate: this.detailTemplate,
         onOpen: (contentType) => this.selectedContentType.set(contentType),
-        onClear: () => this.autoSelectContentType(),
+        onClear: () => {
+            if (this.destroyRef.destroyed) return;
+            this.autoSelectContentType();
+            void this.loadData({
+                mode: this.mode(),
+                portalType: this.portalType(),
+                playlistId: this.playlistId(),
+                scope: this.effectiveScope(),
+            });
+        },
     });
     readonly selectedDetailItem = this.detailState.item;
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;

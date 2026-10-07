@@ -23,6 +23,7 @@ import {
     WorkspaceViewCommandService,
     LiveLayoutSidebarStateService,
     liveSidebarStateStorageKey,
+    PORTAL_PLAYBACK_POSITIONS,
 } from '@iptvnator/portal/shared/util';
 import {
     UnifiedFavoritesDataService,
@@ -37,6 +38,7 @@ import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { COLLECTION_RELOAD_INDICATOR_DELAY_MS } from '@iptvnator/portal/shared/data-access';
 import { UnifiedCollectionPageComponent } from './unified-collection-page.component';
+import { registerInlineDetailReturnTests } from './unified-collection-inline-return.test-scenarios';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
@@ -159,6 +161,9 @@ describe('UnifiedCollectionPageComponent', () => {
         removeRecentItemsBatch: jest.fn(),
         clearRecentItems: jest.fn(),
     };
+    const playbackPositions = {
+        getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
+    };
     const dialogService = {
         openConfirmDialog: jest.fn(),
     };
@@ -200,6 +205,9 @@ describe('UnifiedCollectionPageComponent', () => {
         playlistsLoaded.set(false);
         playlists.set([]);
         jest.clearAllMocks();
+        playbackPositions.getAllPlaybackPositions
+            .mockReset()
+            .mockResolvedValue([]);
         workspaceViewCommands.registerCommand.mockReturnValue(jest.fn());
         routeParamMap$ = new BehaviorSubject(convertToParamMap({}));
         routeQueryParamMap$ = new BehaviorSubject(convertToParamMap({}));
@@ -292,6 +300,10 @@ describe('UnifiedCollectionPageComponent', () => {
                 {
                     provide: UnifiedRecentDataService,
                     useValue: recentData,
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: playbackPositions,
                 },
                 {
                     provide: DialogService,
@@ -929,6 +941,15 @@ describe('UnifiedCollectionPageComponent', () => {
             'playlist-1',
             'stalker'
         );
+    });
+
+    registerInlineDetailReturnTests({
+        fixture: () => fixture,
+        host: HostUnifiedCollectionPageComponent,
+        favorites: favoritesData,
+        recentRead: recentData.getRecentItems,
+        positionsRead: playbackPositions.getAllPlaybackPositions,
+        router,
     });
 
     it('closes inline detail when popstate removes the detail state', async () => {
