@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "应用更新",
         "APP_UPDATE_DESCRIPTION": "检查 GitHub Releases 中的桌面应用更新。",
         "APP_UPDATE_IDLE": "已准备好检查更新",
+        "APP_UPDATE_DISABLED": "此个人构建版本已禁用更新。",
         "APP_UPDATE_CHECKING": "正在检查更新…",
         "APP_UPDATE_AVAILABLE": "版本 {{version}} 可用",
         "APP_UPDATE_NOT_AVAILABLE": "您正在使用最新版本",

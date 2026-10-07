@@ -68,6 +68,46 @@ describe('SettingsAboutSectionComponent app updates', () => {
         expect(openNotes).toHaveBeenCalledTimes(1);
     });
 
+    it('explains a personal build update policy without offering upstream actions', () => {
+        const check = jest.fn();
+        fixture.componentInstance.checkForAppUpdate.subscribe(check);
+        fixture.componentRef.setInput(
+            'form',
+            new FormGroup({ updateChannel: new FormControl('stable') })
+        );
+        fixture.componentRef.setInput(
+            'updateChannelOptions',
+            SETTINGS_UPDATE_CHANNEL_OPTIONS
+        );
+        configureComponent(fixture, {
+            currentVersion: '0.25.0',
+            manualDownloadUrl: '',
+            status: 'unsupported',
+            supportedSelfUpdate: false,
+            updatesEnabled: false,
+            channel: 'stable',
+            installedChannel: 'stable',
+        });
+        const button = getButton(fixture, 'app-update-check');
+        expect(button).not.toBeNull();
+        expect(button?.disabled).toBe(true);
+        button?.click();
+        expect(check).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.appUpdateStatusLabelKey()).toBe(
+            'SETTINGS.APP_UPDATE_DISABLED'
+        );
+        for (const id of [
+            'app-update-channel',
+            'app-update-release-notes',
+            'app-update-open-release',
+            'app-update-download',
+            'app-update-install',
+        ])
+            expect(
+                fixture.nativeElement.querySelector(`[data-test-id="${id}"]`)
+            ).toBeNull();
+    });
+
     it('emits an install request after the update has downloaded', () => {
         const install = jest.fn();
         fixture.componentInstance.installAppUpdate.subscribe(install);

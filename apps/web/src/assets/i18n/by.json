@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Абнаўленне праграмы",
         "APP_UPDATE_DESCRIPTION": "Правяраць абнаўленні настольнай праграмы ў GitHub Releases.",
         "APP_UPDATE_IDLE": "Гатова да праверкі абнаўленняў",
+        "APP_UPDATE_DISABLED": "Абнаўленні адключаны для гэтай асабістай зборкі.",
         "APP_UPDATE_CHECKING": "Праверка абнаўленняў…",
         "APP_UPDATE_AVAILABLE": "Даступная версія {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "Вы выкарыстоўваеце найноўшую версію",

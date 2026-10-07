@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Aktualizacja aplikacji",
         "APP_UPDATE_DESCRIPTION": "Sprawdzaj aktualizacje aplikacji desktopowej w GitHub Releases.",
         "APP_UPDATE_IDLE": "Gotowe do sprawdzenia aktualizacji",
+        "APP_UPDATE_DISABLED": "Aktualizacje są wyłączone dla tej prywatnej kompilacji.",
         "APP_UPDATE_CHECKING": "Sprawdzanie aktualizacji…",
         "APP_UPDATE_AVAILABLE": "Dostępna jest wersja {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "Używasz najnowszej wersji",

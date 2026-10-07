@@ -7,7 +7,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockProvider } from 'ng-mocks';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
@@ -82,6 +82,104 @@ describe('SettingsAppUpdateFacade', () => {
 
         expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
         expect(facade.status()).toEqual(pushedStatus);
+    });
+
+    it('waits for package capability before the initial version check can fetch upstream', async () => {
+        let resolveStatus:
+            ((status: ElectronBridgeAppUpdateStatus) => void) | undefined;
+        (window.electron.getAppUpdateStatus as jest.Mock).mockReturnValue(
+            new Promise<ElectronBridgeAppUpdateStatus>((resolve) => {
+                resolveStatus = resolve;
+            })
+        );
+        const settings = TestBed.inject(SettingsService);
+        facade.checkAppVersion();
+        facade.init();
+        expect(settings.getAppVersion).not.toHaveBeenCalled();
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
+        expect(resolveStatus).toBeDefined();
+        resolveStatus?.({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            updatesEnabled: false,
+            supportedSelfUpdate: false,
+            status: 'unsupported',
+            manualDownloadUrl: '',
+        });
+        await flush();
+        expect(settings.getAppVersion).not.toHaveBeenCalled();
+        expect(facade.version()).toBe(dataService.getAppVersion());
+        expect(facade.updateMessage()).toBe('SETTINGS.APP_UPDATE_DISABLED');
+    });
+
+    it('keeps upstream version checks for ordinary unsupported desktop packages', async () => {
+        (window.electron.getAppUpdateStatus as jest.Mock).mockResolvedValue({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            supportedSelfUpdate: false,
+            status: 'unsupported',
+        });
+        const settings = TestBed.inject(SettingsService);
+        facade.checkAppVersion();
+        facade.init();
+        await flush();
+        expect(settings.getAppVersion).toHaveBeenCalledTimes(1);
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not start a deferred upstream check after the About owner is disposed', async () => {
+        let resolveStatus:
+            ((status: ElectronBridgeAppUpdateStatus) => void) | undefined;
+        (window.electron.getAppUpdateStatus as jest.Mock).mockReturnValue(
+            new Promise<ElectronBridgeAppUpdateStatus>((resolve) => {
+                resolveStatus = resolve;
+            })
+        );
+        const settings = TestBed.inject(SettingsService);
+        facade.checkAppVersion();
+        facade.init();
+        facade.dispose();
+        expect(resolveStatus).toBeDefined();
+        resolveStatus?.(DEFAULT_APP_UPDATE_STATUS);
+        await flush();
+        expect(settings.getAppVersion).not.toHaveBeenCalled();
+        expect(facade.status()).toBeNull();
+    });
+
+    it('keeps failed desktop capability reads closed to upstream HTTP', async () => {
+        const warning = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        (window.electron.getAppUpdateStatus as jest.Mock).mockRejectedValue(
+            new Error('Bridge unavailable')
+        );
+        jest.spyOn(privateApi(), 'waitForRetry').mockResolvedValue(undefined);
+        facade.checkAppVersion();
+        facade.init();
+        await flush();
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(60);
+        expect(
+            TestBed.inject(SettingsService).getAppVersion
+        ).not.toHaveBeenCalled();
+        expect(facade.version()).toBe(dataService.getAppVersion());
+        expect(facade.status()).toBeNull();
+        warning.mockRestore();
+    });
+
+    it('coalesces pending desktop version checks through the complete HTTP response', async () => {
+        const result = new Subject<string>();
+        const settings = TestBed.inject(SettingsService);
+        (settings.getAppVersion as jest.Mock).mockReturnValue(result);
+        facade.checkAppVersion();
+        facade.checkAppVersion();
+        facade.init();
+        await flush();
+        expect(settings.getAppVersion).toHaveBeenCalledTimes(1);
+        facade.checkAppVersion();
+        await flush();
+        expect(settings.getAppVersion).toHaveBeenCalledTimes(1);
+        result.next('0.25.0');
+        result.complete();
+        await flush();
+        expect(facade.updateMessage()).toBeTruthy();
     });
 
     it('stops listening for status pushes once disposed', () => {

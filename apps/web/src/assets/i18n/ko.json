@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "애플리케이션 업데이트",
         "APP_UPDATE_DESCRIPTION": "데스크톱 앱 업데이트를 GitHub Releases에서 확인합니다.",
         "APP_UPDATE_IDLE": "업데이트를 확인할 준비가 되었습니다",
+        "APP_UPDATE_DISABLED": "이 개인용 빌드에서는 업데이트가 비활성화되어 있습니다.",
         "APP_UPDATE_CHECKING": "업데이트 확인 중…",
         "APP_UPDATE_AVAILABLE": "버전 {{version}} 사용 가능",
         "APP_UPDATE_NOT_AVAILABLE": "최신 버전을 사용 중입니다",

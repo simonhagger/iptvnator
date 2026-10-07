@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Aggiornamento applicazione",
         "APP_UPDATE_DESCRIPTION": "Controlla GitHub Releases per gli aggiornamenti dell’app desktop.",
         "APP_UPDATE_IDLE": "Pronto per controllare gli aggiornamenti",
+        "APP_UPDATE_DISABLED": "Gli aggiornamenti sono disabilitati per questa versione personale.",
         "APP_UPDATE_CHECKING": "Controllo aggiornamenti…",
         "APP_UPDATE_AVAILABLE": "La versione {{version}} è disponibile",
         "APP_UPDATE_NOT_AVAILABLE": "Stai usando la versione più recente",

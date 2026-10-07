@@ -285,6 +285,49 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 [AppManager desktop parser](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/desktop_entry.vala),
 [AppManager updater](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/updater.vala).
 
+## Local personal Windows alpha builds
+
+`electron-builder.personal.json` is an optional packaging overlay. It keeps the
+source package version and supplies a distinct application ID, executable and
+installer identity, no playlist file associations, and the package-owned
+`iptvnatorDistribution: { profile: 'personal', updates: 'disabled' }` policy.
+The main entry validates that policy before profile or cache writes. Personal
+builds use `~/.iptvnator-personal` for SQLite, settings and Chromium storage;
+they skip upstream legacy-profile adoption/recovery and all upstream update
+checks, release-note fetching, downloads and installation. Standard packaging
+has no marker and retains its existing identity, paths and updater behavior.
+
+With the checksum-pinned Windows x64 runtime staged, set
+`IPTVNATOR_EMBEDDED_MPV_PLATFORM=win32`,
+`IPTVNATOR_EMBEDDED_MPV_ARCH=x64`, and `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for
+the complete sequence below. Run from the repository root:
+
+```text
+pnpm nx run electron-backend:build:production --skip-nx-cache
+pnpm nx run electron-backend:generate-builder-metadata --excludeTaskDependencies --skip-nx-cache
+pnpm nx run electron-backend:make --excludeTaskDependencies --platform=windows --arch=x64 --publishPolicy=never --makerOptionsPath=electron-builder.personal.json --outputPath=dist/personal/windows-x64 --skip-nx-cache
+node tools/packaging/verify-electron-package-layout.mjs windows x64 electron-builder.personal.json dist/personal/windows-x64
+```
+
+The explicit production build must pass before either subsequent task runs.
+Skipping their dependency tasks preserves those freshly verified production
+artifacts: the ordinary make dependency uses an unconfigured backend build.
+
+This is local packaging, without a release tag, release-note consumption or
+publication. Output includes `win-unpacked/IPTVnator Personal Alpha.exe` and
+an alpha-labelled x64 NSIS setup executable. Record the source commit, platform,
+version and SHA-256 hashes in a delivery manifest alongside the artifacts.
+The unpacked executable needs its whole directory. It is not a standalone file.
+
+Smoke-test that exact packaged executable with a fresh disposable
+`IPTVNATOR_E2E_DATA_DIR`, confirm `app.isPackaged`, version and isolated
+`app.getPath('userData')`, then exercise SQLite IPC, built-in playback,
+embedded MPV and Picture in Picture. Confirm About reports disabled updates
+and manual update requests cannot initialize an updater or contact upstream.
+Close and confirm exit before removing only the owned disposable profile.
+Do not use the default `smoke:packaged` launcher for this check: it assumes
+the upstream executable name and does not supply profile isolation.
+
 ## Rolling test drafts
 
 Every non-fork PR build publishes its artifacts to a rolling **draft** release

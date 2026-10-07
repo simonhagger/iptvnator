@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Alkalmazásfrissítés",
         "APP_UPDATE_DESCRIPTION": "Asztali alkalmazásfrissítések keresése a GitHub Releases oldalon.",
         "APP_UPDATE_IDLE": "Készen áll a frissítések keresésére",
+        "APP_UPDATE_DISABLED": "A frissítések le vannak tiltva ebben a személyes változatban.",
         "APP_UPDATE_CHECKING": "Frissítések keresése…",
         "APP_UPDATE_AVAILABLE": "{{version}} verzió érhető el",
         "APP_UPDATE_NOT_AVAILABLE": "A legújabb verziót használja",

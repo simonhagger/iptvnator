@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "تحديث التطبيق",
         "APP_UPDATE_DESCRIPTION": "تحقق من GitHub Releases باش تلقى تحديثات تطبيق سطح المكتب.",
         "APP_UPDATE_IDLE": "واجد للتحقق من التحديثات",
+        "APP_UPDATE_DISABLED": "التحديثات معطّلة فهاد النسخة الشخصية.",
         "APP_UPDATE_CHECKING": "كيتحقق من التحديثات…",
         "APP_UPDATE_AVAILABLE": "الإصدار {{version}} متوفر",
         "APP_UPDATE_NOT_AVAILABLE": "راك كتستعمل آخر إصدار",

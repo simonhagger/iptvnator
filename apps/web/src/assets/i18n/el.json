@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Ενημέρωση εφαρμογής",
         "APP_UPDATE_DESCRIPTION": "Έλεγχος GitHub Releases για ενημερώσεις της desktop εφαρμογής.",
         "APP_UPDATE_IDLE": "Έτοιμο για έλεγχο ενημερώσεων",
+        "APP_UPDATE_DISABLED": "Οι ενημερώσεις είναι απενεργοποιημένες για αυτή την προσωπική έκδοση.",
         "APP_UPDATE_CHECKING": "Έλεγχος για ενημερώσεις…",
         "APP_UPDATE_AVAILABLE": "Η έκδοση {{version}} είναι διαθέσιμη",
         "APP_UPDATE_NOT_AVAILABLE": "Χρησιμοποιείτε την πιο πρόσφατη έκδοση",

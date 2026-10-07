@@ -1,0 +1,23 @@
+{
+    "extends": "apps/electron-backend/src/app/options/electron-builder.metadata.generated.json",
+    "appId": "com.iptvnator.personal.alpha",
+    "productName": "IPTVnator Personal Alpha",
+    "executableName": "IPTVnator Personal Alpha",
+    "extraMetadata": {
+        "name": "iptvnator-personal-alpha",
+        "productName": "IPTVnator Personal Alpha",
+        "iptvnatorDistribution": {
+            "profile": "personal",
+            "updates": "disabled"
+        }
+    },
+    "publish": null,
+    "fileAssociations": [],
+    "win": {
+        "target": [{ "target": "nsis", "arch": ["x64"] }],
+        "artifactName": "${name}-${version}-personal-alpha-windows-${arch}-setup.${ext}"
+    },
+    "nsis": {
+        "artifactName": "${name}-${version}-personal-alpha-windows-${arch}-setup.${ext}"
+    }
+}

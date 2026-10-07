@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "Обновление приложения",
         "APP_UPDATE_DESCRIPTION": "Проверять обновления настольного приложения в GitHub Releases.",
         "APP_UPDATE_IDLE": "Готово к проверке обновлений",
+        "APP_UPDATE_DISABLED": "Обновления отключены для этой персональной сборки.",
         "APP_UPDATE_CHECKING": "Проверка обновлений…",
         "APP_UPDATE_AVAILABLE": "Доступна версия {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "У вас установлена последняя версия",

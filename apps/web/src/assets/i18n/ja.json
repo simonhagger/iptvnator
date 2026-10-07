@@ -534,6 +534,7 @@
         "APP_UPDATE_TITLE": "アプリケーションの更新",
         "APP_UPDATE_DESCRIPTION": "デスクトップアプリの更新を GitHub Releases で確認します。",
         "APP_UPDATE_IDLE": "更新を確認できます",
+        "APP_UPDATE_DISABLED": "この個人用ビルドでは更新が無効になっています。",
         "APP_UPDATE_CHECKING": "更新を確認中…",
         "APP_UPDATE_AVAILABLE": "バージョン {{version}} が利用可能です",
         "APP_UPDATE_NOT_AVAILABLE": "最新バージョンを使用中です",
