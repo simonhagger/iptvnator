@@ -76,6 +76,10 @@ export interface UnifiedCollectionItem {
     rating?: string;
     /** Hydrated presentation data; never persisted as a favourite or position. */
     coverIndicators?: ContentCoverIndicators;
+    /** Raw history identity, before an episode is presented as a series cover. */
+    readonly historyContentType?: 'episode' | 'series';
+    /** Presentation-only favourite owner; null means its parent could not be resolved. */
+    readonly coverFavoriteTarget?: UnifiedCollectionItem | null;
 
     /** ISO timestamp when added to favorites */
     addedAt?: string;

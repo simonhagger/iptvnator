@@ -1,8 +1,12 @@
 import {
     buildProviderCoverItem,
+    collectionCoverIndicators,
     contentCoverIdentity,
     findLatestSeriesEpisodePosition,
+    resolveCollectionSeriesHistory,
 } from './provider-content-cover';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import type { UnifiedCollectionItem } from './collection/unified-collection-item.interface';
 
 const xtream = {
     provider: 'xtream',
@@ -159,5 +163,167 @@ describe('episode cover progress recency', () => {
             findLatestSeriesEpisodePosition([earlier, latest, other], 7)
         ).toBe(latest);
         expect(findLatestSeriesEpisodePosition([other], 7)).toBeNull();
+    });
+});
+
+describe('collection series history identity', () => {
+    const series: UnifiedCollectionItem = {
+        uid: 'xtream::a::series:909',
+        name: 'Recent episode',
+        contentType: 'series',
+        sourceType: 'xtream',
+        playlistId: 'a',
+        playlistName: 'Portal',
+        xtreamId: 909,
+    };
+    const episode: PlaybackPositionData = {
+        playlistId: 'a',
+        contentType: 'episode',
+        contentXtreamId: 909,
+        seriesXtreamId: 900,
+        positionSeconds: 40,
+        durationSeconds: 100,
+        updatedAt: '2026-10-01T12:00:00Z',
+    };
+
+    it('resolves episode-keyed recent history while preserving the parent-only catalogue lookup', () => {
+        expect(
+            collectionCoverIndicators(series, [episode], true, 'history')
+        ).toMatchObject({
+            favorite: true,
+            watchState: 'in-progress',
+            progress: 40,
+            progressScope: 'episode',
+        });
+        expect(
+            collectionCoverIndicators(series, [episode], true)
+        ).toMatchObject({
+            watchState: 'unwatched',
+            progress: null,
+        });
+    });
+
+    it('keeps parent-keyed history and uses the latest matching history row', () => {
+        const parentKeyed = { ...series, xtreamId: 900 };
+        expect(
+            collectionCoverIndicators(parentKeyed, [episode], false, 'history')
+        ).toMatchObject({
+            watchState: 'in-progress',
+            progress: 40,
+        });
+        const newerParentPosition = {
+            ...episode,
+            contentXtreamId: 910,
+            seriesXtreamId: 909,
+            positionSeconds: 100,
+            updatedAt: '2026-10-02T12:00:00Z',
+        };
+        expect(
+            collectionCoverIndicators(
+                series,
+                [episode, newerParentPosition],
+                false,
+                'history'
+            )
+        ).toMatchObject({
+            watchState: 'in-progress',
+            progress: 100,
+        });
+    });
+
+    it('never adopts a colliding episode from another playlist or a movie position', () => {
+        const foreign = { ...episode, playlistId: 'other' };
+        const movie = { ...episode, contentType: 'vod' as const };
+        expect(
+            collectionCoverIndicators(
+                series,
+                [foreign, movie],
+                false,
+                'history'
+            )
+        ).toMatchObject({
+            watchState: 'unwatched',
+            progress: null,
+        });
+    });
+
+    it('keeps explicit episode history owned by its actual parent despite a newer colliding parent ID', () => {
+        const recent = { ...series, historyContentType: 'episode' as const };
+        const unrelated = {
+            ...episode,
+            contentXtreamId: 911,
+            seriesXtreamId: 909,
+            positionSeconds: 90,
+            updatedAt: '2026-10-02T12:00:00Z',
+        };
+        expect(
+            collectionCoverIndicators(
+                recent,
+                [episode, unrelated],
+                true,
+                'history'
+            )
+        ).toMatchObject({
+            watchState: 'in-progress',
+            progress: 40,
+        });
+        expect(
+            resolveCollectionSeriesHistory(recent, [episode, unrelated])
+        ).toEqual({
+            seriesId: 900,
+            position: episode,
+        });
+        expect(recent.xtreamId).toBe(909);
+        expect(recent.uid).toBe(series.uid);
+    });
+
+    it('keeps explicit series and legacy parent matches ahead of a newer colliding direct episode', () => {
+        const parent = {
+            ...episode,
+            contentXtreamId: 911,
+            seriesXtreamId: 909,
+            positionSeconds: 25,
+            updatedAt: '2026-09-30T12:00:00Z',
+        };
+        for (const item of [
+            series,
+            { ...series, historyContentType: 'series' as const },
+        ]) {
+            expect(
+                collectionCoverIndicators(
+                    item,
+                    [parent, episode],
+                    true,
+                    'history'
+                )
+            ).toMatchObject({
+                watchState: 'in-progress',
+                progress: 25,
+            });
+        }
+    });
+
+    it('does not infer an explicit episode parent from a collided series or foreign playlist', () => {
+        const recent = { ...series, historyContentType: 'episode' as const };
+        const unrelated = {
+            ...episode,
+            contentXtreamId: 911,
+            seriesXtreamId: 909,
+        };
+        expect(
+            resolveCollectionSeriesHistory(recent, [
+                unrelated,
+                { ...episode, playlistId: 'foreign' },
+            ])
+        ).toEqual({
+            seriesId: null,
+            position: null,
+        });
+        expect(
+            collectionCoverIndicators(recent, [unrelated], undefined, 'history')
+        ).toMatchObject({
+            watchState: 'unwatched',
+            progress: null,
+        });
     });
 });

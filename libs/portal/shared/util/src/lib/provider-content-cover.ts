@@ -41,12 +41,19 @@ export function findLatestSeriesEpisodePosition(
     positions: readonly PlaybackPositionData[],
     seriesId: number
 ): PlaybackPositionData | null {
+    return findLatestMatchingEpisodePosition(
+        positions,
+        (candidate) => candidate.seriesXtreamId === seriesId
+    );
+}
+
+function findLatestMatchingEpisodePosition(
+    positions: readonly PlaybackPositionData[],
+    matches: (position: PlaybackPositionData) => boolean
+): PlaybackPositionData | null {
     return positions.reduce<PlaybackPositionData | null>(
         (latest, candidate) => {
-            if (
-                candidate.contentType !== 'episode' ||
-                candidate.seriesXtreamId !== seriesId
-            )
+            if (candidate.contentType !== 'episode' || !matches(candidate))
                 return latest;
             if (!latest) return candidate;
             const timestamp = (row: PlaybackPositionData) => {
@@ -61,11 +68,58 @@ export function findLatestSeriesEpisodePosition(
     );
 }
 
+export interface ResolvedCollectionSeriesHistory {
+    /** Favourite ownership; never replaces the original history or route ID. */
+    readonly seriesId: number | null;
+    /** Exact episode for episode history, latest episode for parent history. */
+    readonly position: PlaybackPositionData | null;
+}
+
+/** Resolve history provenance before considering coincidentally equal IDs. */
+export function resolveCollectionSeriesHistory(
+    item: UnifiedCollectionItem,
+    positions: readonly PlaybackPositionData[] | undefined
+): ResolvedCollectionSeriesHistory | null {
+    const rawId = item.xtreamId ?? item.stalkerId;
+    if (positions === undefined || rawId == null || String(rawId).trim() === '')
+        return null;
+    const id = Number(rawId);
+    if (!Number.isSafeInteger(id) || id < 0) return null;
+    const scoped = positions.filter(
+        (row) => !row.playlistId || row.playlistId === item.playlistId
+    );
+    const parent = findLatestSeriesEpisodePosition(scoped, id);
+    if (item.historyContentType === 'series')
+        return { seriesId: id, position: parent };
+    // Old unmarked records can name either shape. A parent match takes
+    // precedence, so an unrelated episode with the same ID cannot win by time.
+    if (item.historyContentType !== 'episode' && parent)
+        return { seriesId: id, position: parent };
+    const episode = findLatestMatchingEpisodePosition(
+        scoped,
+        (row) => row.contentXtreamId === id
+    );
+    if (!episode)
+        return {
+            seriesId: item.historyContentType === 'episode' ? null : id,
+            position: null,
+        };
+    const seriesId = episode.seriesXtreamId;
+    return {
+        seriesId:
+            seriesId != null && Number.isSafeInteger(seriesId) && seriesId >= 0
+                ? seriesId
+                : null,
+        position: episode,
+    };
+}
+
 /** A missing positions read is unknown; a complete empty read is unwatched. */
 export function collectionCoverIndicators(
     item: UnifiedCollectionItem,
     positions?: readonly PlaybackPositionData[],
-    favorite?: boolean
+    favorite?: boolean,
+    lookupScope: 'catalog' | 'history' = 'catalog'
 ): ContentCoverIndicators {
     const raw = item.stalkerItem;
     const stalkerItem =
@@ -91,7 +145,14 @@ export function collectionCoverIndicators(
             !position.playlistId || position.playlistId === item.playlistId
     );
     if (series) {
-        const latest = findLatestSeriesEpisodePosition(scoped, id);
+        // Catalogue IDs always name the parent show. Recent direct-play rows
+        // may name an episode instead; only explicit history projection may
+        // resolve that ID through its saved episode row and parent identity.
+        const latest =
+            lookupScope === 'history'
+                ? (resolveCollectionSeriesHistory(item, scoped)?.position ??
+                  null)
+                : findLatestSeriesEpisodePosition(scoped, id);
         return {
             ...indicators,
             watchState: resolvePortalSeriesWatchState(latest !== null),
