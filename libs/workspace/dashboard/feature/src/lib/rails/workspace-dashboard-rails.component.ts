@@ -56,6 +56,8 @@ import {
     buildDashboardCoverIndicators,
     dashboardCoverIdentity,
     dashboardFavoriteCardId,
+    resolveDashboardSeriesHistory,
+    isDashboardRecentDetailAvailable,
     findDashboardFavoriteForCard,
     resolveSourceExpiryBadge,
 } from '@iptvnator/workspace/dashboard/data-access';
@@ -524,6 +526,7 @@ export class WorkspaceDashboardRailsComponent {
 
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
+        const detailsEnabled = isDashboardRecentDetailAvailable(item, position);
         const watchProgress = playbackProgressPercent(position);
         const episodeBadge = buildDashboardEpisodeBadge(
             item,
@@ -540,6 +543,7 @@ export class WorkspaceDashboardRailsComponent {
             epgPlaylistId: item.playlist_id,
             liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getRecentItemLink(item),
+            detailsEnabled,
             // Default click is detail-only for every card — an in-progress
             // series no longer auto-plays on click (issue #1441); resuming
             // moved to the ⋮ menu below. The hero CTA keeps the resume state.
@@ -553,7 +557,7 @@ export class WorkspaceDashboardRailsComponent {
             ...(item.type === 'movie' || item.type === 'series'
                 ? {
                       actions: [
-                          ...this.detailActions(),
+                          ...(detailsEnabled ? this.detailActions() : []),
                           ...buildDashboardContinueWatchingActions({
                               canResume:
                                   this.data.getRecentItemResumeNavigation(
@@ -689,6 +693,7 @@ export class WorkspaceDashboardRailsComponent {
         ].find((card) => card.id === selection.card.id);
         if (!current) return;
         if (selection.action.id === 'details') {
+            if (current.detailsEnabled === false) return;
             void this.router.navigate(current.link, {
                 queryParams: current.queryParams,
                 state: current.state,
@@ -713,13 +718,32 @@ export class WorkspaceDashboardRailsComponent {
 
     private coverIndicators(
         item: PortalActivityItem & DashboardCoverMetadata,
-        favorite = this.favoriteIdentities().has(dashboardCoverIdentity(item)),
+        favorite: boolean | undefined = undefined,
         scope: 'history' | 'catalog' = 'catalog'
     ): ContentCoverIndicators {
+        const position = this.data.getPlaybackPositionForItem(item, scope);
+        const history =
+            scope === 'history' &&
+            item.source === 'xtream' &&
+            item.type === 'series';
+        const seriesId = history
+            ? resolveDashboardSeriesHistory(item, position ? [position] : [])
+                  ?.seriesId
+            : undefined;
+        const identity = history
+            ? seriesId == null
+                ? null
+                : { ...item, xtream_id: seriesId }
+            : item;
         return buildDashboardCoverIndicators(
             item,
-            favorite,
-            this.data.getPlaybackPositionForItem(item, scope),
+            favorite ??
+                (identity
+                    ? this.favoriteIdentities().has(
+                          dashboardCoverIdentity(identity)
+                      )
+                    : undefined),
+            position,
             this.data.hasLoadedPlaybackPositions(item.playlist_id)
         );
     }

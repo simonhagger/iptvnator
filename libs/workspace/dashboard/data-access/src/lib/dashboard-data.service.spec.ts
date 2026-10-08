@@ -2030,6 +2030,141 @@ describe('DashboardDataService', () => {
         ).toHaveBeenCalledWith('m3u-1', 'https://example.com/stream-1.m3u8');
     });
 
+    it.each([false, true])(
+        'compares SQLite UTC and ISO playback recency in either row order (%s)',
+        async (reversed) => {
+            const earlier: PlaybackPositionData = {
+                playlistId: 'xtream-1',
+                contentType: 'episode',
+                contentXtreamId: 1,
+                seriesXtreamId: 900,
+                positionSeconds: 20,
+                durationSeconds: 100,
+                updatedAt: '2026-10-08T10:00:00Z',
+            };
+            const latest = {
+                ...earlier,
+                contentXtreamId: 2,
+                positionSeconds: 40,
+                updatedAt: '2026-10-08 10:30:00',
+            };
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue(
+                reversed ? [latest, earlier] : [earlier, latest]
+            );
+            await service.reloadPlaybackPositions(['xtream-1']);
+            const item: GlobalRecentItem = {
+                id: 900,
+                title: 'Show',
+                type: 'series',
+                xtream_id: 900,
+                playlist_id: 'xtream-1',
+                category_id: 1,
+                source: 'xtream',
+                viewed_at: '',
+            };
+            expect(service.getPlaybackPositionForItem(item, 'catalog')).toEqual(
+                latest
+            );
+        }
+    );
+
+    it.each(['native', 'pwa'] as const)(
+        'preserves %s episode history ownership when its ID collides with a newer parent history position',
+        async (runtime) => {
+            const rows = ['episode', 'series'].map((type, index) => ({
+                id: 90 + index,
+                title: `History ${type}`,
+                type,
+                xtream_id: 909,
+                playlist_id: 'xtream-1',
+                category_id: 1,
+                viewed_at: '',
+            }));
+            if (runtime === 'pwa') {
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+                xtreamDataSourceMock.getRecentItems.mockResolvedValueOnce(rows);
+            } else
+                dbServiceMock.getGlobalRecentlyViewed.mockResolvedValueOnce(
+                    rows
+                );
+            const episode: PlaybackPositionData = {
+                playlistId: 'xtream-1',
+                contentXtreamId: 909,
+                contentType: 'episode',
+                seriesXtreamId: 900,
+                positionSeconds: 40,
+                durationSeconds: 100,
+                updatedAt: '2026-10-01T12:00:00Z',
+            };
+            const parent = {
+                ...episode,
+                contentXtreamId: 42,
+                seriesXtreamId: 909,
+                updatedAt: '2026-10-02T12:00:00Z',
+            };
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                episode,
+                parent,
+            ]);
+            await service.reloadGlobalRecentItems();
+            await service.reloadPlaybackPositions();
+            const episodeItem = service
+                .globalRecentVodItems()
+                .find((item) => item.title === 'History episode');
+            const parentItem = service
+                .globalRecentVodItems()
+                .find((item) => item.title === 'History series');
+            expect(episodeItem).toMatchObject({
+                type: 'series',
+                historyContentType: 'episode',
+                xtream_id: 909,
+            });
+            expect(parentItem).toMatchObject({
+                type: 'series',
+                historyContentType: undefined,
+                xtream_id: 909,
+            });
+            if (!episodeItem || !parentItem)
+                throw new Error('Expected both history rows');
+            expect(service.getPlaybackPositionForItem(episodeItem)).toEqual(
+                episode
+            );
+            expect(service.getPlaybackPositionForItem(parentItem)).toEqual(
+                parent
+            );
+            expect(
+                service.getPlaybackPositionForItem({
+                    ...episodeItem,
+                    historyContentType: undefined,
+                })
+            ).toEqual(parent);
+            expect(
+                service.getPlaybackPositionForItem({
+                    ...episodeItem,
+                    playlist_id: 'other',
+                })
+            ).toBeNull();
+            const newerEpisode = {
+                ...episode,
+                updatedAt: '2026-10-03T12:00:00Z',
+            };
+            playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+                parent,
+                newerEpisode,
+            ]);
+            await service.reloadPlaybackPositions();
+            expect(service.getPlaybackPositionForItem(episodeItem)).toEqual(
+                newerEpisode
+            );
+            expect(service.getPlaybackPositionForItem(parentItem)).toEqual(
+                parent
+            );
+        }
+    );
+
     it('keeps catalog series progress separate from an unrelated same-ID episode while retaining history resume', async () => {
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
             {

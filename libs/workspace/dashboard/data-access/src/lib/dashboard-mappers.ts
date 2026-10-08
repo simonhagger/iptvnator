@@ -84,7 +84,12 @@ export function mapDbRecentToItem(
     return {
         id: item.id,
         title: item.title,
-        type: normalizeActivityType(item.type),
+        type:
+            item.type === 'episode'
+                ? 'series'
+                : normalizeActivityType(item.type),
+        // Legacy series rows can name either a show or a directly played episode.
+        historyContentType: item.type === 'episode' ? 'episode' : undefined,
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         viewed_at: normalizeStalkerDate(item.viewed_at),

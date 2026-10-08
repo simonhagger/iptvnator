@@ -48,15 +48,24 @@ export function normalizeContentCoverRating(
     return { value: numeric, scale: 10, source };
 }
 
+/** Valid IMDb, Kinopoisk, then generic scores; outer wins within each source. */
 export function resolveProviderCoverRating(item: {
     rating_imdb?: unknown;
     rating_kinopoisk?: unknown;
     rating?: unknown;
+    info?: unknown;
 }): ContentCoverRating | null {
+    const info =
+        item.info && typeof item.info === 'object' && !Array.isArray(item.info)
+            ? (item.info as Record<string, unknown>)
+            : {};
     return (
         normalizeContentCoverRating(item.rating_imdb, 'provider-imdb') ??
+        normalizeContentCoverRating(info['rating_imdb'], 'provider-imdb') ??
         normalizeContentCoverRating(item.rating_kinopoisk, 'kinopoisk') ??
-        normalizeContentCoverRating(item.rating, 'provider')
+        normalizeContentCoverRating(info['rating_kinopoisk'], 'kinopoisk') ??
+        normalizeContentCoverRating(item.rating, 'provider') ??
+        normalizeContentCoverRating(info['rating'], 'provider')
     );
 }
 

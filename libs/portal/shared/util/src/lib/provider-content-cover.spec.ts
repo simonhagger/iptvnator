@@ -20,6 +20,61 @@ const stalker = {
     contentType: 'vod',
 } as const;
 
+describe('persisted Stalker detail cover ratings', () => {
+    it.each([
+        [
+            'vod',
+            { rating_imdb: '8.1', rating_kinopoisk: '7.2' },
+            'provider-imdb',
+            8.1,
+        ],
+        [
+            'series',
+            { rating_imdb: '', rating_kinopoisk: '7.2' },
+            'kinopoisk',
+            7.2,
+        ],
+        [
+            'vod',
+            { rating_imdb: 'bad', rating_kinopoisk: '0', rating: '6.25' },
+            'provider',
+            6.25,
+        ],
+    ])(
+        'retains %s detail score attribution without rewriting saved payload',
+        (contentType, ratings, source, value) => {
+            // buildStalkerFavoritePayload preserves details.info, adding only
+            // category/title/cover/added_at on the saved outer item.
+            const info = Object.freeze({
+                name: 'Saved title',
+                movie_image: 'poster.jpg',
+                ...ratings,
+            });
+            const saved = Object.freeze({
+                id: '7',
+                info,
+                category_id: contentType,
+                title: info.name,
+                cover: info.movie_image,
+                added_at: '2026-10-08T12:00:00Z',
+            });
+            const item = buildProviderCoverItem(
+                { ...stalker, contentType: String(contentType) },
+                saved
+            );
+            expect(item).not.toBeNull();
+            if (!item) throw new Error('Valid saved favourite missing');
+            expect(collectionCoverIndicators(item, [], true)).toMatchObject({
+                favorite: true,
+                rating: { value, scale: 10, source },
+            });
+            expect((item.stalkerItem as { info?: unknown })?.info).toBe(info);
+            expect(saved.info).toEqual(info);
+            expect(saved.category_id).toBe(contentType);
+        }
+    );
+});
+
 describe('provider cover identity', () => {
     it('keeps the normalized SQLite ID separate from the provider ID', () => {
         const item = buildProviderCoverItem(xtream, {

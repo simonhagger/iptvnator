@@ -163,7 +163,18 @@
                         <a
                             class="rail__card-link"
                             [attr.aria-describedby]="cardDescriptionId(card)"
-                            [routerLink]="card.link"
+                            [routerLink]="
+                                card.detailsEnabled === false ? null : card.link
+                            "
+                            [attr.aria-disabled]="
+                                card.detailsEnabled === false ? true : null
+                            "
+                            [attr.role]="
+                                card.detailsEnabled === false ? 'link' : null
+                            "
+                            [attr.tabindex]="
+                                card.detailsEnabled === false ? -1 : null
+                            "
                             [attr.data-test-id]="
                                 testId() ? testId() + '-card-link' : null
                             "

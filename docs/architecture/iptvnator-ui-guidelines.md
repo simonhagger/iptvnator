@@ -332,6 +332,9 @@ omit unknown state. Ratings accept finite ten-point values and retain provider,
 provider-supplied IMDb, TMDB or Kinopoisk attribution. A generic provider score
 must not inherit an IMDb label. Status markers occupy the upper left, ratings
 sit below them and progress occupies the poster bottom without moving artwork.
+The pure provider rating resolver accepts catalogue fields and nested detail
+`info` fields from saved Stalker favourites. Preserve valid score attribution
+without flattening or mutating the saved provider payload.
 
 The labelled three-dot menu is a sibling of the cover activation element.
 Details uses the existing detail/show navigation; source owners implement
@@ -389,10 +392,18 @@ Recent mapping preserves the provider's history content kind. Episode history
 uses that episode's scoped position and a separate parent-show favourite target;
 history removal and menu ownership retain the original row identity. Episode
 and parent history rows remain distinct even when their provider IDs coincide.
+Dashboard history favourite indicators use the resolved parent show too. An
+episode ID must not inherit membership from an unrelated show with the same ID.
+Native and PWA Dashboard mappers retain explicit episode provenance. Historical
+`series` rows remain ambiguous: prefer a matching parent position, then use a
+direct episode fallback when no parent position exists. Keep keyed lookup costs
+independent of the total saved history size.
 A separate detail target opens the parent show and retains exact episode resume
 data. Ordinary Details activation uses parent identity only and never consumes
 the autoplay resume handoff. Unknown parents omit favourite and Details actions;
 the cover activation is accessibly disabled while history removal remains available.
+Parent-only Details do not require the season/episode coordinates needed for
+Resume. Dashboard rail and hero activation must honour the same availability.
 Pending favourite controls use the command target key.
 Returning from collection inline details reloads persisted membership and bulk
 watch positions without reopening details or initiating reads when details open.

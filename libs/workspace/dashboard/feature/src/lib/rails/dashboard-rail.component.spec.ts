@@ -168,6 +168,31 @@ describe('DashboardRailComponent', () => {
             );
         });
 
+        it('withholds unresolved episode activation while preserving history actions', async () => {
+            const element = await renderCards([
+                card({
+                    contentType: 'series',
+                    detailsEnabled: false,
+                    actions: [
+                        {
+                            id: 'remove-from-history',
+                            label: 'Remove history',
+                            icon: 'delete',
+                        },
+                    ],
+                }),
+            ]);
+            const link = element.querySelector('.rail__card-link');
+            expect(link?.getAttribute('href')).toBeNull();
+            expect(link?.getAttribute('aria-disabled')).toBe('true');
+            expect(link?.getAttribute('tabindex')).toBe('-1');
+            const trigger = element.querySelector(
+                'app-content-cover-actions button'
+            );
+            expect(trigger).not.toBeNull();
+            expect(trigger?.closest('a')).toBeNull();
+        });
+
         it('creates distinct descriptions for VOD cards without changing live and source links', async () => {
             const element = await renderCards([
                 card({

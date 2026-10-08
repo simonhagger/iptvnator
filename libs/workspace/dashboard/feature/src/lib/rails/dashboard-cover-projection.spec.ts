@@ -17,9 +17,11 @@ import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     CatalogTitleMatch,
+    PlaybackPositionData,
 } from '@iptvnator/shared/interfaces';
 import {
     DashboardDataService,
+    GlobalRecentItem,
     DashboardFavoriteItem,
     DashboardTrendingItem,
     DashboardRecommendationItem,
@@ -71,7 +73,9 @@ describe('Dashboard cover projection', () => {
     });
 
     function setup() {
-        const recent = signal([{ ...favorite, viewed_at: '' }]);
+        const recent = signal<GlobalRecentItem[]>([
+            { ...favorite, viewed_at: '' },
+        ]);
         const favorites = signal<DashboardFavoriteItem[]>([favorite]);
         const membership = signal<DashboardFavoriteItem[]>([favorite]);
         const added = signal([{ ...favorite }]);
@@ -104,8 +108,9 @@ describe('Dashboard cover projection', () => {
             reloadGlobalRecentItems: jest.fn(),
             reloadGlobalFavorites: jest.fn(),
             reloadPlaybackPositions: jest.fn(),
-            getPlaybackPositionForItem: jest.fn((_item, scope?: string) =>
-                scope === 'catalog' ? null : episode
+            getPlaybackPositionForItem: jest.fn(
+                (_item, scope?: string): PlaybackPositionData | null =>
+                    scope === 'catalog' ? null : episode
             ),
             hasLoadedPlaybackPositions: () => true,
             getRecentItemLink: () => ['/recent'],
@@ -260,8 +265,9 @@ describe('Dashboard cover projection', () => {
     });
 
     it('projects complete membership onto non-favourite rails when that title is outside the display cap', () => {
-        const { component, favorites, trendingItems } = setup();
+        const { component, favorites, membership, trendingItems } = setup();
         favorites.set([]);
+        membership.set([favorite, { ...favorite, xtream_id: 99 }]);
         trendingItems.set([trending(match('portal'))]);
         expect(component.favoriteMoviesAndSeriesCards()).toEqual([]);
         for (const card of [
@@ -271,5 +277,144 @@ describe('Dashboard cover projection', () => {
         ]) {
             expect(card.indicators?.favorite).toBe(true);
         }
+    });
+
+    it('projects an episode history favourite from its resolved parent, preserving a colliding catalogue show', () => {
+        const { component, recent, membership, added, data } = setup();
+        recent.set([
+            {
+                ...favorite,
+                xtream_id: 909,
+                historyContentType: 'episode',
+                viewed_at: '',
+            },
+        ]);
+        added.set([{ ...favorite, xtream_id: 909 }]);
+        membership.set([{ ...favorite, xtream_id: 900 }]);
+        data.getPlaybackPositionForItem.mockImplementation((_item, scope) =>
+            scope === 'catalog'
+                ? null
+                : {
+                      playlistId: 'portal',
+                      contentXtreamId: 909,
+                      seriesXtreamId: 900,
+                      contentType: 'episode',
+                      positionSeconds: 40,
+                      durationSeconds: 100,
+                  }
+        );
+        expect(component.continueWatchingCards()[0].indicators?.favorite).toBe(
+            true
+        );
+        expect(
+            component.xtreamRecentlyAddedCards()[0].indicators?.favorite
+        ).toBe(false);
+        membership.set([{ ...favorite, xtream_id: 909 }]);
+        expect(component.continueWatchingCards()[0].indicators?.favorite).toBe(
+            false
+        );
+        expect(
+            component.xtreamRecentlyAddedCards()[0].indicators?.favorite
+        ).toBe(true);
+    });
+
+    it('does not imply the colliding show is favourited when episode history has no parent identity', () => {
+        const { component, recent, membership, data } = setup();
+        recent.set([
+            {
+                ...favorite,
+                xtream_id: 909,
+                historyContentType: 'episode',
+                viewed_at: '',
+            },
+        ]);
+        membership.set([{ ...favorite, xtream_id: 909 }]);
+        data.getPlaybackPositionForItem.mockReturnValue({
+            playlistId: 'portal',
+            contentXtreamId: 909,
+            contentType: 'episode',
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        expect(
+            component.continueWatchingCards()[0].indicators?.favorite
+        ).not.toBe(true);
+        const unresolved = component.continueWatchingCards()[0];
+        expect(unresolved.detailsEnabled).toBe(false);
+        expect(unresolved.actions?.map((action) => action.id)).not.toContain(
+            'details'
+        );
+        expect(unresolved.actions?.map((action) => action.id)).toContain(
+            'remove-from-history'
+        );
+    });
+
+    it('rejects a stale Details selection after the episode parent becomes unresolved', () => {
+        const { component, recent, data } = setup();
+        const row: GlobalRecentItem = {
+            ...favorite,
+            xtream_id: 909,
+            historyContentType: 'episode',
+            viewed_at: '',
+        };
+        recent.set([row]);
+        data.getPlaybackPositionForItem.mockReturnValue({
+            playlistId: 'portal',
+            contentXtreamId: 909,
+            seriesXtreamId: 900,
+            contentType: 'episode',
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        const card = component.continueWatchingCards()[0];
+        const action = card.actions?.find(
+            (candidate) => candidate.id === 'details'
+        );
+        if (!action) throw new Error('Expected initial Details action');
+        const router = TestBed.inject(Router);
+        router.navigate = jest.fn();
+        data.getPlaybackPositionForItem.mockReturnValue(null);
+        recent.set([{ ...row }]);
+        component.onContentActionSelected({ card, action });
+        expect(router.navigate).not.toHaveBeenCalled();
+        expect(
+            component
+                .continueWatchingCards()[0]
+                .actions?.map((candidate) => candidate.id)
+        ).toContain('remove-from-history');
+    });
+
+    it('keeps parent history favourite ownership distinct from the same-ID episode and other scopes', () => {
+        const { component, recent, membership, data } = setup();
+        const row = { ...favorite, xtream_id: 909, viewed_at: '' };
+        recent.set([
+            { ...row, id: 91, historyContentType: 'episode' },
+            { ...row, id: 92, historyContentType: 'series' },
+        ]);
+        data.getPlaybackPositionForItem.mockImplementation((item) => ({
+            playlistId: 'portal',
+            contentType: 'episode',
+            positionSeconds: 40,
+            durationSeconds: 100,
+            contentXtreamId: item.historyContentType === 'episode' ? 909 : 42,
+            seriesXtreamId: item.historyContentType === 'episode' ? 900 : 909,
+        }));
+        membership.set([
+            { ...favorite, xtream_id: 900, playlist_id: 'other' },
+            { ...favorite, xtream_id: 900, source: 'stalker' },
+            { ...favorite, xtream_id: 909 },
+        ]);
+        expect(
+            component
+                .continueWatchingCards()
+                .map((card) => card.indicators?.favorite)
+        ).toEqual([false, true]);
+        membership.set([{ ...favorite, xtream_id: 900 }]);
+        expect(
+            component
+                .continueWatchingCards()
+                .map((card) => card.indicators?.favorite)
+        ).toEqual([true, false]);
+        expect(recent()[0].xtream_id).toBe(909);
     });
 });

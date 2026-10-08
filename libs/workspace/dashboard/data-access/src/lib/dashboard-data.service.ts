@@ -52,7 +52,10 @@ import {
     WorkspaceNavigationTarget,
     resolveProviderCoverRating,
 } from '@iptvnator/portal/shared/util';
-import type { DashboardCoverMetadata } from './dashboard-cover-indicators.util';
+import {
+    DashboardCoverMetadata,
+    resolveDashboardSeriesHistory,
+} from './dashboard-cover-indicators.util';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
     getGlobalFavoriteLink as getGlobalFavoriteLinkUtil,
@@ -98,7 +101,7 @@ function newestPlaybackPosition(
     if (!candidate) {
         return current;
     }
-    return (candidate.updatedAt ?? '') > (current.updatedAt ?? '')
+    return toTimestamp(candidate.updatedAt) > toTimestamp(current.updatedAt)
         ? candidate
         : current;
 }
@@ -304,7 +307,7 @@ export class DashboardDataService {
     }
 
     getPlaybackPositionForItem(
-        item: PortalActivityItem,
+        item: PortalActivityItem & DashboardCoverMetadata,
         scope: 'history' | 'catalog' = 'history'
     ): PlaybackPositionData | null {
         // The progress model, not the routing type: a Stalker embedded-VOD
@@ -346,6 +349,15 @@ export class DashboardDataService {
             this.playbackPositionsMap().get(
                 playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
             ) ?? null;
+        if (item.source === 'xtream')
+            return (
+                resolveDashboardSeriesHistory(
+                    item,
+                    [episodePosition, seriesPosition].filter(
+                        (row): row is PlaybackPositionData => row !== null
+                    )
+                )?.position ?? null
+            );
         return newestPlaybackPosition(episodePosition, seriesPosition);
     }
 
@@ -736,7 +748,11 @@ export class DashboardDataService {
         return {
             id: item.id,
             title: item.title,
-            type: this.normalizeXtreamActivityType(item.type),
+            type:
+                item.type === 'episode'
+                    ? 'series'
+                    : this.normalizeXtreamActivityType(item.type),
+            historyContentType: item.type === 'episode' ? 'episode' : undefined,
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
             viewed_at: item.viewed_at ?? '',

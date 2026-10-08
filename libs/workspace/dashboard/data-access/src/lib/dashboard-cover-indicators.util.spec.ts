@@ -130,4 +130,18 @@ describe('dashboard cover indicators', () => {
             progress: null,
         });
     });
+
+    it('retains valid nested Stalker ratings when the outer rating is malformed', () => {
+        const stalker = {
+            ...item,
+            source: 'stalker' as const,
+            stalker_item: {
+                rating_imdb: 'unknown',
+                info: { rating_imdb: '8.2' },
+            } as PortalActivityItem['stalker_item'],
+        };
+        expect(
+            buildDashboardCoverIndicators(stalker, true, null, true).rating
+        ).toEqual({ value: 8.2, source: 'provider-imdb', scale: 10 });
+    });
 });

@@ -12,10 +12,49 @@ import {
     resolvePortalSeriesWatchState,
     resolvePortalWatchState,
     resolveProviderCoverRating,
+    buildProviderCoverItem,
+    resolveCollectionSeriesHistory,
+    ResolvedCollectionSeriesHistory,
 } from '@iptvnator/portal/shared/util';
 
 export interface DashboardCoverMetadata {
     coverRating?: ContentCoverRating | null;
+    readonly historyContentType?: 'episode' | 'series';
+}
+
+/** Only supplied, scoped position candidates can establish history ownership. */
+export function resolveDashboardSeriesHistory(
+    item: PortalActivityItem & DashboardCoverMetadata,
+    positions: readonly PlaybackPositionData[]
+): ResolvedCollectionSeriesHistory | null {
+    if (item.source !== 'xtream' || item.type !== 'series') return null;
+    const cover = buildProviderCoverItem(
+        {
+            provider: 'xtream',
+            playlistId: item.playlist_id,
+            contentType: 'series',
+        },
+        { xtream_id: item.xtream_id, title: item.title }
+    );
+    return cover
+        ? resolveCollectionSeriesHistory(
+              { ...cover, historyContentType: item.historyContentType },
+              positions
+          )
+        : null;
+}
+
+/** Explicit episode history cannot open a show until its parent is known. */
+export function isDashboardRecentDetailAvailable(
+    item: PortalActivityItem & DashboardCoverMetadata,
+    position: PlaybackPositionData | null
+): boolean {
+    return (
+        item.source !== 'xtream' ||
+        item.historyContentType !== 'episode' ||
+        resolveDashboardSeriesHistory(item, position ? [position] : [])
+            ?.seriesId != null
+    );
 }
 
 /** Provider, playlist and routing kind scope identity; history ids are not content ids. */
@@ -47,22 +86,16 @@ export function findDashboardFavoriteForCard<T extends PortalFavoriteItem>(
 
 export function buildDashboardCoverIndicators(
     item: PortalActivityItem & DashboardCoverMetadata,
-    favorite: boolean,
+    favorite: boolean | undefined,
     position: PlaybackPositionData | null,
     positionsLoaded: boolean
 ): ContentCoverIndicators {
     const watchKind = resolvePortalActivityWatchKind(item);
     const raw = item.stalker_item as Record<string, unknown> | undefined;
-    const info = raw?.['info'] as Record<string, unknown> | undefined;
     const rating =
         item.coverRating ??
         (item.source === 'stalker'
-            ? resolveProviderCoverRating({
-                  rating_imdb: raw?.['rating_imdb'] ?? info?.['rating_imdb'],
-                  rating_kinopoisk:
-                      raw?.['rating_kinopoisk'] ?? info?.['rating_kinopoisk'],
-                  rating: raw?.['rating'] ?? info?.['rating'],
-              })
+            ? resolveProviderCoverRating(raw ?? {})
             : null);
     return normalizeContentCoverIndicators({
         favorite,
