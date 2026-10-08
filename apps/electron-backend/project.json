@@ -293,6 +293,18 @@
                 "outputPath": "dist/executables"
             }
         },
+        "make-personal": {
+            "dependsOn": [
+                "electron-backend:build",
+                "electron-backend:generate-builder-metadata"
+            ],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "options": {
+                "command": "node tools/packaging/make-personal-windows.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
         "generate-builder-metadata": {
             "dependsOn": [
                 "electron-backend:build"

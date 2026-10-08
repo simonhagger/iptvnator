@@ -305,13 +305,18 @@ the complete sequence below. Run from the repository root:
 ```text
 pnpm nx run electron-backend:build:production --skip-nx-cache
 pnpm nx run electron-backend:generate-builder-metadata --excludeTaskDependencies --skip-nx-cache
-pnpm nx run electron-backend:make --excludeTaskDependencies --platform=windows --arch=x64 --publishPolicy=never --makerOptionsPath=electron-builder.personal.json --outputPath=dist/personal/windows-x64 --skip-nx-cache
+pnpm nx run electron-backend:make-personal --excludeTaskDependencies --outputPath=dist/personal/windows-x64
 node tools/packaging/verify-electron-package-layout.mjs windows x64 electron-builder.personal.json dist/personal/windows-x64
 ```
 
 The explicit production build must pass before either subsequent task runs.
 Skipping their dependency tasks preserves those freshly verified production
 artifacts: the ordinary make dependency uses an unconfigured backend build.
+The personal command flattens the overlay and selects an explicit Windows x64
+NSIS target. It stages only the chosen root package metadata in a temporary
+directory; shared production metadata and standard packaging stay unchanged.
+Passing the overlay to the standard Nx make executor does not provide this
+isolation: inherited target arrays and its custom metadata copy can defeat it.
 
 This is local packaging, without a release tag, release-note consumption or
 publication. Output includes `win-unpacked/IPTVnator Personal Alpha.exe` and
