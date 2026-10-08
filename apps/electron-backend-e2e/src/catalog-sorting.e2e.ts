@@ -464,13 +464,23 @@ async function expectDetailRoundTripRestoresScroll(
     const grownCount = await expectCatalogGrowsOnScroll(page);
     await expect.poll(() => getCatalogGridScrollTop(page)).toBeGreaterThan(100);
 
-    // The last card is already in view at the bottom — clicking it does not
-    // make Playwright scroll the grid back to the top first.
-    await page.locator('.category-content-layout mat-card').last().click();
+    // Activate the last card's primary surface. The outer card also owns an
+    // independent menu and is not itself an interactive navigation target.
+    await page
+        .locator('.category-content-layout mat-card')
+        .last()
+        .locator('.grid-card-primary[role="button"]')
+        .click();
     if (detailPathname) {
-        // Xtream details are routed; Stalker details render inline on the
-        // same URL, so callers without a pathname skip the assertion.
+        // Xtream details are routed.
         await expectPathname(page, detailPathname);
+    } else {
+        // Stalker replaces the grid inline without changing the URL. Prove
+        // detail activation before Back, which otherwise leaves the category.
+        await expect(
+            page.locator('app-category-content-view app-stalker-catalog-detail')
+        ).toBeVisible({ timeout: 20000 });
+        await expect(catalogGrid(page)).toHaveCount(0);
     }
     await goBackFromDetail(page);
 
@@ -579,13 +589,16 @@ async function expectCatalogSearchQuery(
 }
 
 async function firstVisibleGridTitle(page: Page): Promise<string> {
-    const titles = await visibleGridTitles(page);
-    const title = titles[0];
-
-    if (!title) {
-        throw new Error('Expected at least one visible catalog grid title.');
-    }
-
+    let title = '';
+    await expect
+        .poll(
+            async () => {
+                title = (await visibleGridTitles(page))[0] ?? '';
+                return title;
+            },
+            { timeout: 20000 }
+        )
+        .not.toBe('');
     return title;
 }
 
