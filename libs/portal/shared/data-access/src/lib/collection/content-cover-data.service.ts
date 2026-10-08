@@ -38,6 +38,7 @@ export class ContentCoverDataService {
         ReadonlyMap<string, PlaybackPositionData[]>
     >(new Map());
     private watchGeneration = 0;
+    private readonly representedWatchIds = new Set<string>();
     private readonly requestedWatchIds = new Set<string>();
     private readonly rows = signal<ReadonlyMap<
         string,
@@ -68,6 +69,7 @@ export class ContentCoverDataService {
         const generation = ++this.generation;
         this.scope = scope;
         ++this.watchGeneration;
+        this.representedWatchIds.clear();
         this.requestedWatchIds.clear();
         this.positions.set(new Map());
         this.rows.set(null);
@@ -100,12 +102,13 @@ export class ContentCoverDataService {
         const repository = this.playbackPositions;
         if (!repository || !this.scope) return;
         const generation = this.watchGeneration;
-        const ids = [...new Set(playlistIds)].filter(
+        const represented = [...new Set(playlistIds)].filter(
             (id) =>
                 id &&
-                !this.requestedWatchIds.has(id) &&
                 (this.scope?.scope === 'all' || id === this.scope?.playlistId)
         );
+        represented.forEach((id) => this.representedWatchIds.add(id));
+        const ids = represented.filter((id) => !this.requestedWatchIds.has(id));
         ids.forEach((id) => this.requestedWatchIds.add(id));
         await Promise.all(
             ids.map(async (id) => {
@@ -130,9 +133,14 @@ export class ContentCoverDataService {
     async retry(): Promise<void> {
         const scope = this.scope;
         if (!scope || this.destroyRef.destroyed) return;
-        const playlistIds = [...this.requestedWatchIds];
+        const playlistIds = [...this.representedWatchIds];
+        const generation = this.generation + 1;
         await this.load(scope);
-        if (this.scope === scope && !this.destroyRef.destroyed)
+        if (
+            this.generation === generation &&
+            this.scope === scope &&
+            !this.destroyRef.destroyed
+        )
             await this.loadWatchPositions(playlistIds);
     }
 

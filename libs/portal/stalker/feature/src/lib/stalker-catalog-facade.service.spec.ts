@@ -317,6 +317,71 @@ describe('StalkerCatalogFacadeService', () => {
         });
     });
 
+    it.each([undefined, '', 'invalid'])(
+        'uses live episode progress after an update with timestamp %p',
+        async (updatedAt) => {
+            playbackPositions.getAllPlaybackPositions.mockResolvedValue([
+                {
+                    playlistId: playlist._id,
+                    contentType: 'episode',
+                    contentXtreamId: 12,
+                    seriesXtreamId: 7,
+                    positionSeconds: 100,
+                    durationSeconds: 100,
+                    updatedAt: '2020-01-01T12:00:00Z',
+                },
+            ]);
+            const service = TestBed.inject(StalkerCatalogFacadeService);
+            await service.initialize('5');
+            const update: PlaybackPositionData = {
+                playlistId: playlist._id,
+                contentType: 'episode',
+                contentXtreamId: 13,
+                seriesXtreamId: 7,
+                positionSeconds: 40,
+                durationSeconds: 100,
+                updatedAt,
+            };
+            const before = { ...update };
+
+            playbackUpdateHandler?.(update);
+
+            expect(
+                service.getItemProgress({ id: '7', series: ['12', '13'] })
+            ).toEqual({ progress: 40, watchState: 'in-progress' });
+            expect(update).toEqual(before);
+        }
+    );
+
+    it('preserves an explicit episode event timestamp when selecting recency', async () => {
+        playbackPositions.getAllPlaybackPositions.mockResolvedValue([
+            {
+                contentType: 'episode',
+                contentXtreamId: 12,
+                seriesXtreamId: 7,
+                positionSeconds: 80,
+                durationSeconds: 100,
+                updatedAt: '2020-01-02T12:00:00Z',
+            },
+        ]);
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        await service.initialize('5');
+
+        playbackUpdateHandler?.({
+            playlistId: playlist._id,
+            contentType: 'episode',
+            contentXtreamId: 13,
+            seriesXtreamId: 7,
+            positionSeconds: 40,
+            durationSeconds: 100,
+            updatedAt: '2020-01-01T12:00:00Z',
+        });
+
+        expect(
+            service.getItemProgress({ id: '7', series: ['12', '13'] })
+        ).toEqual({ progress: 80, watchState: 'in-progress' });
+    });
+
     it('ignores external playback updates for other playlists', async () => {
         TestBed.inject(StalkerCatalogFacadeService);
         await Promise.resolve();

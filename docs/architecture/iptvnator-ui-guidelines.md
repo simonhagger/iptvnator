@@ -340,7 +340,8 @@ Recent VOD menus offer favourite changes alongside history removal; favourites
 offer collection removal. Reuse the scoped favourite controller for membership,
 serialized writes and persisted readback. Failed reads omit the favourite action
 and offer Retry. Membership uses the complete persisted set, independently of
-display caps.
+display caps. Retry retains represented watch scopes even when their reads fail;
+request deduplication must not erase the scope that needs recovery.
 Native callers use the dedicated complete-membership read; the bounded display
 query retains its existing limit.
 Removing, clearing or reordering a Stalker item must preserve
@@ -353,6 +354,8 @@ tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
 Dashboard scopes include matched Trending and Recommendations cards, and changes
 to their matches refresh the scope. Catalogue-backed series progress matches
 the parent series ID; direct episode IDs are reserved for episode history.
+Runtime controllers timestamp missing or invalid episode event timestamps before
+comparing recency; pure selectors do not read the clock or mutate event payloads.
 Recent mapping preserves the provider's history content kind. Episode history
 uses that episode's scoped position and a separate parent-show favourite target;
 history removal and menu ownership retain the original row identity. Episode

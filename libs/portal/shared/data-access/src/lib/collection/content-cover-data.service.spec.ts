@@ -140,6 +140,96 @@ describe('ContentCoverDataService', () => {
         ).toBeUndefined();
     });
 
+    it.each([false, true])(
+        'retries every represented watch scope after favourite and watch failures; favourite retry fails=%s',
+        async (retryFails) => {
+            favorites.getFavoritesStrict.mockRejectedValueOnce(
+                new Error('private')
+            );
+            if (retryFails)
+                favorites.getFavoritesStrict.mockRejectedValueOnce(
+                    new Error('private')
+                );
+            else favorites.getFavoritesStrict.mockResolvedValueOnce([item]);
+            const saved: PlaybackPositionData = {
+                playlistId: 'a',
+                contentType: 'vod',
+                contentXtreamId: 7,
+                positionSeconds: 95,
+                durationSeconds: 100,
+            };
+            positions.getAllPlaybackPositions
+                .mockRejectedValueOnce(new Error('private'))
+                .mockImplementation(async (id: string) => [
+                    { ...saved, playlistId: id },
+                ]);
+            await service.load({ scope: 'all' });
+            await service.loadWatchPositions(['a', 'a', 'b']);
+            const context = {
+                provider: 'xtream',
+                playlistId: 'a',
+                contentType: 'vod',
+            } as const;
+            expect(
+                service.indicatorsForProvider(context, { stream_id: 7 })
+                    .watchState
+            ).toBeUndefined();
+            expect(service.favoriteFor(item)).toBeUndefined();
+            await service.retry();
+            expect(positions.getAllPlaybackPositions.mock.calls).toEqual([
+                ['a'],
+                ['b'],
+                ['a'],
+                ['b'],
+            ]);
+            expect(
+                service.indicatorsForProvider(context, { stream_id: 7 })
+            ).toMatchObject({ watchState: 'watched', progress: 95 });
+            expect(service.favoriteFor(item)).toBe(
+                retryFails ? undefined : true
+            );
+            expect(service.failed()).toBe(retryFails);
+        }
+    );
+
+    it('does not revive a superseded represented scope when an older same-scope retry finishes', async () => {
+        const all = { scope: 'all' } as const;
+        await service.load(all);
+        await service.loadWatchPositions(['a']);
+        const old = deferred<UnifiedCollectionItem[]>();
+        favorites.getFavoritesStrict.mockReturnValueOnce(old.promise);
+        const retry = service.retry();
+        await Promise.resolve();
+        await service.load(all);
+        await service.loadWatchPositions(['b']);
+        old.resolve([]);
+        await retry;
+        expect(positions.getAllPlaybackPositions.mock.calls).toEqual([
+            ['a'],
+            ['b'],
+        ]);
+        await service.retry();
+        expect(positions.getAllPlaybackPositions.mock.calls).toEqual([
+            ['a'],
+            ['b'],
+            ['b'],
+        ]);
+    });
+
+    it('does not retry represented watch reads after disposal', async () => {
+        await service.load(scope);
+        await service.loadWatchPositions(['a', 'foreign']);
+        const read = deferred<UnifiedCollectionItem[]>();
+        favorites.getFavoritesStrict.mockReturnValueOnce(read.promise);
+        const retry = service.retry();
+        await Promise.resolve();
+        TestBed.resetTestingModule();
+        read.resolve([]);
+        await retry;
+        expect(positions.getAllPlaybackPositions.mock.calls).toEqual([['a']]);
+        expect(service.favoriteFor(item)).toBeUndefined();
+    });
+
     it('retries a failed scoped favourite read and preserves known membership when a write fails', async () => {
         favorites.getFavorites.mockRejectedValueOnce(new Error('private'));
         await service.load(scope);

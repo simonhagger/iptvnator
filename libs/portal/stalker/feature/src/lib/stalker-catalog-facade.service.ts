@@ -428,11 +428,19 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         }
 
         const updated = new Map(this.stalkerSeriesPositions());
+        // MPV/VLC events may omit storage timestamps. Stamp at this effect
+        // boundary; the recency selector remains deterministic and clock-free.
+        const incoming = {
+            ...position,
+            updatedAt: Number.isFinite(Date.parse(position.updatedAt ?? ''))
+                ? position.updatedAt
+                : new Date().toISOString(),
+        };
         const positionsForSeries = [
             ...(updated.get(position.seriesXtreamId) ?? []).filter(
                 (item) => item.contentXtreamId !== position.contentXtreamId
             ),
-            position,
+            incoming,
         ];
         updated.set(position.seriesXtreamId, positionsForSeries);
         this.stalkerSeriesPositions.set(updated);
