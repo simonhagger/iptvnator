@@ -342,6 +342,11 @@ serialized writes and persisted readback. Failed reads omit the favourite action
 and offer Retry. Membership uses the complete persisted set, independently of
 display caps. Retry retains represented watch scopes even when their reads fail;
 request deduplication must not erase the scope that needs recovery.
+Recent collection Retry also rereads positions and resolves episode-parent
+actions through the shared history projection. Reconcile recovered cover fields
+onto current row identities and current favourite membership. Preserve removals,
+new rows and ordering; superseded retries, scope changes and disposal must not
+publish an older projection.
 Native callers use the dedicated complete-membership read; the bounded display
 query retains its existing limit.
 Removing, clearing or reordering a Stalker item must preserve

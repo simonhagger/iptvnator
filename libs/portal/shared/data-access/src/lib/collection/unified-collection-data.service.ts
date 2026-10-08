@@ -69,6 +69,8 @@ export class UnifiedCollectionDataService {
         this.request.asReadonly();
 
     private requestId = 0;
+    private retryId = 0;
+    private loadedMode: CollectionMode | null = null;
     constructor() {
         this.destroyRef.onDestroy(() => ++this.requestId);
     }
@@ -127,6 +129,7 @@ export class UnifiedCollectionDataService {
                 return null;
             }
             this.allItems.set(projected);
+            this.loadedMode = params.mode;
             this.request.set({
                 scope: params.scope,
                 playlistId: params.playlistId,
@@ -212,10 +215,48 @@ export class UnifiedCollectionDataService {
     }
 
     async retryFavorites(): Promise<void> {
+        if (
+            this.loadedMode !== 'recent' ||
+            this.isLoading() ||
+            this.isReloading()
+        )
+            return;
         const requestId = this.requestId;
+        const retryId = ++this.retryId;
+        const loadedRequest = this.loadedRequest();
+        const isCurrent = () =>
+            requestId === this.requestId &&
+            retryId === this.retryId &&
+            loadedRequest === this.loadedRequest() &&
+            !this.destroyRef.destroyed;
         await this.covers.retry();
-        if (requestId === this.requestId && !this.destroyRef.destroyed)
-            this.refreshCoverFavorites();
+        if (!isCurrent()) return;
+        const projected = await projectCollectionCovers(
+            this.allItems(),
+            this.covers.knownFavorites(),
+            this.playbackPositions,
+            'history'
+        );
+        if (!isCurrent()) return;
+        const byIdentity = new Map(
+            projected.map((item) => [collectionRowIdentity(item), item])
+        );
+        // Rows may have been removed, promoted or enriched while positions
+        // loaded. Refresh cover fields on remaining rows, preserving ownership.
+        this.allItems.update((items) =>
+            items.map((item) => {
+                const cover = byIdentity.get(collectionRowIdentity(item));
+                return cover
+                    ? {
+                          ...item,
+                          coverIndicators: cover.coverIndicators,
+                          coverFavoriteTarget: cover.coverFavoriteTarget,
+                          coverDetailTarget: cover.coverDetailTarget,
+                      }
+                    : item;
+            })
+        );
+        this.refreshCoverFavorites();
     }
 
     private refreshCoverFavorites(): void {

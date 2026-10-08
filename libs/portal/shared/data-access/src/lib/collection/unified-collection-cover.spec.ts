@@ -29,6 +29,53 @@ const scope = {
     playlistId: 'portal',
     portalType: 'stalker',
 } as const;
+const episodeHistory: UnifiedCollectionItem = {
+    ...series,
+    sourceType: 'xtream',
+    xtreamId: 909,
+    contentId: 22,
+    uid: 'xtream::portal::series:909',
+    historyContentType: 'episode',
+};
+const parentShow: UnifiedCollectionItem = {
+    ...episodeHistory,
+    xtreamId: 900,
+    contentId: 99,
+    historyContentType: 'series',
+};
+const episodePosition: PlaybackPositionData = {
+    playlistId: 'portal',
+    contentType: 'episode',
+    contentXtreamId: 909,
+    seriesXtreamId: 900,
+    seasonNumber: 1,
+    episodeNumber: 2,
+    positionSeconds: 40,
+    durationSeconds: 100,
+};
+const watchRepository = () =>
+    TestBed.inject(PORTAL_PLAYBACK_POSITIONS) as unknown as {
+        getAllPlaybackPositions: jest.Mock;
+    };
+const deferredPositions = () => {
+    let resolve!: (rows: PlaybackPositionData[]) => void;
+    const promise = new Promise<PlaybackPositionData[]>((done) => {
+        resolve = done;
+    });
+    return { promise, resolve };
+};
+async function waitForPositionReads(count: number): Promise<void> {
+    for (
+        let tick = 0;
+        tick < 30 &&
+        watchRepository().getAllPlaybackPositions.mock.calls.length < count;
+        tick++
+    )
+        await Promise.resolve();
+    expect(watchRepository().getAllPlaybackPositions).toHaveBeenCalledTimes(
+        count
+    );
+}
 
 describe('unified collection VOD cover actions', () => {
     let data: UnifiedCollectionDataService;
@@ -373,5 +420,187 @@ describe('unified collection VOD cover actions', () => {
             progress: 60,
             watchState: 'in-progress',
         });
+    });
+
+    it('recovers episode parent actions and progress when Retry follows failed favourite and watch reads', async () => {
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        persisted = [parentShow];
+        favorites.getFavoritesStrict.mockRejectedValueOnce(
+            new Error('private')
+        );
+        const positions = watchRepository();
+        positions.getAllPlaybackPositions
+            .mockRejectedValueOnce(new Error('private'))
+            .mockResolvedValue([episodePosition]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.allItems()[0].coverDetailTarget).toBeNull();
+        expect(data.allItems()[0].coverFavoriteTarget).toBeNull();
+        expect(data.allItems()[0].coverIndicators?.favorite).toBeUndefined();
+        await data.retryFavorites();
+        expect(positions.getAllPlaybackPositions).toHaveBeenCalledTimes(2);
+        expect(data.allItems()[0].coverDetailTarget?.item.xtreamId).toBe(900);
+        expect(data.allItems()[0].coverFavoriteTarget?.xtreamId).toBe(900);
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            favorite: true,
+            progress: 40,
+            watchState: 'in-progress',
+        });
+        expect(data.allItems()[0]).toMatchObject({
+            uid: episodeHistory.uid,
+            xtreamId: 909,
+            contentId: 22,
+        });
+        expect(data.favoriteFailed()).toBe(false);
+        expect(recent.getRecentItems).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps episode parent actions unknown while repeated Retry reads still fail', async () => {
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        favorites.getFavoritesStrict.mockRejectedValue(new Error('private'));
+        watchRepository().getAllPlaybackPositions.mockRejectedValue(
+            new Error('private')
+        );
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        await data.retryFavorites();
+        expect(data.allItems()[0].coverDetailTarget).toBeNull();
+        expect(data.allItems()[0].coverFavoriteTarget).toBeNull();
+        expect(data.allItems()[0].coverIndicators?.favorite).toBeUndefined();
+        expect(data.favoriteFailed()).toBe(true);
+        expect(watchRepository().getAllPlaybackPositions).toHaveBeenCalledTimes(
+            2
+        );
+    });
+
+    it('does not resurrect removed history or overwrite promoted/new rows during Retry projection', async () => {
+        const show = { ...series, uid: 'stalker::portal::show7' };
+        recent.getRecentItems.mockResolvedValue([movie, show]);
+        Object.assign(recent, {
+            removeRecentItem: jest.fn().mockResolvedValue(undefined),
+        });
+        await data.load({ ...scope, mode: 'recent' });
+        const delayed = deferredPositions();
+        watchRepository().getAllPlaybackPositions.mockReturnValueOnce(
+            delayed.promise
+        );
+        const retry = data.retryFavorites();
+        await waitForPositionReads(2);
+        await data.removeItem('recent', data.allItems()[0]);
+        data.promoteRecentItem({
+            ...show,
+            name: 'Enriched show',
+            viewedAt: '2026-10-08T12:00:00Z',
+        });
+        data.promoteRecentItem({
+            ...movie,
+            uid: 'stalker::portal::9',
+            stalkerId: '9',
+            name: 'New film',
+            viewedAt: '2026-10-08T13:00:00Z',
+        });
+        delayed.resolve([episodePosition]);
+        await retry;
+        expect(data.allItems().map((item) => item.name)).toEqual([
+            'New film',
+            'Enriched show',
+        ]);
+        expect(data.allItems().some((item) => item.uid === movie.uid)).toBe(
+            false
+        );
+    });
+
+    it('publishes the latest same-scope Retry and preserves membership changed during watch reads', async () => {
+        recent.getRecentItems.mockResolvedValue([movie]);
+        persisted = [];
+        await data.load({ ...scope, mode: 'recent' });
+        const old = deferredPositions();
+        const current = deferredPositions();
+        watchRepository()
+            .getAllPlaybackPositions.mockReturnValueOnce(old.promise)
+            .mockReturnValueOnce(current.promise);
+        const older = data.retryFavorites();
+        await waitForPositionReads(2);
+        const newer = data.retryFavorites();
+        await waitForPositionReads(3);
+        await data.toggleFavorite(data.allItems()[0]);
+        current.resolve([
+            {
+                ...episodePosition,
+                contentType: 'vod',
+                contentXtreamId: 7,
+                positionSeconds: 95,
+            },
+        ]);
+        await newer;
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            favorite: true,
+            progress: 95,
+        });
+        old.resolve([]);
+        await older;
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            favorite: true,
+            progress: 95,
+        });
+    });
+
+    it.each(['scope', 'disposal'] as const)(
+        'does not publish Retry watch projection after %s supersession',
+        async (kind) => {
+            recent.getRecentItems.mockResolvedValue([episodeHistory]);
+            watchRepository().getAllPlaybackPositions.mockResolvedValue([
+                episodePosition,
+            ]);
+            await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+            const initial = data.allItems();
+            const delayed = deferredPositions();
+            watchRepository().getAllPlaybackPositions.mockReturnValueOnce(
+                delayed.promise
+            );
+            const retry = data.retryFavorites();
+            await waitForPositionReads(2);
+            if (kind === 'scope') {
+                recent.getRecentItems.mockResolvedValue([
+                    { ...movie, playlistId: 'newer' },
+                ]);
+                await data.load({
+                    ...scope,
+                    playlistId: 'newer',
+                    mode: 'recent',
+                });
+            } else TestBed.resetTestingModule();
+            delayed.resolve([]);
+            await retry;
+            if (kind === 'scope')
+                expect(data.allItems().map((item) => item.playlistId)).toEqual([
+                    'newer',
+                ]);
+            else expect(data.allItems()).toBe(initial);
+        }
+    );
+
+    it('does not retry the old mounted scope while a replacement dataset is loading', async () => {
+        await data.load({ ...scope, mode: 'recent' });
+        let resolve!: (items: UnifiedCollectionItem[]) => void;
+        recent.getRecentItems.mockReturnValueOnce(
+            new Promise<UnifiedCollectionItem[]>((done) => {
+                resolve = done;
+            })
+        );
+        const replacement = data.load({
+            ...scope,
+            playlistId: 'newer',
+            mode: 'recent',
+        });
+        const favoriteReads = favorites.getFavoritesStrict.mock.calls.length;
+        await data.retryFavorites();
+        expect(favorites.getFavoritesStrict).toHaveBeenCalledTimes(
+            favoriteReads
+        );
+        expect(watchRepository().getAllPlaybackPositions).toHaveBeenCalledTimes(
+            1
+        );
+        resolve([{ ...movie, playlistId: 'newer' }]);
+        await replacement;
+        expect(data.allItems()[0].playlistId).toBe('newer');
     });
 });
