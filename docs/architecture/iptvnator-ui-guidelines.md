@@ -347,6 +347,10 @@ actions through the shared history projection. Reconcile recovered cover fields
 onto current row identities and current favourite membership. Preserve removals,
 new rows and ordering; superseded retries, scope changes and disposal must not
 publish an older projection.
+Position-read failures are explicit projection results, distinct from successful
+empty reads. Collections retain Retry while either membership or progress reads
+fail, and progress failures use their own translated message. Favourites Retry
+also recovers progress without replacing or reordering the mounted favourite rows.
 Native callers use the dedicated complete-membership read; the bounded display
 query retains its existing limit.
 Removing, clearing or reordering a Stalker item must preserve

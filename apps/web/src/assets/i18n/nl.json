@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "De kijkvoortgang kon niet worden geladen. Probeer het opnieuw.",
         "MORE_ACTIONS": "Meer acties voor {{title}}",
         "DETAILS": "Details openen",
         "FAVORITE": "Favoriet",

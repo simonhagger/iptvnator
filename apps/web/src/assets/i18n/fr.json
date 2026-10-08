@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "Impossible de charger la progression du visionnage. Veuillez réessayer.",
         "MORE_ACTIONS": "Autres actions pour {{title}}",
         "DETAILS": "Ouvrir les détails",
         "FAVORITE": "Favori",

@@ -3,7 +3,10 @@ import {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-import { projectCollectionCovers } from './collection-cover-projection';
+import {
+    loadCollectionCoverProjection,
+    projectCollectionCovers,
+} from './collection-cover-projection';
 
 const movie: UnifiedCollectionItem = {
     uid: 'xtream::a::movie:7',
@@ -26,6 +29,58 @@ const repository = (getAllPlaybackPositions: jest.Mock) =>
     ({ getAllPlaybackPositions }) as unknown as PortalPlaybackPositions;
 
 describe('collection cover projection', () => {
+    it('reports only rejected represented playlist reads while preserving immutable inputs', async () => {
+        const items = Object.freeze([
+            Object.freeze(movie),
+            Object.freeze({ ...movie, xtreamId: 8 }),
+            Object.freeze({ ...movie, playlistId: 'b' }),
+            Object.freeze({
+                ...movie,
+                contentType: 'live' as const,
+                playlistId: 'c',
+            }),
+        ]);
+        const read = jest.fn(async (id: string) => {
+            if (id === 'a') throw new Error('private');
+            return [];
+        });
+        const snapshot = await loadCollectionCoverProjection(
+            items,
+            [movie],
+            repository(read)
+        );
+        expect(read.mock.calls).toEqual([['a'], ['b']]);
+        expect(snapshot.failedWatchPlaylistIds).toEqual(['a']);
+        expect(snapshot.items[0].coverIndicators).toMatchObject({
+            favorite: true,
+        });
+        expect(snapshot.items[0].coverIndicators?.watchState).toBeUndefined();
+        expect(snapshot.items[2].coverIndicators?.watchState).toBe('unwatched');
+        expect(items[0].coverIndicators).toBeUndefined();
+    });
+
+    it('does not label known-empty positions, an absent repository or no represented VOD as failure', async () => {
+        const read = jest.fn().mockResolvedValue([]);
+        const empty = await loadCollectionCoverProjection(
+            [movie],
+            [],
+            repository(read)
+        );
+        expect(empty.failedWatchPlaylistIds).toEqual([]);
+        expect(empty.items[0].coverIndicators?.watchState).toBe('unwatched');
+        const absent = await loadCollectionCoverProjection([movie], [], null);
+        expect(absent.failedWatchPlaylistIds).toEqual([]);
+        expect(absent.items[0].coverIndicators?.watchState).toBeUndefined();
+        const live = { ...movie, contentType: 'live' as const };
+        expect(
+            await loadCollectionCoverProjection([live], [], repository(read))
+        ).toEqual({
+            items: [live],
+            failedWatchPlaylistIds: [],
+        });
+        expect(read).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps episode history identity while presenting parent details and exact resume data', async () => {
         const episode = {
             ...movie,

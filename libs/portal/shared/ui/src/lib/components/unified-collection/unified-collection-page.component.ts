@@ -127,7 +127,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
 
     readonly isLoading = this.data.isLoading;
     readonly pendingFavoriteKeys = this.data.pendingFavoriteKeys;
-    readonly favoriteFailed = this.data.favoriteFailed;
+    readonly watchReadFailed = this.data.watchReadFailed;
+    readonly coverReadFailed = this.data.coverReadFailed;
     readonly isReloading = this.data.isReloading;
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;

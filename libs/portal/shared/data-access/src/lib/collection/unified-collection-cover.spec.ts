@@ -59,10 +59,12 @@ const watchRepository = () =>
     };
 const deferredPositions = () => {
     let resolve!: (rows: PlaybackPositionData[]) => void;
-    const promise = new Promise<PlaybackPositionData[]>((done) => {
+    let reject!: (error: Error) => void;
+    const promise = new Promise<PlaybackPositionData[]>((done, fail) => {
         resolve = done;
+        reject = fail;
     });
-    return { promise, resolve };
+    return { promise, resolve, reject };
 };
 async function waitForPositionReads(count: number): Promise<void> {
     for (
@@ -132,6 +134,146 @@ describe('unified collection VOD cover actions', () => {
             ],
         });
         data = TestBed.inject(UnifiedCollectionDataService);
+    });
+
+    it('recovers failed watch reads in Favorites without losing persisted favorite membership', async () => {
+        favorites.getFavoritesStrict = jest.fn(async () => [...persisted]);
+        const positions = watchRepository();
+        positions.getAllPlaybackPositions.mockRejectedValueOnce(
+            new Error('private')
+        );
+        await data.load({ ...scope, mode: 'favorites' });
+        expect(data.allItems()[0].coverIndicators?.favorite).toBe(true);
+        expect(data.allItems()[0].coverIndicators?.watchState).toBeUndefined();
+        expect(data.favoriteFailed()).toBe(false);
+        expect(data.watchReadFailed()).toBe(true);
+        expect(data.coverReadFailed()).toBe(true);
+        await data.retryFavorites();
+        expect(positions.getAllPlaybackPositions).toHaveBeenCalledTimes(2);
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            favorite: true,
+            progress: 60,
+            watchState: 'in-progress',
+        });
+        expect(favorites.getFavoritesStrict).not.toHaveBeenCalled();
+        expect(favorites.getFavorites).toHaveBeenCalledTimes(1);
+        expect(data.watchReadFailed()).toBe(false);
+        expect(data.coverReadFailed()).toBe(false);
+    });
+
+    it('keeps watch-only recovery available through repeated failures and restores episode targets on success', async () => {
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        persisted = [parentShow];
+        watchRepository()
+            .getAllPlaybackPositions.mockRejectedValueOnce(new Error('private'))
+            .mockRejectedValueOnce(new Error('private'))
+            .mockResolvedValue([episodePosition]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.favoriteFailed()).toBe(false);
+        expect(data.coverReadFailed()).toBe(true);
+        await data.retryFavorites();
+        expect(data.favoriteFailed()).toBe(false);
+        expect(data.watchReadFailed()).toBe(true);
+        expect(data.coverReadFailed()).toBe(true);
+        expect(data.allItems()[0].coverDetailTarget).toBeNull();
+        await data.retryFavorites();
+        expect(data.coverReadFailed()).toBe(false);
+        expect(data.allItems()[0].coverDetailTarget?.item.xtreamId).toBe(900);
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            favorite: true,
+            progress: 40,
+        });
+        expect(watchRepository().getAllPlaybackPositions).toHaveBeenCalledTimes(
+            3
+        );
+    });
+
+    it('does not confuse an unresolved parent in known-empty positions with a read failure', async () => {
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        watchRepository().getAllPlaybackPositions.mockResolvedValue([]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.allItems()[0].coverDetailTarget).toBeNull();
+        expect(data.watchReadFailed()).toBe(false);
+        expect(data.coverReadFailed()).toBe(false);
+    });
+
+    it('keeps Retry available when membership recovers but watch storage still rejects', async () => {
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        favorites.getFavoritesStrict.mockRejectedValueOnce(
+            new Error('private')
+        );
+        watchRepository().getAllPlaybackPositions.mockRejectedValue(
+            new Error('private')
+        );
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.favoriteFailed()).toBe(true);
+        await data.retryFavorites();
+        expect(data.favoriteFailed()).toBe(false);
+        expect(data.watchReadFailed()).toBe(true);
+        expect(data.coverReadFailed()).toBe(true);
+        expect(data.allItems()[0].coverDetailTarget).toBeNull();
+    });
+
+    it('clears represented watch failure when the failed playlist rows are removed', async () => {
+        recent.getRecentItems.mockResolvedValue([movie]);
+        Object.assign(recent, {
+            removeRecentItem: jest.fn().mockResolvedValue(undefined),
+        });
+        watchRepository().getAllPlaybackPositions.mockRejectedValue(
+            new Error('private')
+        );
+        await data.load({ ...scope, mode: 'recent' });
+        expect(data.watchReadFailed()).toBe(true);
+        await data.removeItem('recent', data.allItems()[0]);
+        expect(data.watchReadFailed()).toBe(false);
+    });
+
+    it.each(['load', 'retry', 'disposal'] as const)(
+        'does not publish obsolete failed watch status after %s supersession',
+        async (kind) => {
+            const delayed = deferredPositions();
+            if (kind !== 'load') await data.load({ ...scope, mode: 'recent' });
+            watchRepository().getAllPlaybackPositions.mockReturnValueOnce(
+                delayed.promise
+            );
+            const pending =
+                kind === 'load'
+                    ? data.load({ ...scope, mode: 'recent' })
+                    : data.retryFavorites();
+            await waitForPositionReads(kind === 'load' ? 1 : 2);
+            if (kind === 'disposal') TestBed.resetTestingModule();
+            else {
+                recent.getRecentItems.mockResolvedValue([
+                    { ...movie, playlistId: 'newer' },
+                ]);
+                await data.load({
+                    ...scope,
+                    playlistId: 'newer',
+                    mode: 'recent',
+                });
+            }
+            delayed.reject(new Error('private'));
+            await pending;
+            expect(data.watchReadFailed()).toBe(false);
+            expect(data.coverReadFailed()).toBe(false);
+            if (kind !== 'disposal')
+                expect(data.allItems()[0].playlistId).toBe('newer');
+        }
+    );
+
+    it('ignores an older failed Retry after the latest same-scope watch read succeeds', async () => {
+        await data.load({ ...scope, mode: 'recent' });
+        const old = deferredPositions();
+        watchRepository().getAllPlaybackPositions.mockReturnValueOnce(
+            old.promise
+        );
+        const older = data.retryFavorites();
+        await waitForPositionReads(2);
+        await data.retryFavorites();
+        old.reject(new Error('private'));
+        await older;
+        expect(data.watchReadFailed()).toBe(false);
+        expect(data.allItems()[0].coverIndicators?.progress).toBe(60);
     });
 
     it('removes only the selected favourite kind in memory and persistence despite legacy UID collisions', async () => {

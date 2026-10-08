@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "無法載入觀看進度。請重試。",
         "MORE_ACTIONS": "{{title}}的更多操作",
         "DETAILS": "開啟詳細資料",
         "FAVORITE": "收藏",

@@ -9,13 +9,34 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
-/** At most one positions read per represented provider playlist, never per card. */
+export interface CollectionCoverProjectionSnapshot {
+    readonly items: UnifiedCollectionItem[];
+    readonly failedWatchPlaylistIds: readonly string[];
+}
+
 export async function projectCollectionCovers(
     items: readonly UnifiedCollectionItem[],
     favorites: readonly UnifiedCollectionItem[] | undefined,
     repository: PortalPlaybackPositions | null,
     lookupScope: 'catalog' | 'history' = 'catalog'
 ): Promise<UnifiedCollectionItem[]> {
+    return (
+        await loadCollectionCoverProjection(
+            items,
+            favorites,
+            repository,
+            lookupScope
+        )
+    ).items;
+}
+
+/** At most one positions read per represented provider playlist, never per card. */
+export async function loadCollectionCoverProjection(
+    items: readonly UnifiedCollectionItem[],
+    favorites: readonly UnifiedCollectionItem[] | undefined,
+    repository: PortalPlaybackPositions | null,
+    lookupScope: 'catalog' | 'history' = 'catalog'
+): Promise<CollectionCoverProjectionSnapshot> {
     const ids = [
         ...new Set(
             items
@@ -27,6 +48,7 @@ export async function projectCollectionCovers(
         ),
     ];
     const positions = new Map<string, PlaybackPositionData[]>();
+    const failed = new Set<string>();
     if (repository)
         await Promise.all(
             ids.map(async (playlistId) => {
@@ -36,7 +58,7 @@ export async function projectCollectionCovers(
                         await repository.getAllPlaybackPositions(playlistId)
                     );
                 } catch {
-                    /* Failed reads stay unknown, not unwatched. */
+                    failed.add(playlistId);
                 }
             })
         );
@@ -44,7 +66,7 @@ export async function projectCollectionCovers(
         favorites === undefined
             ? undefined
             : new Set(favorites.map(contentCoverIdentity));
-    return items.map((item) => {
+    const projected = items.map((item) => {
         if (item.contentType === 'live') return item;
         const itemPositions = positions.get(item.playlistId);
         const favoriteTarget =
@@ -77,6 +99,10 @@ export async function projectCollectionCovers(
             ),
         };
     });
+    return {
+        items: projected,
+        failedWatchPlaylistIds: ids.filter((id) => failed.has(id)),
+    };
 }
 
 /** A history episode owns navigation/removal; only its parent owns favourites. */

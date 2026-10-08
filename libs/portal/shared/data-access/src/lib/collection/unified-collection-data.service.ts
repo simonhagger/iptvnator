@@ -1,4 +1,11 @@
-import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    Signal,
+    signal,
+} from '@angular/core';
 import {
     CollectionContentType,
     CollectionScope,
@@ -7,7 +14,7 @@ import {
     contentCoverIdentity,
     collectionRowIdentity,
 } from '@iptvnator/portal/shared/util';
-import { projectCollectionCovers } from './collection-cover-projection';
+import { loadCollectionCoverProjection } from './collection-cover-projection';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
@@ -35,6 +42,18 @@ export class UnifiedCollectionDataService {
     private readonly covers = inject(ContentCoverDataService);
     readonly pendingFavoriteKeys = this.covers.pendingFavoriteKeys;
     readonly favoriteFailed = this.covers.failed;
+    private readonly failedWatchPlaylistIds = signal<readonly string[]>([]);
+    readonly watchReadFailed = computed(() =>
+        this.allItems().some(
+            (item) =>
+                item.contentType !== 'live' &&
+                item.sourceType !== 'm3u' &&
+                this.failedWatchPlaylistIds().includes(item.playlistId)
+        )
+    );
+    readonly coverReadFailed = computed(
+        () => this.favoriteFailed() || this.watchReadFailed()
+    );
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS, {
         optional: true,
     });
@@ -117,18 +136,19 @@ export class UnifiedCollectionDataService {
                     : hasVod
                       ? this.covers.knownFavorites()
                       : await this.loadFavoriteItems(params);
-            const projected = hasVod
-                ? await projectCollectionCovers(
+            const projection = hasVod
+                ? await loadCollectionCoverProjection(
                       items,
                       favorites,
                       this.playbackPositions,
                       params.mode === 'recent' ? 'history' : 'catalog'
                   )
-                : items;
+                : { items, failedWatchPlaylistIds: [] };
             if (requestId !== this.requestId) {
                 return null;
             }
-            this.allItems.set(projected);
+            this.allItems.set(projection.items);
+            this.failedWatchPlaylistIds.set(projection.failedWatchPlaylistIds);
             this.loadedMode = params.mode;
             this.request.set({
                 scope: params.scope,
@@ -148,6 +168,7 @@ export class UnifiedCollectionDataService {
                 return null;
             }
             this.allItems.set([]);
+            this.failedWatchPlaylistIds.set([]);
             return null;
         } finally {
             if (requestId === this.requestId) {
@@ -215,31 +236,29 @@ export class UnifiedCollectionDataService {
     }
 
     async retryFavorites(): Promise<void> {
-        if (
-            this.loadedMode !== 'recent' ||
-            this.isLoading() ||
-            this.isReloading()
-        )
+        if (this.loadedMode === null || this.isLoading() || this.isReloading())
             return;
         const requestId = this.requestId;
         const retryId = ++this.retryId;
         const loadedRequest = this.loadedRequest();
+        const mode = this.loadedMode;
         const isCurrent = () =>
             requestId === this.requestId &&
             retryId === this.retryId &&
             loadedRequest === this.loadedRequest() &&
             !this.destroyRef.destroyed;
-        await this.covers.retry();
+        if (mode === 'recent') await this.covers.retry();
         if (!isCurrent()) return;
-        const projected = await projectCollectionCovers(
-            this.allItems(),
-            this.covers.knownFavorites(),
+        const items = this.allItems();
+        const projection = await loadCollectionCoverProjection(
+            items,
+            mode === 'recent' ? this.covers.knownFavorites() : items,
             this.playbackPositions,
-            'history'
+            mode === 'recent' ? 'history' : 'catalog'
         );
         if (!isCurrent()) return;
         const byIdentity = new Map(
-            projected.map((item) => [collectionRowIdentity(item), item])
+            projection.items.map((item) => [collectionRowIdentity(item), item])
         );
         // Rows may have been removed, promoted or enriched while positions
         // loaded. Refresh cover fields on remaining rows, preserving ownership.
@@ -256,7 +275,8 @@ export class UnifiedCollectionDataService {
                     : item;
             })
         );
-        this.refreshCoverFavorites();
+        this.failedWatchPlaylistIds.set(projection.failedWatchPlaylistIds);
+        if (mode === 'recent') this.refreshCoverFavorites();
     }
 
     private refreshCoverFavorites(): void {

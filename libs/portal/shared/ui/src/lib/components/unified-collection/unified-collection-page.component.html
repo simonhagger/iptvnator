@@ -45,9 +45,14 @@
         </div>
     }
 } @else {
-    @if (favoriteFailed()) {
+    @if (coverReadFailed()) {
         <p role="alert">
-            {{ 'COVER.FAVORITES_FAILED' | translate }}
+            {{
+                (watchReadFailed()
+                    ? 'COVER.PROGRESS_FAILED'
+                    : 'COVER.FAVORITES_FAILED'
+                ) | translate
+            }}
             <button mat-button type="button" (click)="retryFavorites()">
                 {{ 'RETRY' | translate }}
             </button>

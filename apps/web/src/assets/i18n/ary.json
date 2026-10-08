@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "ما قدرناش نحمّلو تقدّم المشاهدة. عاود حاول.",
         "MORE_ACTIONS": "إجراءات أخرى لـ {{title}}",
         "DETAILS": "حلّ التفاصيل",
         "FAVORITE": "مفضّل",

@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "Could not load viewing progress. Please try again.",
         "MORE_ACTIONS": "More actions for {{title}}",
         "DETAILS": "Open details",
         "FAVORITE": "Favorite",

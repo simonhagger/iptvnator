@@ -1,5 +1,6 @@
 {
     "COVER": {
+        "PROGRESS_FAILED": "No se pudo cargar el progreso de visualización. Inténtalo de nuevo.",
         "MORE_ACTIONS": "Más acciones para {{title}}",
         "DETAILS": "Abrir detalles",
         "FAVORITE": "Favorito",
