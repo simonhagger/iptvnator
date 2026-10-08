@@ -28,6 +28,7 @@ import {
     buildXtreamCollectionUid,
     CollectionScope,
     UnifiedCollectionItem,
+    resolveXtreamRecentHistoryType,
     xtreamContentType,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -42,10 +43,6 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
 /** Episodes keep their history identity but use the series cover treatment. */
 function recentContentType(type: string) {
     return xtreamContentType(type === 'episode' ? 'series' : type);
-}
-
-function historyContentType(type: string): 'episode' | 'series' | undefined {
-    return type === 'episode' || type === 'series' ? type : undefined;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -390,7 +387,7 @@ export class UnifiedRecentDataService {
                 ),
                 name: row.title,
                 contentType: recentContentType(row.type),
-                historyContentType: historyContentType(row.type),
+                historyContentType: resolveXtreamRecentHistoryType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId: row.playlist_id,
                 playlistName: row.playlist_name ?? 'Xtream',
@@ -433,7 +430,7 @@ export class UnifiedRecentDataService {
                 ),
                 name: row.title,
                 contentType: recentContentType(row.type),
-                historyContentType: historyContentType(row.type),
+                historyContentType: resolveXtreamRecentHistoryType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
@@ -494,7 +491,7 @@ export class UnifiedRecentDataService {
             ),
             name: item.title,
             contentType,
-            historyContentType: historyContentType(item.type),
+            historyContentType: resolveXtreamRecentHistoryType(item.type),
             sourceType: 'xtream',
             playlistId,
             playlistName: playlistName ?? item.playlist_name ?? 'Xtream',

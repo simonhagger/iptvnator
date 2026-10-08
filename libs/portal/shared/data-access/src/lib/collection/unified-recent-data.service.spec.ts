@@ -8,7 +8,11 @@ import {
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    PortalPlaybackPositions,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
+import { projectCollectionCovers } from './collection-cover-projection';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
 
@@ -355,6 +359,118 @@ describe('UnifiedRecentDataService', () => {
                 contentId: 22,
                 uid: 'xtream::xtream-1::series:909',
             });
+        }
+    );
+
+    it.each(['all', 'playlist', 'pwa'] as const)(
+        'retains ambiguous legacy series ownership through the %s Recent mapping and projection',
+        async (scope) => {
+            const row = {
+                id: 22,
+                xtream_id: 909,
+                title: 'Legacy Episode History',
+                type: 'series',
+                playlist_id: 'xtream-1',
+                category_id: '4',
+                added: '1700000000',
+                poster_url: '',
+                viewed_at: '2026-04-21T20:42:27.000Z',
+            };
+            const explicitEpisode = { ...row, id: 23, type: 'episode' };
+            dbService.getGlobalRecentlyViewed.mockResolvedValue([
+                row,
+                explicitEpisode,
+            ]);
+            dbService.getRecentItems.mockResolvedValue([row, explicitEpisode]);
+            xtreamDataSource.getRecentItems.mockResolvedValue([
+                row,
+                explicitEpisode,
+            ]);
+            if (scope === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            const items = (
+                await service.getRecentItems(
+                    scope === 'pwa' ? 'playlist' : scope,
+                    'xtream-1',
+                    'xtream'
+                )
+            ).filter((item) => item.sourceType === 'xtream');
+            const legacy = items.find((item) => item.contentId === 22);
+            const episode = items.find((item) => item.contentId === 23);
+            if (!legacy || !episode)
+                throw new Error('Expected both raw history rows');
+            expect(legacy.historyContentType).toBeUndefined();
+            expect(episode.historyContentType).toBe('episode');
+            const saved = {
+                playlistId: 'xtream-1',
+                contentType: 'episode' as const,
+                contentXtreamId: 909,
+                seriesXtreamId: 900,
+                positionSeconds: 40,
+                durationSeconds: 100,
+                updatedAt: '2026-10-08T10:00:00Z',
+            };
+            const read = jest.fn().mockResolvedValue([saved]);
+            const repository = {
+                getAllPlaybackPositions: read,
+            } as unknown as PortalPlaybackPositions;
+            const parent = { ...legacy, xtreamId: 900, contentId: undefined };
+            const [direct] = await projectCollectionCovers(
+                [legacy],
+                [parent],
+                repository,
+                'history'
+            );
+            expect(direct.coverFavoriteTarget?.xtreamId).toBe(900);
+            expect(direct.coverDetailTarget?.item.xtreamId).toBe(900);
+            expect(direct.coverIndicators).toMatchObject({
+                favorite: true,
+                watchState: 'in-progress',
+                progress: 40,
+            });
+            expect(direct).toMatchObject({
+                uid: legacy.uid,
+                xtreamId: 909,
+                contentId: 22,
+            });
+            // When a real parent shares ID909, parent ownership wins for the
+            // ambiguous row, while the explicit episode still belongs to900.
+            read.mockResolvedValue([
+                saved,
+                {
+                    ...saved,
+                    contentXtreamId: 42,
+                    seriesXtreamId: 909,
+                    positionSeconds: 70,
+                    updatedAt: '2026-10-08T11:00:00Z',
+                },
+            ]);
+            const projected = await projectCollectionCovers(
+                [legacy, episode],
+                [parent],
+                repository,
+                'history'
+            );
+            expect(projected[0].coverFavoriteTarget).toBeUndefined();
+            expect(projected[0].coverDetailTarget?.item.xtreamId).toBe(909);
+            expect(projected[0].coverIndicators).toMatchObject({
+                favorite: false,
+                progress: 70,
+            });
+            expect(projected[1].coverFavoriteTarget?.xtreamId).toBe(900);
+            expect(projected[1].coverIndicators).toMatchObject({
+                favorite: true,
+                progress: 40,
+            });
+            await service.removeRecentItem(direct);
+            expect(
+                scope === 'pwa'
+                    ? xtreamDataSource.removeRecentItem
+                    : dbService.removeRecentItem
+            ).toHaveBeenCalledWith(22, 'xtream-1');
         }
     );
 

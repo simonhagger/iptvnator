@@ -19,7 +19,10 @@ import {
     isStalkerSeriesItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
-import { normalizeContentCoverRating } from '@iptvnator/portal/shared/util';
+import {
+    normalizeContentCoverRating,
+    resolveXtreamRecentHistoryType,
+} from '@iptvnator/portal/shared/util';
 import type { DashboardCoverMetadata } from './dashboard-cover-indicators.util';
 
 // ────── Type / label helpers ──────
@@ -88,8 +91,7 @@ export function mapDbRecentToItem(
             item.type === 'episode'
                 ? 'series'
                 : normalizeActivityType(item.type),
-        // Legacy series rows can name either a show or a directly played episode.
-        historyContentType: item.type === 'episode' ? 'episode' : undefined,
+        historyContentType: resolveXtreamRecentHistoryType(item.type),
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         viewed_at: normalizeStalkerDate(item.viewed_at),

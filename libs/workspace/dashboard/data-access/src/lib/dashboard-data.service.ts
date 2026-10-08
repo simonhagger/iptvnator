@@ -51,6 +51,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
     resolveProviderCoverRating,
+    resolveXtreamRecentHistoryType,
 } from '@iptvnator/portal/shared/util';
 import {
     DashboardCoverMetadata,
@@ -752,7 +753,7 @@ export class DashboardDataService {
                 item.type === 'episode'
                     ? 'series'
                     : this.normalizeXtreamActivityType(item.type),
-            historyContentType: item.type === 'episode' ? 'episode' : undefined,
+            historyContentType: resolveXtreamRecentHistoryType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
             viewed_at: item.viewed_at ?? '',
