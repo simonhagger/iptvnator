@@ -3,6 +3,7 @@ import {
     input,
     output,
     signal,
+    computed,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
@@ -113,9 +114,21 @@ describe('CategoryContentViewComponent', () => {
         refreshSnapshotSelection: jest.fn(),
         getItemProgress: jest.fn().mockReturnValue({}),
     };
+    const favoriteReadFailed = signal(false);
+    const watchReadFailed = signal(false);
     const covers = {
         load: jest.fn().mockResolvedValue(undefined),
-        failed: signal(false),
+        failed: favoriteReadFailed,
+        watchReadFailed,
+        coverReadFailed: computed(
+            () => favoriteReadFailed() || watchReadFailed()
+        ),
+        failureMessageKey: computed(() =>
+            watchReadFailed()
+                ? 'COVER.PROGRESS_FAILED'
+                : 'COVER.FAVORITES_FAILED'
+        ),
+        retry: jest.fn().mockResolvedValue(undefined),
         actionsFor: jest.fn().mockReturnValue([]),
         favoriteFor: jest.fn().mockReturnValue(undefined),
         toggleFavorite: jest.fn().mockResolvedValue(undefined),
@@ -125,6 +138,9 @@ describe('CategoryContentViewComponent', () => {
         routeReady.set(true);
         covers.load.mockClear();
         covers.toggleFavorite.mockClear();
+        covers.retry.mockClear();
+        favoriteReadFailed.set(false);
+        watchReadFailed.set(false);
         playlist.set(null);
         window.history.replaceState({}, '', window.location.href);
         catalog.provider = 'xtream';
@@ -233,6 +249,38 @@ describe('CategoryContentViewComponent', () => {
 
     afterEach(() => {
         window.history.replaceState({}, '', window.location.href);
+    });
+
+    it.each([
+        ['progress', 'COVER.PROGRESS_FAILED'],
+        ['favourite', 'COVER.FAVORITES_FAILED'],
+    ])('renders a %s read error and delegates Retry', (kind, messageKey) => {
+        if (kind === 'progress') watchReadFailed.set(true);
+        else favoriteReadFailed.set(true);
+
+        fixture.detectChanges();
+
+        const element = fixture.nativeElement as HTMLElement;
+        expect(
+            element.querySelector('[role="alert"]')?.textContent?.trim()
+        ).toBe(messageKey);
+        if (kind === 'progress') expect(covers.failed()).toBe(false);
+        const retry = Array.from(element.querySelectorAll('button')).find(
+            (button) => button.textContent?.trim() === 'RETRY'
+        );
+        expect(retry).toBeDefined();
+        retry?.click();
+        expect(covers.retry).toHaveBeenCalledTimes(1);
+
+        watchReadFailed.set(false);
+        favoriteReadFailed.set(false);
+        fixture.detectChanges();
+        expect(element.querySelector('[role="alert"]')).toBeNull();
+        expect(
+            Array.from(element.querySelectorAll('button')).some(
+                (button) => button.textContent?.trim() === 'RETRY'
+            )
+        ).toBe(false);
     });
 
     it('shows loading copy in the subtitle instead of 0 items while xtream content is still warming up', () => {

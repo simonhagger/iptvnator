@@ -2,6 +2,7 @@ import {
     closeElectronApp,
     contentCardByTitle,
     expect,
+    fillWorkspaceSearch,
     launchElectronApp,
     openGlobalFavorites,
     openGlobalRecent,
@@ -9,8 +10,12 @@ import {
     test,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import {
+    expectCoverTypeClearOfControls,
+    openCoverMenu,
+} from './content-cover-consistency.fixture';
 
-for (const mode of ['favorites', 'recent'] as const) {
+for (const mode of ['favorites', 'recent', 'search'] as const) {
     test(`@cover @electron ${mode} recovers a failed progress read through visible Retry`, async ({
         dataDir,
     }) => {
@@ -104,8 +109,31 @@ for (const mode of ['favorites', 'recent'] as const) {
             });
             const page = app.mainWindow;
             if (mode === 'favorites') await openGlobalFavorites(page);
-            else await openGlobalRecent(page);
-            const collection = page.locator('app-unified-collection-page');
+            else if (mode === 'recent') await openGlobalRecent(page);
+            else {
+                await page
+                    .locator(
+                        'app-workspace-shell-rail a[href$="/workspace/search"]'
+                    )
+                    .click();
+                await page.waitForURL(/\/workspace\/search$/);
+                await fillWorkspaceSearch(page, 'Recovery');
+            }
+            const collection = page.locator(
+                mode === 'search'
+                    ? 'app-search-results'
+                    : 'app-unified-collection-page'
+            );
+            const failedReads = () =>
+                app.electronApp.evaluate(
+                    () =>
+                        (
+                            globalThis as typeof globalThis & {
+                                coverRecoveryFailedReads: number;
+                            }
+                        ).coverRecoveryFailedReads
+                );
+            await expect.poll(failedReads).toBeGreaterThan(0);
             const alert = collection.getByRole('alert');
             await expect(alert).toContainText(
                 'Could not load viewing progress'
@@ -123,20 +151,20 @@ for (const mode of ['favorites', 'recent'] as const) {
             await expect(
                 first.getByTestId('content-cover-progress')
             ).toHaveCount(0);
+            if (mode === 'search') {
+                await expectCoverTypeClearOfControls(first);
+                const trigger = await openCoverMenu(page, first);
+                await expect(
+                    page.getByTestId('content-cover-action-favorite')
+                ).toBeEnabled();
+                await page.keyboard.press('Escape');
+                await expect(trigger).toBeFocused();
+            }
             await page.screenshot({
                 path: test.info().outputPath('progress-read-failed.png'),
             });
-            const failedReads = () =>
-                app.electronApp.evaluate(
-                    () =>
-                        (
-                            globalThis as typeof globalThis & {
-                                coverRecoveryFailedReads: number;
-                            }
-                        ).coverRecoveryFailedReads
-                );
             const beforeRetry = await failedReads();
-            await alert
+            await collection
                 .getByRole('button', { name: 'Retry', exact: true })
                 .click();
             await expect.poll(failedReads).toBeGreaterThan(beforeRetry);
@@ -151,7 +179,7 @@ for (const mode of ['favorites', 'recent'] as const) {
                     () => positions
                 );
             }, positions);
-            await alert
+            await collection
                 .getByRole('button', { name: 'Retry', exact: true })
                 .click();
             await expect(alert).toHaveCount(0);
@@ -161,6 +189,7 @@ for (const mode of ['favorites', 'recent'] as const) {
             await expect(
                 first.getByTestId('content-cover-favorite')
             ).toBeVisible();
+            if (mode === 'search') await expectCoverTypeClearOfControls(first);
             expect(
                 await activations.evaluateAll((elements) =>
                     elements.map((element) =>

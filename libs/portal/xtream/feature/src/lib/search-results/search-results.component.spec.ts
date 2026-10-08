@@ -91,6 +91,9 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 {
                     provide: ContentCoverDataService,
                     useValue: {
+                        coverReadFailed: signal(false),
+                        failureMessageKey: () => 'COVER.FAVORITES_FAILED',
+                        retry: jest.fn().mockResolvedValue(undefined),
                         load: jest.fn().mockResolvedValue(undefined),
                         loadWatchPositions: jest
                             .fn()
@@ -144,6 +147,7 @@ describe('SearchResultsComponent initialQuery contract', () => {
         store.searchResults.set([
             createSearchItem({ playlist_id: 'source-a' }),
             createSearchItem({ playlist_id: 'source-b', type: 'series' }),
+            createSearchItem({ playlist_id: 'live-source', type: 'live' }),
         ]);
         TestBed.flushEffects();
         const covers = TestBed.inject(ContentCoverDataService);
@@ -152,6 +156,11 @@ describe('SearchResultsComponent initialQuery contract', () => {
             'source-b',
         ]);
         expect(covers.load).toHaveBeenCalledTimes(1);
+        store.searchResults.set([
+            createSearchItem({ playlist_id: 'live-source', type: 'live' }),
+        ]);
+        TestBed.flushEffects();
+        expect(covers.loadWatchPositions).toHaveBeenLastCalledWith([]);
     });
 
     it('applies initialQuery when opened as global search', () => {
@@ -531,6 +540,9 @@ describe('SearchResultsComponent in-portal result window', () => {
                 {
                     provide: ContentCoverDataService,
                     useValue: {
+                        coverReadFailed: signal(false),
+                        failureMessageKey: () => 'COVER.FAVORITES_FAILED',
+                        retry: jest.fn().mockResolvedValue(undefined),
                         load: jest.fn().mockResolvedValue(undefined),
                         loadWatchPositions: jest
                             .fn()

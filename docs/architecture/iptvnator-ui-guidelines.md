@@ -342,6 +342,13 @@ serialized writes and persisted readback. Failed reads omit the favourite action
 and offer Retry. Membership uses the complete persisted set, independently of
 display caps. Retry retains represented watch scopes even when their reads fail;
 request deduplication must not erase the scope that needs recovery.
+Provider cover controllers expose progress failures separately from favourite
+membership failures. Retry remains available while either read fails; a progress
+failure must not disable known favourite actions. Represented watch scopes name
+the current VOD results. Ignore removed or superseded requests, including a source
+removed and reintroduced before an older response completes.
+Mixed-content type labels must remain clear of status, rating and action overlays;
+verify their rendered bounds rather than relying on stylesheet source order.
 Recent collection Retry also rereads positions and resolves episode-parent
 actions through the shared history projection. Reconcile recovered cover fields
 onto current row identities and current favourite membership. Preserve removals,
@@ -376,6 +383,8 @@ to their matches refresh the scope. Catalogue-backed series progress matches
 the parent series ID; direct episode IDs are reserved for episode history.
 Runtime controllers timestamp missing or invalid episode event timestamps before
 comparing recency; pure selectors do not read the clock or mutate event payloads.
+Cover recency uses the shared date normalizer so SQLite UTC timestamps and ISO
+timestamps compare consistently across local timezones.
 Recent mapping preserves the provider's history content kind. Episode history
 uses that episode's scoped position and a separate parent-show favourite target;
 history removal and menu ownership retain the original row identity. Episode

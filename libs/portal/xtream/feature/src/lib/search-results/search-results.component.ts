@@ -293,6 +293,9 @@ export class SearchResultsComponent implements AfterViewInit {
         effect(() => {
             const ids = this.xtreamStore
                 .searchResults()
+                .filter((item) =>
+                    ['movie', 'vod', 'series'].includes(item.type)
+                )
                 .map((item) => this.coverContext(item)?.playlistId)
                 .filter((id): id is string => !!id);
             void this.covers.loadWatchPositions(ids);

@@ -34,6 +34,13 @@
 
         .type-badge {
             @include grid.type-badge;
+
+            // Keep mixed-search labels clear of shared status and action controls.
+            :host(.content-card--vod) & {
+                top: 42px;
+                right: 8px;
+                left: auto;
+            }
         }
     }
 
@@ -45,13 +52,6 @@
 .content-card:hover .cover-title-overlay,
 .content-card__activation:focus-visible .cover-title-overlay {
     opacity: 1;
-}
-
-// Keep the mixed-search type label clear of shared status markers and actions.
-:host(.content-card--vod) .type-badge {
-    top: 42px;
-    right: 8px;
-    left: auto;
 }
 
 .content-card:focus-within .cover-title-overlay {

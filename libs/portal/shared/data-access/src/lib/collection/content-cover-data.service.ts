@@ -38,8 +38,12 @@ export class ContentCoverDataService {
         ReadonlyMap<string, PlaybackPositionData[]>
     >(new Map());
     private watchGeneration = 0;
+    private watchRepresentation = 0;
     private readonly representedWatchIds = new Set<string>();
     private readonly requestedWatchIds = new Set<string>();
+    private readonly watchRequests = new Map<string, object>();
+    private readonly failedWatchIds = signal<ReadonlySet<string>>(new Set());
+    readonly watchReadFailed = computed(() => this.failedWatchIds().size > 0);
     private readonly rows = signal<ReadonlyMap<
         string,
         UnifiedCollectionItem
@@ -56,12 +60,21 @@ export class ContentCoverDataService {
     private scope: CoverFavoriteScope | null = null;
     private readonly failureState = signal(false);
     readonly failed = this.failureState.asReadonly();
+    readonly coverReadFailed = computed(
+        () => this.failed() || this.watchReadFailed()
+    );
+    readonly failureMessageKey = computed(() =>
+        this.watchReadFailed()
+            ? 'COVER.PROGRESS_FAILED'
+            : 'COVER.FAVORITES_FAILED'
+    );
 
     constructor() {
         this.destroyRef.onDestroy(() => {
             ++this.generation;
             ++this.watchGeneration;
             this.scope = null;
+            this.failedWatchIds.set(new Set());
         });
     }
 
@@ -69,8 +82,11 @@ export class ContentCoverDataService {
         const generation = ++this.generation;
         this.scope = scope;
         ++this.watchGeneration;
+        ++this.watchRepresentation;
         this.representedWatchIds.clear();
         this.requestedWatchIds.clear();
+        this.watchRequests.clear();
+        this.failedWatchIds.set(new Set());
         this.positions.set(new Map());
         this.rows.set(null);
         this.failureState.set(false);
@@ -102,29 +118,60 @@ export class ContentCoverDataService {
         const repository = this.playbackPositions;
         if (!repository || !this.scope) return;
         const generation = this.watchGeneration;
+        ++this.watchRepresentation;
         const represented = [...new Set(playlistIds)].filter(
             (id) =>
                 id &&
                 (this.scope?.scope === 'all' || id === this.scope?.playlistId)
         );
+        const removed = [...this.representedWatchIds].filter(
+            (id) => !represented.includes(id)
+        );
+        for (const id of removed) {
+            this.requestedWatchIds.delete(id);
+            this.watchRequests.delete(id);
+        }
+        if (removed.length)
+            this.positions.update(
+                (rows) =>
+                    new Map([...rows].filter(([id]) => !removed.includes(id)))
+            );
+        this.representedWatchIds.clear();
         represented.forEach((id) => this.representedWatchIds.add(id));
+        this.failedWatchIds.update(
+            (ids) => new Set([...ids].filter((id) => represented.includes(id)))
+        );
         const ids = represented.filter((id) => !this.requestedWatchIds.has(id));
         ids.forEach((id) => this.requestedWatchIds.add(id));
         await Promise.all(
             ids.map(async (id) => {
+                const request = {};
+                this.watchRequests.set(id, request);
+                const isCurrent = () =>
+                    generation === this.watchGeneration &&
+                    this.watchRequests.get(id) === request &&
+                    this.representedWatchIds.has(id) &&
+                    !this.destroyRef.destroyed;
                 try {
                     const rows = await repository.getAllPlaybackPositions(id);
-                    if (
-                        generation === this.watchGeneration &&
-                        !this.destroyRef.destroyed
-                    ) {
+                    if (isCurrent()) {
                         this.positions.update(
                             (current) => new Map([...current, [id, rows]])
                         );
+                        this.failedWatchIds.update(
+                            (ids) =>
+                                new Set(
+                                    [...ids].filter((failed) => failed !== id)
+                                )
+                        );
                     }
                 } catch {
-                    if (generation === this.watchGeneration)
+                    if (isCurrent()) {
                         this.requestedWatchIds.delete(id);
+                        this.failedWatchIds.update(
+                            (ids) => new Set([...ids, id])
+                        );
+                    }
                 }
             })
         );
@@ -135,9 +182,11 @@ export class ContentCoverDataService {
         if (!scope || this.destroyRef.destroyed) return;
         const playlistIds = [...this.representedWatchIds];
         const generation = this.generation + 1;
+        const representation = this.watchRepresentation + 1;
         await this.load(scope);
         if (
             this.generation === generation &&
+            this.watchRepresentation === representation &&
             this.scope === scope &&
             !this.destroyRef.destroyed
         )

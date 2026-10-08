@@ -140,6 +140,64 @@ describe('provider cover identity', () => {
 });
 
 describe('episode cover progress recency', () => {
+    it.each([
+        ['2026-10-01 12:00:00', '2026-10-01T13:00:00Z'],
+        ['2026-10-01T12:00:00Z', '2026-10-01 13:00:00'],
+        ['2026-10-01 12:00:00.7', '2026-10-01T14:00:00.800+02:00'],
+    ])(
+        'compares SQLite UTC and ISO episode timestamps (%s before %s)',
+        (earlierTimestamp, latestTimestamp) => {
+            const earlier = Object.freeze({
+                playlistId: 'a',
+                contentType: 'episode' as const,
+                contentXtreamId: 909,
+                seriesXtreamId: 900,
+                positionSeconds: 20,
+                durationSeconds: 100,
+                updatedAt: earlierTimestamp,
+            });
+            const latest = Object.freeze({
+                ...earlier,
+                positionSeconds: 40,
+                updatedAt: latestTimestamp,
+            });
+            const history: UnifiedCollectionItem = Object.freeze({
+                uid: 'xtream::a::series:909',
+                name: 'Recent episode',
+                contentType: 'series',
+                sourceType: 'xtream',
+                playlistId: 'a',
+                playlistName: 'Portal',
+                xtreamId: 909,
+                historyContentType: 'episode',
+            });
+            for (const positions of [
+                Object.freeze([earlier, latest]),
+                Object.freeze([latest, earlier]),
+            ]) {
+                expect(findLatestSeriesEpisodePosition(positions, 900)).toBe(
+                    latest
+                );
+                expect(
+                    resolveCollectionSeriesHistory(history, positions)
+                ).toEqual({
+                    seriesId: 900,
+                    position: latest,
+                });
+                expect(
+                    collectionCoverIndicators(
+                        history,
+                        positions,
+                        true,
+                        'history'
+                    ).progress
+                ).toBe(40);
+            }
+            expect(earlier.updatedAt).toBe(earlierTimestamp);
+            expect(latest.updatedAt).toBe(latestTimestamp);
+        }
+    );
+
     it('selects latest matching episode without treating completed episodes as the whole series', () => {
         const earlier = {
             contentType: 'episode' as const,

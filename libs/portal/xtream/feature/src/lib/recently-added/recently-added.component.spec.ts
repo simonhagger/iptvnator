@@ -65,6 +65,9 @@ describe('RecentlyAddedComponent', () => {
                 {
                     provide: ContentCoverDataService,
                     useValue: {
+                        coverReadFailed: signal(false),
+                        failureMessageKey: () => 'COVER.FAVORITES_FAILED',
+                        retry: jest.fn().mockResolvedValue(undefined),
                         load: jest.fn().mockResolvedValue(undefined),
                         loadWatchPositions: jest
                             .fn()

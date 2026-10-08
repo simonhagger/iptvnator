@@ -120,6 +120,37 @@ export function catalogCard(page: Page, title: string): Locator {
     });
 }
 
+/** Check rendered bounds so stylesheet specificity cannot hide a content label. */
+export async function expectCoverTypeClearOfControls(
+    card: Locator
+): Promise<void> {
+    const badge = card.locator('.type-badge');
+    await expect(badge).toBeVisible();
+    const overlaps = await card.evaluate((element) => {
+        const type = element
+            .querySelector('.type-badge')!
+            .getBoundingClientRect();
+        return [
+            ...element.querySelectorAll<HTMLElement>(
+                '[data-test-id="content-cover-favorite"], [data-test-id="content-cover-watch"], [data-test-id="content-cover-rating"], app-content-cover-actions button'
+            ),
+        ]
+            .filter((control) => {
+                const bounds = control.getBoundingClientRect();
+                return (
+                    bounds.width > 0 &&
+                    bounds.height > 0 &&
+                    Math.min(type.right, bounds.right) >
+                        Math.max(type.left, bounds.left) &&
+                    Math.min(type.bottom, bounds.bottom) >
+                        Math.max(type.top, bounds.top)
+                );
+            })
+            .map((control) => control.getAttribute('data-test-id'));
+    });
+    expect(overlaps).toEqual([]);
+}
+
 export async function firstCatalogTitle(page: Page): Promise<string> {
     const card = page.locator('app-grid-list mat-card').first();
     await expect(card).toBeVisible();
@@ -370,6 +401,7 @@ export async function exerciseCoverSearch(
         options.movieRating,
         options.movieRatingSource
     );
+    await expectCoverTypeClearOfControls(movie);
     await dismissCoverMenu(page, movie);
     await selectCoverAction(page, movie, 'details');
     await expect(page.locator('app-content-hero')).toContainText(movieTitle);
@@ -407,6 +439,7 @@ export async function exerciseCoverSearch(
         options.seriesRating,
         options.seriesRatingSource
     );
+    await expectCoverTypeClearOfControls(series);
     await selectCoverAction(page, series, 'details');
     await expect(page.locator('app-content-hero')).toContainText(seriesTitle);
     await goBackFromDetail(page);

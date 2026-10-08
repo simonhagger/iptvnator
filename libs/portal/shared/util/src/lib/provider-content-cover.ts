@@ -1,6 +1,7 @@
 import {
     isStalkerSeriesFlag,
     isStalkerSeriesItem,
+    normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
@@ -70,7 +71,7 @@ function findLatestMatchingEpisodePosition(
                 return latest;
             if (!latest) return candidate;
             const timestamp = (row: PlaybackPositionData) => {
-                const value = Date.parse(row.updatedAt ?? '');
+                const value = Date.parse(normalizeStalkerDate(row.updatedAt));
                 return Number.isFinite(value) ? value : 0;
             };
             return timestamp(candidate) > timestamp(latest)

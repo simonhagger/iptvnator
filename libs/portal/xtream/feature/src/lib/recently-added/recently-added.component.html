@@ -2,8 +2,8 @@
     <h2 class="recently-added-page__title">
         {{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}
     </h2>
-    @if (covers.failed()) {
-        <p role="alert">{{ 'COVER.FAVORITES_FAILED' | translate }}</p>
+    @if (covers.coverReadFailed()) {
+        <p role="alert">{{ covers.failureMessageKey() | translate }}</p>
         <button mat-button (click)="covers.retry()">
             {{ 'RETRY' | translate }}
         </button>
