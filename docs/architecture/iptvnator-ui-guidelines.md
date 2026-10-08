@@ -382,6 +382,9 @@ no await between the validated membership read and its write.
 Removing, clearing or reordering a Stalker item must preserve
 other content kinds that reuse its provider ID. Continue Watching keeps explicit
 resume/history controls. Do not advertise unavailable actions.
+Poster and logo URLs are not backdrop metadata. Cover favourite commands omit
+the optional backdrop argument unless they carry an actual landscape backdrop;
+later detail enrichment must remain able to fill missing backdrop metadata.
 Material menus preserve keyboard navigation, Escape and focus restoration;
 opening or selecting a menu must not also activate its cover. Live/radio tiles
 retain their channel-specific controls. Use shared Material icons and app theme

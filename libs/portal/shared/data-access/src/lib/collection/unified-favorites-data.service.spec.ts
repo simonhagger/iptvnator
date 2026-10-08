@@ -703,6 +703,51 @@ describe('UnifiedFavoritesDataService', () => {
         ]);
     });
 
+    it.each(
+        (['electron', 'pwa'] as const).flatMap((runtime) =>
+            (['movie', 'series'] as const).flatMap((contentType) =>
+                (['posterUrl', 'logo'] as const).map((artwork) => ({
+                    runtime,
+                    contentType,
+                    artwork,
+                }))
+            )
+        )
+    )(
+        'does not forward portrait artwork as backdrop in $runtime for $contentType with $artwork',
+        async ({ runtime, contentType, artwork }) => {
+            if (runtime === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            const item: UnifiedCollectionItem = {
+                uid: `xtream::xtream-1::${contentType}:101`,
+                name: 'Cover title',
+                contentType,
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                contentId: 42,
+                xtreamId: 101,
+                [artwork]: 'https://example.com/portrait.jpg',
+            };
+            await service.addFavorite(item);
+            const expected =
+                runtime === 'electron'
+                    ? electronApi.dbAddFavorite
+                    : xtreamDataSource.addFavorite;
+            const unused =
+                runtime === 'electron'
+                    ? xtreamDataSource.addFavorite
+                    : electronApi.dbAddFavorite;
+            expect(expected).toHaveBeenCalledTimes(1);
+            expect(expected).toHaveBeenCalledWith(42, 'xtream-1');
+            expect(unused).not.toHaveBeenCalled();
+            expect(item[artwork]).toBe('https://example.com/portrait.jpg');
+        }
+    );
+
     it('adds Xtream favorites after resolving the content id', async () => {
         databaseService.getContentByXtreamId.mockResolvedValue({
             id: 42,
@@ -724,11 +769,7 @@ describe('UnifiedFavoritesDataService', () => {
             'xtream-1',
             'live'
         );
-        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(
-            42,
-            'xtream-1',
-            'live.png'
-        );
+        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(42, 'xtream-1');
     });
 
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {
@@ -756,8 +797,7 @@ describe('UnifiedFavoritesDataService', () => {
         );
         expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
             101,
-            'xtream-1',
-            'movie.png'
+            'xtream-1'
         );
         expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
     });

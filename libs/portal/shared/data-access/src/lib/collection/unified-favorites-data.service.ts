@@ -172,20 +172,14 @@ export class UnifiedFavoritesDataService {
         }
 
         const electron = this.electronActivityBridge;
+        // Collection artwork is a poster or logo. The optional third argument
+        // enriches backdrop metadata, which only the detail flow can supply.
         if (!electron) {
-            await this.xtreamDataSource.addFavorite(
-                contentId,
-                item.playlistId,
-                item.posterUrl ?? item.logo ?? undefined
-            );
+            await this.xtreamDataSource.addFavorite(contentId, item.playlistId);
             return;
         }
 
-        await electron.dbAddFavorite(
-            contentId,
-            item.playlistId,
-            item.posterUrl ?? item.logo ?? undefined
-        );
+        await electron.dbAddFavorite(contentId, item.playlistId);
     }
 
     private async addStalkerFavorite(
