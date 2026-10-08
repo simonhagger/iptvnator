@@ -97,8 +97,10 @@ export function getRecentItemDetailNavigationState(
             playbackPosition ? [playbackPosition] : []
         )?.seriesId;
         if (seriesId != null)
-            return getRecentItemNavigation({ ...item, xtream_id: seriesId })
-                .state;
+            return getRecentItemNavigation(item, null, {
+                seriesParentId: seriesId,
+                resumeIdentityOnly: true,
+            }).state;
     }
     return getRecentItemNavigation(
         item,

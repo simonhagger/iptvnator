@@ -43,6 +43,7 @@ type RecentNavigationState = {
             sourceType?: string;
             contentType?: string;
             stalkerId?: string;
+            contentId?: number;
         };
         seriesResume?: unknown;
     };
@@ -61,6 +62,7 @@ describe('getRecentItemNavigationState series resume target', () => {
             seasonNumber: 3,
             episodeNumber: 7,
         });
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
     });
 
     it('keeps watched rows out of resume selection', () => {
@@ -78,6 +80,21 @@ describe('getRecentItemNavigationState series resume target', () => {
 });
 
 describe('getRecentItemDetailNavigationState', () => {
+    it('clears episode storage ownership even when parent and episode provider IDs coincide', () => {
+        const item = Object.freeze({
+            ...recentSeries,
+            xtream_id: 4007,
+            historyContentType: 'episode' as const,
+        });
+        const state = getRecentItemDetailNavigationState(
+            item,
+            episodePosition({ seriesXtreamId: 4007 })
+        ) as RecentNavigationState;
+        expect(state.openCollectionDetailItem?.item?.xtreamId).toBe(4007);
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
+        expect(item.id).toBe(200);
+        expect(item.xtream_id).toBe(4007);
+    });
     it('opens the resolved parent without inventing resume coordinates', () => {
         const item = {
             ...recentSeries,
@@ -93,6 +110,7 @@ describe('getRecentItemDetailNavigationState', () => {
             position
         ) as RecentNavigationState;
         expect(state.openCollectionDetailItem?.item?.xtreamId).toBe(4000);
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
         expect(state.openCollectionDetailItem?.seriesResume).toBeUndefined();
         expect(getRecentItemResumeNavigation(item, position)).toBeNull();
     });
