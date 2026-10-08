@@ -46,7 +46,9 @@ for (const failure of ['denied', 'malformed'] as const) {
         const menu = card.locator(
             'app-content-cover-actions button[aria-haspopup="menu"]'
         );
-        const favorite = card.getByTestId('content-cover-favorite-toggle');
+        const favorite = card.locator(
+            '[data-test-id="content-cover-favorite-toggle"]'
+        );
         await expect(favorite).toBeEnabled();
         await favorite.click();
         await expect(
