@@ -11,6 +11,7 @@ import {
     CollectionContentType,
     ContentCoverAction,
     UnifiedCollectionItem,
+    collectionRowIdentity,
     contentCoverIdentity,
 } from '@iptvnator/portal/shared/util';
 import { ContentCardComponent } from '../content-card/content-card.component';
@@ -55,7 +56,7 @@ export class UnifiedGridTabComponent {
     });
 
     onCardClick(item: UnifiedCollectionItem): void {
-        this.itemSelected.emit(item);
+        if (item.coverDetailTarget !== null) this.itemSelected.emit(item);
     }
 
     onRemove(item: UnifiedCollectionItem): void {
@@ -64,7 +65,12 @@ export class UnifiedGridTabComponent {
 
     coverActions(item: UnifiedCollectionItem): readonly ContentCoverAction[] {
         const favorite = item.coverIndicators?.favorite;
-        if (this.mode() !== 'recent' || favorite === undefined) return [];
+        if (
+            this.mode() !== 'recent' ||
+            favorite === undefined ||
+            item.coverFavoriteTarget === null
+        )
+            return [];
         return [
             {
                 id: 'favorite',
@@ -74,7 +80,9 @@ export class UnifiedGridTabComponent {
                     : 'PORTALS.ADD_TO_FAVORITES',
                 disabled:
                     this.favoriteActionsDisabled() ||
-                    this.pendingFavoriteKeys().has(contentCoverIdentity(item)),
+                    this.pendingFavoriteKeys().has(
+                        contentCoverIdentity(item.coverFavoriteTarget ?? item)
+                    ),
             },
         ];
     }
@@ -88,8 +96,6 @@ export class UnifiedGridTabComponent {
     }
 
     trackByUid(_: number, item: UnifiedCollectionItem): string {
-        return item.contentType === 'live'
-            ? item.uid
-            : contentCoverIdentity(item);
+        return collectionRowIdentity(item);
     }
 }

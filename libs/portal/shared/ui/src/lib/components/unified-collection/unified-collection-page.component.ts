@@ -324,17 +324,21 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     onGridItemSelected(item: UnifiedCollectionItem): void {
+        if (item.coverDetailTarget === null) return;
+        // Details resolves the parent identity; only an explicit Resume may
+        // consume the saved episode handoff and start playback (issue #1441).
+        const detailItem = item.coverDetailTarget?.item ?? item;
         this.viewStateSync.commitCurrent();
 
-        if (this.detailState.canOpen(item)) {
-            pushOpenCollectionDetailState(item);
-            this.detailState.open(item);
+        if (this.detailState.canOpen(detailItem)) {
+            pushOpenCollectionDetailState(detailItem);
+            this.detailState.open(detailItem);
             return;
         }
 
         const navigation =
-            buildCollectionDetailNavigation(this.mode(), item) ??
-            buildCollectionPortalNavigation(item, this.router.url);
+            buildCollectionDetailNavigation(this.mode(), detailItem) ??
+            buildCollectionPortalNavigation(detailItem, this.router.url);
         if (!navigation) {
             return;
         }

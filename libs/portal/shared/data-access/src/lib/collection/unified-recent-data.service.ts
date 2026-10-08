@@ -39,6 +39,15 @@ type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
 
+/** Episodes keep their history identity but use the series cover treatment. */
+function recentContentType(type: string) {
+    return xtreamContentType(type === 'episode' ? 'series' : type);
+}
+
+function historyContentType(type: string): 'episode' | 'series' | undefined {
+    return type === 'episode' || type === 'series' ? type : undefined;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UnifiedRecentDataService {
     private readonly store = inject(Store);
@@ -376,11 +385,12 @@ export class UnifiedRecentDataService {
             return (rows || []).map((row) => ({
                 uid: buildXtreamCollectionUid(
                     row.playlist_id,
-                    xtreamContentType(row.type),
+                    recentContentType(row.type),
                     row.xtream_id
                 ),
                 name: row.title,
-                contentType: xtreamContentType(row.type),
+                contentType: recentContentType(row.type),
+                historyContentType: historyContentType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId: row.playlist_id,
                 playlistName: row.playlist_name ?? 'Xtream',
@@ -418,11 +428,12 @@ export class UnifiedRecentDataService {
             return (rows || []).map((row) => ({
                 uid: buildXtreamCollectionUid(
                     playlistId,
-                    xtreamContentType(row.type),
+                    recentContentType(row.type),
                     row.xtream_id
                 ),
                 name: row.title,
-                contentType: xtreamContentType(row.type),
+                contentType: recentContentType(row.type),
+                historyContentType: historyContentType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
@@ -473,7 +484,7 @@ export class UnifiedRecentDataService {
         playlistId: string,
         playlistName?: string
     ): UnifiedCollectionItem {
-        const contentType = xtreamContentType(item.type);
+        const contentType = recentContentType(item.type);
 
         return {
             uid: buildXtreamCollectionUid(
@@ -483,6 +494,7 @@ export class UnifiedRecentDataService {
             ),
             name: item.title,
             contentType,
+            historyContentType: historyContentType(item.type),
             sourceType: 'xtream',
             playlistId,
             playlistName: playlistName ?? item.playlist_name ?? 'Xtream',

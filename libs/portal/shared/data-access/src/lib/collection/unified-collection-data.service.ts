@@ -5,6 +5,7 @@ import {
     UnifiedCollectionItem,
     PORTAL_PLAYBACK_POSITIONS,
     contentCoverIdentity,
+    collectionRowIdentity,
 } from '@iptvnator/portal/shared/util';
 import { projectCollectionCovers } from './collection-cover-projection';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
@@ -118,7 +119,8 @@ export class UnifiedCollectionDataService {
                 ? await projectCollectionCovers(
                       items,
                       favorites,
-                      this.playbackPositions
+                      this.playbackPositions,
+                      params.mode === 'recent' ? 'history' : 'catalog'
                   )
                 : items;
             if (requestId !== this.requestId) {
@@ -163,11 +165,13 @@ export class UnifiedCollectionDataService {
             await this.recentData.removeRecentItem(item);
         }
         if (requestId !== this.requestId || this.destroyRef.destroyed) return;
-        const key = contentCoverIdentity(item);
+        const identity =
+            mode === 'recent' ? collectionRowIdentity : contentCoverIdentity;
+        const key = identity(item);
         const remaining = this.allItems().filter((candidate) =>
             item.contentType === 'live'
                 ? candidate.uid !== item.uid
-                : contentCoverIdentity(candidate) !== key
+                : identity(candidate) !== key
         );
         this.allItems.set(remaining);
         if (
@@ -183,7 +187,12 @@ export class UnifiedCollectionDataService {
     async toggleFavorite(item: UnifiedCollectionItem): Promise<void> {
         const requestId = this.requestId;
         if (item.contentType !== 'live') {
-            await this.covers.toggleFavorite(item);
+            const target =
+                item.coverFavoriteTarget === undefined
+                    ? item
+                    : item.coverFavoriteTarget;
+            if (!target) return;
+            await this.covers.toggleFavorite(target);
             if (requestId === this.requestId && !this.destroyRef.destroyed)
                 this.refreshCoverFavorites();
             return;
@@ -221,7 +230,13 @@ export class UnifiedCollectionDataService {
                           ...candidate,
                           coverIndicators: {
                               ...candidate.coverIndicators,
-                              favorite: this.covers.favoriteFor(candidate),
+                              favorite:
+                                  candidate.coverFavoriteTarget === null
+                                      ? undefined
+                                      : this.covers.favoriteFor(
+                                            candidate.coverFavoriteTarget ??
+                                                candidate
+                                        ),
                           },
                       }
                     : candidate

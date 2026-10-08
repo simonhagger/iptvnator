@@ -3,4 +3,4 @@ type: feature
 area: vod
 ---
 
-Movie and series covers share a three-dot menu and favourite, watch-progress and attributed rating indicators across the Dashboard, catalogue, search and collections. Saved watch changes refresh on catalogue return; series episode progress shows as Started. This alpha is tested on Windows only.
+Movie and series covers share menus, favourite, progress and attributed rating indicators across the app. Saved changes refresh on catalogue and detail return. Series progress says Started. Episode history targets the parent show for favourites and Details without autoplay; removing history preserves rows with coincident IDs. Windows-only alpha.

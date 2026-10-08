@@ -65,14 +65,21 @@ export class ContentCardComponent {
     readonly type = input<string>();
     readonly coverIndicators = input<ContentCoverIndicators | null>(null);
     readonly actions = input<readonly ContentCoverAction[]>([]);
+    /** Hosts may retain removal actions when a detail identity is unavailable. */
+    readonly detailsEnabled = input(true);
     readonly actionSelected = output<ContentCoverAction>();
     protected readonly isVod = computed(() =>
         ['movie', 'vod', 'series'].includes(this.type() ?? '')
     );
     protected readonly menuActions = computed<readonly ContentCoverAction[]>(
         () => {
-            const actions = [...this.actions()];
-            if (!actions.some((action) => action.id === 'details')) {
+            const actions = this.actions().filter(
+                (action) => this.detailsEnabled() || action.id !== 'details'
+            );
+            if (
+                this.detailsEnabled() &&
+                !actions.some((action) => action.id === 'details')
+            ) {
                 actions.unshift({
                     id: 'details',
                     labelKey: 'COVER.DETAILS',
@@ -161,7 +168,7 @@ export class ContentCardComponent {
     }
 
     onCardClick(): void {
-        this.cardClick.emit();
+        if (this.detailsEnabled()) this.cardClick.emit();
     }
 
     /**
@@ -171,7 +178,7 @@ export class ContentCardComponent {
      */
     onCardKey(event: Event): void {
         event.preventDefault();
-        this.cardClick.emit();
+        this.onCardClick();
     }
 
     onRemoveClick(event: Event): void {
@@ -180,7 +187,9 @@ export class ContentCardComponent {
     }
 
     onCoverAction(action: ContentCoverAction): void {
-        if (action.id === 'details') this.cardClick.emit();
+        if (action.disabled) return;
+        if (action.id === 'details' && !this.detailsEnabled()) return;
+        if (action.id === 'details') this.onCardClick();
         if (action.id === 'remove') this.remove.emit();
         this.actionSelected.emit(action);
     }

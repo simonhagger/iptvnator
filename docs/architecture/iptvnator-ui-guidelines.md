@@ -353,6 +353,17 @@ tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
 Dashboard scopes include matched Trending and Recommendations cards, and changes
 to their matches refresh the scope. Catalogue-backed series progress matches
 the parent series ID; direct episode IDs are reserved for episode history.
+Recent mapping preserves the provider's history content kind. Episode history
+uses that episode's scoped position and a separate parent-show favourite target;
+history removal and menu ownership retain the original row identity. Episode
+and parent history rows remain distinct even when their provider IDs coincide.
+A separate detail target opens the parent show and retains exact episode resume
+data. Ordinary Details activation uses parent identity only and never consumes
+the autoplay resume handoff. Unknown parents omit favourite and Details actions;
+the cover activation is accessibly disabled while history removal remains available.
+Pending favourite controls use the command target key.
+Returning from collection inline details reloads persisted membership and bulk
+watch positions without reopening details or initiating reads when details open.
 Catalogue arrival explicitly refreshes its provider's persisted watch positions,
 including return from other views that can change them. Coalesce only overlapping
 reads; a completed initial load must not suppress a later arrival refresh.

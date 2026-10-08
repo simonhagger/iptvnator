@@ -1,4 +1,5 @@
 import { signal } from '@angular/core';
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
@@ -107,6 +108,120 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
         expect(fixture.componentInstance.coverActions(item)[0].disabled).toBe(
             false
         );
+    });
+
+    it('locks an episode history action by its parent favourite while retaining history ownership', () => {
+        fixture.componentRef.setInput('mode', 'recent');
+        const parent: UnifiedCollectionItem = {
+            ...ITEMS[0],
+            uid: 'xtream::portal::series:900',
+            sourceType: 'xtream',
+            playlistId: 'portal',
+            contentType: 'series',
+            xtreamId: 900,
+        };
+        const episode = {
+            ...parent,
+            uid: 'xtream::portal::series:909',
+            xtreamId: 909,
+            contentId: 88,
+            coverFavoriteTarget: parent,
+            coverIndicators: { favorite: false },
+        };
+        fixture.componentRef.setInput(
+            'pendingFavoriteKeys',
+            new Set([contentCoverIdentity(parent)])
+        );
+        const component = fixture.componentInstance;
+        const emitted = jest.fn();
+        component.favoriteToggled.subscribe(emitted);
+        const pending = component.coverActions(episode)[0];
+        expect(pending.disabled).toBe(true);
+        component.onCoverAction(episode, pending);
+        expect(emitted).not.toHaveBeenCalled();
+        expect(component.trackByUid(0, episode)).toBe(
+            contentCoverIdentity(episode)
+        );
+        fixture.componentRef.setInput('pendingFavoriteKeys', new Set());
+        component.onCoverAction(episode, component.coverActions(episode)[0]);
+        expect(emitted).toHaveBeenCalledWith(episode);
+        expect(episode.contentId).toBe(88);
+        expect(episode.xtreamId).toBe(909);
+    });
+
+    it('omits an unresolved history favourite target even with stale indicators', () => {
+        fixture.componentRef.setInput('mode', 'recent');
+        expect(
+            fixture.componentInstance.coverActions({
+                ...ITEMS[0],
+                coverFavoriteTarget: null,
+                coverIndicators: { favorite: false },
+            } as UnifiedCollectionItem)
+        ).toEqual([]);
+    });
+
+    it('keeps unresolved episode history removable without advertising a broken Details action', () => {
+        const item = {
+            ...ITEMS[0],
+            historyContentType: 'episode',
+            contentType: 'series',
+            coverDetailTarget: null,
+        } as UnifiedCollectionItem;
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        const card = fixture.debugElement.query(By.css('app-content-card'));
+        const selected = jest.fn();
+        const removed = jest.fn();
+        fixture.componentInstance.itemSelected.subscribe(selected);
+        fixture.componentInstance.removeItem.subscribe(removed);
+        const activation = card.query(
+            By.css('.content-card__activation')
+        ).nativeElement;
+        expect(activation.getAttribute('aria-disabled')).toBe('true');
+        expect(activation.getAttribute('tabindex')).toBe('-1');
+        activation.click();
+        activation.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        fixture.componentInstance.onCardClick(item);
+        expect(selected).not.toHaveBeenCalled();
+        card.query(
+            By.css('[data-test-id="content-cover-actions"]')
+        ).nativeElement.click();
+        fixture.detectChanges();
+        const menu = TestBed.inject(OverlayContainer).getContainerElement();
+        expect(menu?.textContent).toContain('PORTALS.REMOVE_FROM_RECENT');
+        expect(menu?.textContent).not.toContain('COVER.DETAILS');
+        menu.querySelector<HTMLButtonElement>(
+            '[data-test-id="content-cover-action-remove"]'
+        )?.click();
+        expect(removed).toHaveBeenCalledWith(item);
+        fixture.componentInstance.onCardClick(ITEMS[0]);
+        expect(selected).toHaveBeenCalledWith(ITEMS[0]);
+    });
+
+    it('tracks same-ID episode and parent-show history rows separately', () => {
+        const show: UnifiedCollectionItem = {
+            ...ITEMS[0],
+            uid: 'xtream::portal::series:909',
+            sourceType: 'xtream',
+            playlistId: 'portal',
+            contentType: 'series',
+            xtreamId: 909,
+            contentId: 101,
+            historyContentType: 'series',
+        };
+        const episode: UnifiedCollectionItem = {
+            ...show,
+            contentId: 202,
+            historyContentType: 'episode',
+        };
+        expect(fixture.componentInstance.trackByUid(0, episode)).not.toBe(
+            fixture.componentInstance.trackByUid(1, show)
+        );
+        expect(episode.uid).toBe(show.uid);
+        expect(episode.xtreamId).toBe(show.xtreamId);
     });
 
     it('keeps same-ID movies and series separate without changing live identity', () => {

@@ -198,11 +198,163 @@ describe('unified collection VOD cover actions', () => {
         expect(positions.getAllPlaybackPositions).toHaveBeenCalledTimes(2);
     });
 
+    it('resolves episode-keyed recent progress without treating the same favourite ID as an episode', async () => {
+        const episodeHistory: UnifiedCollectionItem = {
+            ...series,
+            sourceType: 'xtream',
+            xtreamId: 909,
+            uid: 'xtream::portal::episode:909',
+        };
+        recent.getRecentItems.mockResolvedValue([episodeHistory]);
+        const positions = TestBed.inject(
+            PORTAL_PLAYBACK_POSITIONS
+        ) as unknown as {
+            getAllPlaybackPositions: jest.Mock;
+        };
+        positions.getAllPlaybackPositions.mockResolvedValue([
+            {
+                playlistId: 'portal',
+                contentType: 'episode',
+                contentXtreamId: 909,
+                seriesXtreamId: 900,
+                positionSeconds: 95,
+                durationSeconds: 100,
+            },
+        ]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            watchState: 'in-progress',
+            progressScope: 'episode',
+            progress: 95,
+        });
+        persisted = [episodeHistory];
+        await data.load({ ...scope, portalType: 'xtream', mode: 'favorites' });
+        expect(data.allItems()[0].coverIndicators).toMatchObject({
+            watchState: 'unwatched',
+            progress: null,
+        });
+        expect(positions.getAllPlaybackPositions).toHaveBeenCalledTimes(2);
+    });
+
     it('retains persisted membership after a no-op write', async () => {
         favorites.addFavorite.mockResolvedValue(undefined);
         await data.load({ ...scope, mode: 'recent' });
         await data.toggleFavorite(data.allItems()[1]);
         expect(data.allItems()[1].coverIndicators?.favorite).toBe(false);
+    });
+
+    it('removes only the selected episode history when a parent show reuses its provider ID', async () => {
+        const episode: UnifiedCollectionItem = {
+            ...series,
+            sourceType: 'xtream',
+            uid: 'xtream::portal::series:909',
+            xtreamId: 909,
+            contentId: 22,
+            historyContentType: 'episode',
+        };
+        const parent: UnifiedCollectionItem = {
+            ...episode,
+            contentId: 11,
+            historyContentType: 'series',
+        };
+        const removeRecentItem = jest.fn().mockResolvedValue(undefined);
+        Object.assign(recent, { removeRecentItem });
+        recent.getRecentItems.mockResolvedValue([episode, parent]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        await data.removeItem('recent', data.allItems()[0]);
+        expect(removeRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentId: 22,
+                historyContentType: 'episode',
+            })
+        );
+        expect(data.allItems()).toHaveLength(1);
+        expect(data.allItems()[0]).toMatchObject({
+            contentId: 11,
+            historyContentType: 'series',
+            xtreamId: 909,
+        });
+        expect(favorites.removeFavorite).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'targets the parent show for an episode history favourite, initially saved=%s',
+        async (saved) => {
+            const episode: UnifiedCollectionItem = {
+                ...series,
+                sourceType: 'xtream',
+                xtreamId: 909,
+                contentId: 22,
+                historyContentType: 'episode',
+                uid: 'xtream::portal::series:909',
+            };
+            const parent: UnifiedCollectionItem = {
+                ...episode,
+                xtreamId: 900,
+                contentId: 99,
+                historyContentType: 'series',
+                uid: 'xtream::portal::series:900',
+            };
+            persisted = saved ? [parent] : [];
+            recent.getRecentItems.mockResolvedValue([episode]);
+            const positions = TestBed.inject(
+                PORTAL_PLAYBACK_POSITIONS
+            ) as unknown as {
+                getAllPlaybackPositions: jest.Mock;
+            };
+            positions.getAllPlaybackPositions.mockResolvedValue([
+                {
+                    playlistId: 'portal',
+                    contentType: 'episode',
+                    contentXtreamId: 909,
+                    seriesXtreamId: 900,
+                    positionSeconds: 40,
+                    durationSeconds: 100,
+                },
+            ]);
+            await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+            const selected = data.allItems()[0];
+            expect(selected.coverIndicators?.favorite).toBe(saved);
+            expect(selected).toMatchObject({ xtreamId: 909, contentId: 22 });
+            await data.toggleFavorite(selected);
+            if (saved)
+                expect(favorites.removeFavorite).toHaveBeenCalledWith(parent);
+            else
+                expect(favorites.addFavorite).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        xtreamId: 900,
+                        contentId: undefined,
+                        contentType: 'series',
+                    })
+                );
+            expect(data.allItems()[0].coverIndicators?.favorite).toBe(!saved);
+            expect(data.allItems()[0]).toMatchObject({
+                xtreamId: 909,
+                contentId: 22,
+            });
+        }
+    );
+
+    it('withholds an episode favourite action when the parent show is unknown', async () => {
+        const episode: UnifiedCollectionItem = {
+            ...series,
+            sourceType: 'xtream',
+            xtreamId: 909,
+            contentId: 22,
+            historyContentType: 'episode',
+        };
+        recent.getRecentItems.mockResolvedValue([episode]);
+        const positions = TestBed.inject(
+            PORTAL_PLAYBACK_POSITIONS
+        ) as unknown as {
+            getAllPlaybackPositions: jest.Mock;
+        };
+        positions.getAllPlaybackPositions.mockResolvedValue([]);
+        await data.load({ ...scope, portalType: 'xtream', mode: 'recent' });
+        expect(data.allItems()[0].coverIndicators?.favorite).toBeUndefined();
+        await data.toggleFavorite(data.allItems()[0]);
+        expect(favorites.addFavorite).not.toHaveBeenCalled();
+        expect(favorites.removeFavorite).not.toHaveBeenCalled();
     });
 
     it('keeps failed membership reads unknown and retries without losing watched presentation', async () => {

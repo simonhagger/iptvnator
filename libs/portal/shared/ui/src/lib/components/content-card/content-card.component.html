@@ -5,7 +5,8 @@
     <div
         class="content-card__activation"
         role="button"
-        tabindex="0"
+        [attr.tabindex]="detailsEnabled() ? 0 : -1"
+        [attr.aria-disabled]="detailsEnabled() ? null : true"
         [attr.aria-label]="title()"
         [attr.aria-describedby]="isVod() ? coverDescriptionId : null"
         (click)="onCardClick()"

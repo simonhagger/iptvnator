@@ -318,6 +318,46 @@ describe('UnifiedRecentDataService', () => {
         }
     );
 
+    it.each(['all', 'playlist', 'pwa'] as const)(
+        'preserves raw episode history ownership in the %s Recent mapping',
+        async (scope) => {
+            const row = {
+                id: 22,
+                xtream_id: 909,
+                title: 'Episode History',
+                type: 'episode',
+                playlist_id: 'xtream-1',
+                category_id: '4',
+                rating: '8.2',
+                added: '1700000000',
+                poster_url: '',
+                viewed_at: '2026-04-21T20:42:27.000Z',
+            };
+            dbService.getGlobalRecentlyViewed.mockResolvedValue([row]);
+            dbService.getRecentItems.mockResolvedValue([row]);
+            xtreamDataSource.getRecentItems.mockResolvedValue([row]);
+            if (scope === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            const items = await service.getRecentItems(
+                scope === 'pwa' ? 'playlist' : scope,
+                'xtream-1',
+                'xtream'
+            );
+            expect(
+                items.find((item) => item.sourceType === 'xtream')
+            ).toMatchObject({
+                contentType: 'series',
+                historyContentType: 'episode',
+                xtreamId: 909,
+                contentId: 22,
+                uid: 'xtream::xtream-1::series:909',
+            });
+        }
+    );
+
     it('records Xtream playback with a type-aware fallback lookup', async () => {
         dbService.getContentByXtreamId.mockResolvedValue({
             id: 3867578,

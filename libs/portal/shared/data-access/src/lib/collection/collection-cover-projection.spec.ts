@@ -26,6 +26,103 @@ const repository = (getAllPlaybackPositions: jest.Mock) =>
     ({ getAllPlaybackPositions }) as unknown as PortalPlaybackPositions;
 
 describe('collection cover projection', () => {
+    it('keeps episode history identity while presenting parent details and exact resume data', async () => {
+        const episode = {
+            ...movie,
+            contentType: 'series' as const,
+            historyContentType: 'episode' as const,
+            xtreamId: 909,
+            contentId: 22,
+        };
+        const savedEpisode: PlaybackPositionData = {
+            ...position,
+            contentType: 'episode',
+            contentXtreamId: 909,
+            seriesXtreamId: 900,
+            seasonNumber: 2,
+            episodeNumber: 3,
+        };
+        const read = jest.fn().mockResolvedValue([savedEpisode]);
+        const [projected] = await projectCollectionCovers(
+            [episode],
+            [],
+            repository(read),
+            'history'
+        );
+        expect(projected).toMatchObject({
+            uid: episode.uid,
+            xtreamId: 909,
+            contentId: 22,
+        });
+        expect(projected.coverDetailTarget).toMatchObject({
+            item: {
+                xtreamId: 900,
+                contentId: undefined,
+                contentType: 'series',
+            },
+            seriesResume: {
+                seriesXtreamId: 900,
+                contentXtreamId: 909,
+                seasonNumber: 2,
+                episodeNumber: 3,
+            },
+        });
+        expect(read).toHaveBeenCalledTimes(1);
+    });
+
+    it('withholds unresolved episode details without inventing a parent or changing removal identity', async () => {
+        const episode = {
+            ...movie,
+            contentType: 'series' as const,
+            historyContentType: 'episode' as const,
+            xtreamId: 909,
+            contentId: 22,
+        };
+        const [projected] = await projectCollectionCovers(
+            [episode],
+            [],
+            repository(jest.fn().mockResolvedValue([])),
+            'history'
+        );
+        expect(projected.coverDetailTarget).toBeNull();
+        expect(projected).toMatchObject({
+            uid: episode.uid,
+            xtreamId: 909,
+            contentId: 22,
+        });
+    });
+
+    it('opens known parent details when episode coordinates are incomplete without fabricating resume data', async () => {
+        const episode = {
+            ...movie,
+            contentType: 'series' as const,
+            historyContentType: 'episode' as const,
+            xtreamId: 909,
+        };
+        const savedEpisode: PlaybackPositionData = {
+            ...position,
+            contentType: 'episode',
+            contentXtreamId: 909,
+            seriesXtreamId: 900,
+        };
+        const [projected] = await projectCollectionCovers(
+            [episode],
+            [],
+            repository(jest.fn().mockResolvedValue([savedEpisode])),
+            'history'
+        );
+        expect(projected.coverDetailTarget).toMatchObject({
+            item: { xtreamId: 900 },
+            seriesResume: null,
+        });
+        const [catalogue] = await projectCollectionCovers(
+            [episode],
+            [],
+            repository(jest.fn().mockResolvedValue([savedEpisode]))
+        );
+        expect(catalogue.coverDetailTarget).toBeUndefined();
+    });
+
     it('reads once per represented provider playlist, not per cover or live row', async () => {
         const read = jest.fn().mockResolvedValue([position]);
         const items = [

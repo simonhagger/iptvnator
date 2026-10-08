@@ -26,6 +26,7 @@
                 [type]="item.contentType"
                 [coverIndicators]="item.coverIndicators ?? null"
                 [actions]="coverActions(item)"
+                [detailsEnabled]="item.coverDetailTarget !== null"
                 [showTypeBadge]="false"
                 [date]="item.addedAt ?? item.viewedAt"
                 [showRemoveButton]="true"

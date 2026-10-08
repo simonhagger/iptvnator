@@ -1,7 +1,10 @@
 import type { Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import type { CollectionMode } from '@iptvnator/portal/shared/data-access';
-import type { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    OPEN_COLLECTION_DETAIL_STATE_KEY,
+    type UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 import { UnifiedCollectionPageComponent } from './unified-collection-page.component';
 
 interface InlineReturnHarness {
@@ -13,13 +16,86 @@ interface InlineReturnHarness {
     favorites: { getFavorites: jest.Mock; getFavoritesStrict: jest.Mock };
     recentRead: jest.Mock;
     positionsRead: jest.Mock;
-    router: { url: string };
+    router: { url: string; navigate: jest.Mock };
 }
 
 /** Reuses the real mounted page/history harness for both collection modes. */
 export function registerInlineDetailReturnTests(
     harness: InlineReturnHarness
 ): void {
+    it.each([true, false])(
+        'opens resolved parent details without autoplay; known parent=%s',
+        async (known) => {
+            harness.fixture().destroy();
+            const episode: UnifiedCollectionItem = {
+                uid: 'xtream::portal::series:909',
+                name: 'Episode',
+                sourceType: 'xtream',
+                contentType: 'series',
+                playlistId: 'portal',
+                playlistName: 'Portal',
+                xtreamId: 909,
+                contentId: 22,
+                historyContentType: 'episode',
+                coverDetailTarget: known
+                    ? {
+                          item: {
+                              uid: 'xtream::portal::series:900',
+                              name: 'Show',
+                              sourceType: 'xtream',
+                              contentType: 'series',
+                              playlistId: 'portal',
+                              playlistName: 'Portal',
+                              xtreamId: 900,
+                          },
+                          seriesResume: {
+                              seriesXtreamId: 900,
+                              contentXtreamId: 909,
+                              seasonNumber: 2,
+                              episodeNumber: 3,
+                          },
+                      }
+                    : null,
+            };
+            harness.recentRead.mockResolvedValue([]);
+            const hostFixture = TestBed.createComponent(harness.host);
+            hostFixture.componentInstance.mode = 'recent';
+            const originalUrl = harness.router.url;
+            harness.router.url = '/workspace/global-recent';
+            try {
+                hostFixture.detectChanges();
+                await hostFixture.whenStable();
+                const page = hostFixture.componentInstance.pageComponent;
+                page?.onGridItemSelected(episode);
+                hostFixture.detectChanges();
+                await hostFixture.whenStable();
+                if (known) {
+                    expect(page?.selectedDetailItem()?.xtreamId).toBe(900);
+                    expect(page?.selectedDetailSeriesResume()).toBeNull();
+                    expect(
+                        window.history.state[OPEN_COLLECTION_DETAIL_STATE_KEY]
+                    ).toMatchObject({ item: { xtreamId: 900 } });
+                    expect(
+                        window.history.state[OPEN_COLLECTION_DETAIL_STATE_KEY]
+                            .seriesResume
+                    ).toBeUndefined();
+                } else {
+                    expect(page?.selectedDetailItem()).toBeNull();
+                    expect(harness.router.navigate).not.toHaveBeenCalled();
+                }
+                expect(episode).toMatchObject({
+                    xtreamId: 909,
+                    contentId: 22,
+                    uid: 'xtream::portal::series:909',
+                });
+            } finally {
+                hostFixture.destroy();
+                harness.router.url = originalUrl;
+                window.history.replaceState({}, document.title);
+            }
+        }
+    );
+
     it.each(['recent', 'favorites'] as const)(
         'refreshes persisted %s cover snapshots on inline detail return without reading on open or looping',
         async (mode) => {

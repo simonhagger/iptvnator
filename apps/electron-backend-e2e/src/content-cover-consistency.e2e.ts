@@ -270,6 +270,35 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 );
 
                 await openGlobalRecent(page);
+                if (provider === 'xtream') {
+                    await switchUnifiedCollectionContent(page, 'Series');
+                    await selectCoverAction(
+                        page,
+                        contentCardByTitle(page, seriesTitle).first(),
+                        'details'
+                    );
+                    await expect(
+                        page.locator('.episode-card').first()
+                    ).toBeVisible();
+                    await expectPathname(page, /\/workspace\/global-recent$/);
+                    await expect(
+                        page.getByRole('button', {
+                            name: 'Close player',
+                            exact: true,
+                        })
+                    ).toHaveCount(0);
+                    expect(
+                        await page.evaluate(
+                            () =>
+                                window.history.state?.openCollectionDetailItem
+                                    ?.seriesResume
+                        )
+                    ).toBeUndefined();
+                    await goBackFromDetail(page);
+                    await expect(page.locator('app-content-hero')).toHaveCount(
+                        0
+                    );
+                }
                 await switchUnifiedCollectionContent(page, 'Movies');
                 await expectCoverState(
                     contentCardByTitle(page, movieTitle).first(),
@@ -434,6 +463,148 @@ for (const provider of ['xtream', 'stalker'] as const) {
         });
     }
 }
+
+test('@cover @xtream @electron @persistence Recent inline detail return refreshes saved favorite and watched state', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(90000);
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamVodFixture(request, credentials);
+    const app = await launchElectronApp(dataDir);
+    const page = app.mainWindow;
+    await routeCoverArtwork(page);
+    await routePlayableStreams(page);
+    try {
+        await configureCoverSettings(page, 'light');
+        await openSources(page);
+        await addXtreamPortal(page, { name: 'Inline return', ...credentials });
+        await waitForXtreamWorkspaceReady(page);
+        await openWorkspaceSection(page, 'Movies');
+        await clickCategoryByNameExact(page, fixture.categoryName);
+        const title = await firstCatalogTitle(page);
+        const movieId = Number(
+            fixture.items.find((item) => item.name === title)?.stream_id
+        );
+        expect(movieId).toBeGreaterThan(0);
+        const playlistId = /\/xtreams\/([^/]+)/.exec(
+            new URL(page.url()).pathname
+        )?.[1];
+        if (!playlistId) throw new Error('Missing fixture playlist route');
+        await selectCoverAction(
+            page,
+            catalogCard(page, title).first(),
+            'details'
+        );
+        await startAndConfirmPlayback(page, () =>
+            page.locator('button.play-btn').first().click()
+        );
+        await page
+            .getByRole('button', { name: 'Close player', exact: true })
+            .click();
+        await persistCoverPosition(page, playlistId, {
+            contentXtreamId: movieId,
+            contentType: 'vod',
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        await goBackFromDetail(page);
+        await openGlobalRecent(page);
+        await switchUnifiedCollectionContent(page, 'Movies');
+        const card = contentCardByTitle(page, title).first();
+        await expect(card.getByTestId('content-cover-favorite')).toHaveCount(0);
+        await expect(
+            card.getByTestId('content-cover-progress')
+        ).toHaveAttribute('aria-valuenow', '40');
+        await selectCoverAction(page, card, 'details');
+        await expect(page.locator('app-content-hero')).toContainText(title);
+        await expectPathname(page, /\/workspace\/global-recent$/);
+        const favorite = page.locator('[data-testid="vod-favorite-toggle"]');
+        const watched = page.locator('[data-testid="vod-watched-toggle"]');
+        await expect(favorite).toHaveAttribute('aria-pressed', 'false');
+        await favorite.click();
+        await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+        await expect(watched).toBeEnabled();
+        await watched.click();
+        await expect(watched).toHaveAttribute('aria-pressed', 'true');
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    async ({ playlistId, movieId }) => {
+                        const position =
+                            await window.electron.dbGetPlaybackPosition(
+                                playlistId,
+                                movieId,
+                                'vod'
+                            );
+                        return (
+                            !!position &&
+                            (position.durationSeconds ?? 0) > 0 &&
+                            position.positionSeconds ===
+                                position.durationSeconds
+                        );
+                    },
+                    { playlistId, movieId }
+                )
+            )
+            .toBe(true);
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    async ({ playlistId, movieId }) =>
+                        (
+                            await window.electron.dbGetAllGlobalFavoriteMembership()
+                        ).some(
+                            (row) =>
+                                row.playlist_id === playlistId &&
+                                row.xtream_id === movieId &&
+                                row.type === 'movie'
+                        ),
+                    { playlistId, movieId }
+                )
+            )
+            .toBe(true);
+        await goBackFromDetail(page);
+        await expectPathname(page, /\/workspace\/global-recent$/);
+        await expect(page.locator('app-content-hero')).toHaveCount(0);
+        await expectCoverState(card, 'watched');
+        await expect(card.getByTestId('content-cover-progress')).toHaveCount(0);
+        await selectCoverAction(page, card, 'details');
+        await expect(watched).toHaveAttribute('aria-pressed', 'true');
+        await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+        await favorite.click();
+        await expect(favorite).toHaveAttribute('aria-pressed', 'false');
+        await watched.click();
+        await expect(watched).toHaveAttribute('aria-pressed', 'false');
+        await expect
+            .poll(() =>
+                page.evaluate(
+                    ({ playlistId, movieId }) =>
+                        window.electron.dbGetPlaybackPosition(
+                            playlistId,
+                            movieId,
+                            'vod'
+                        ),
+                    { playlistId, movieId }
+                )
+            )
+            .toBeNull();
+        await goBackFromDetail(page);
+        await expect(page.locator('app-content-hero')).toHaveCount(0);
+        await expect(card.getByTestId('content-cover-favorite')).toHaveCount(0);
+        await expect(card.getByTestId('content-cover-watch')).toHaveAttribute(
+            'data-watch-state',
+            'unwatched'
+        );
+        await expect(card.getByTestId('content-cover-progress')).toHaveCount(0);
+        // The refreshed menu must offer Add, rather than invert a stale Remove intent.
+        await selectCoverAction(page, card, 'favorite');
+        await expect(card.getByTestId('content-cover-favorite')).toBeVisible();
+        await expect(page.locator('app-content-hero')).toHaveCount(0);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
 
 test('@cover @theme @xtream @electron titles-off and failed artwork preserve keyboard names and independent actions', async ({
     dataDir,
