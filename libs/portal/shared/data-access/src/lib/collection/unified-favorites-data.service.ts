@@ -588,8 +588,9 @@ export class UnifiedFavoritesDataService {
         try {
             const meta = await this.getPlaylistMeta(playlistId);
             if (!this.electronActivityBridge) {
-                const rows =
-                    await this.xtreamDataSource.getFavorites(playlistId);
+                const rows = await (strict
+                    ? this.xtreamDataSource.getFavorites(playlistId, true)
+                    : this.xtreamDataSource.getFavorites(playlistId));
                 return rows.map((row) =>
                     this.mapXtreamContentItem(row, playlistId, meta?.title)
                 );

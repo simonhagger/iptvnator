@@ -466,8 +466,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
-        return this.dbService.getFavorites(playlistId);
+    async getFavorites(
+        playlistId: string,
+        strict = false
+    ): Promise<XtreamContentItem[]> {
+        return strict
+            ? this.dbService.getFavorites(playlistId, true)
+            : this.dbService.getFavorites(playlistId);
     }
 
     async addFavorite(

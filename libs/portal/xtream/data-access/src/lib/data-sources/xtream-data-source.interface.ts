@@ -316,9 +316,13 @@ export interface IXtreamDataSource {
     // =========================================================================
 
     /**
-     * Get all favorites for a playlist
+     * Get all favorites for a playlist. Strict reads reject storage failures or
+     * unresolved saved identities; legacy reads retain their fallback behavior.
      */
-    getFavorites(playlistId: string): Promise<XtreamContentItem[]>;
+    getFavorites(
+        playlistId: string,
+        strict?: boolean
+    ): Promise<XtreamContentItem[]>;
 
     /**
      * Add content to favorites.

@@ -353,6 +353,17 @@ fail, and progress failures use their own translated message. Favourites Retry
 also recovers progress without replacing or reordering the mounted favourite rows.
 Native callers use the dedicated complete-membership read; the bounded display
 query retains its existing limit.
+PWA cover membership uses the data-source strict read contract. Storage access,
+malformed persisted maps or required snapshots, and unresolved referenced items
+remain failures; legacy callers retain their existing fallback. An absent key
+is known-empty, while valid historical numeric-string IDs stay supported. Do not
+turn incomplete hydration into a successful partial membership snapshot.
+PWA favourite add/remove operations require a readable, valid current membership
+map before writing, so a failure after initial cover hydration cannot overwrite
+existing favourites.
+Load PWA validation at its asynchronous read/write boundary; keep legacy parsing
+canonical and synchronous. A write reads current storage after that load, with
+no await between the validated membership read and its write.
 Removing, clearing or reordering a Stalker item must preserve
 other content kinds that reuse its provider ID. Continue Watching keeps explicit
 resume/history controls. Do not advertise unavailable actions.
