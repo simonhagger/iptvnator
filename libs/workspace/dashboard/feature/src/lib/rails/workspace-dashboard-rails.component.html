@@ -15,6 +15,19 @@
             (addPlaylistClicked)="onAddPlaylist($event)"
         />
     } @else {
+        @if (coverFavorites.failed()) {
+            <p role="status" data-test-id="dashboard-favorites-failed">
+                {{ 'COVER.FAVORITES_FAILED' | translate }}
+                <button
+                    mat-button
+                    type="button"
+                    (click)="retryCoverFavorites()"
+                    data-test-id="dashboard-favorites-retry"
+                >
+                    {{ 'RETRY' | translate }}
+                </button>
+            </p>
+        }
         <!-- Hero: rotating cinematic banner. Renders its own skeleton while
              the first history load runs, and nothing when there is nothing
              to feature. Each block below renders as soon as ITS data is

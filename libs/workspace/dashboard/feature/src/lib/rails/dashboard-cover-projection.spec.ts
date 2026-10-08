@@ -6,6 +6,8 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
+import { buildDashboardFavoriteTarget } from './dashboard-favorite-target';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { DialogService } from '@iptvnator/ui/components';
 import {
@@ -81,6 +83,9 @@ describe('Dashboard cover projection', () => {
         const added = signal([{ ...favorite }]);
         const trendingItems = signal<DashboardTrendingItem[]>([]);
         const recommendations = signal<DashboardRecommendationItem[]>([]);
+        const playlistsReady = signal(true);
+        const favoritesReady = signal(true);
+        const positionsReady = signal(true);
         const episode = {
             playlistId: 'portal',
             contentXtreamId: 7,
@@ -91,10 +96,10 @@ describe('Dashboard cover projection', () => {
         };
         const data = {
             playlists: signal([]),
-            playlistsLoaded: signal(true),
+            playlistsLoaded: playlistsReady,
             dashboardReady: signal(true),
             xtreamPlaylistCount: signal(0),
-            globalFavoritesLoaded: signal(true),
+            globalFavoritesLoaded: favoritesReady,
             globalFavoritesLoading: signal(false),
             globalRecentLoading: signal(false),
             xtreamRecentlyAddedLoading: signal(false),
@@ -112,7 +117,7 @@ describe('Dashboard cover projection', () => {
                 (_item, scope?: string): PlaybackPositionData | null =>
                     scope === 'catalog' ? null : episode
             ),
-            hasLoadedPlaybackPositions: () => true,
+            hasLoadedPlaybackPositions: () => positionsReady(),
             getRecentItemLink: () => ['/recent'],
             getRecentItemDetailNavigationState: () => undefined,
             getRecentItemResumeNavigation: () => null,
@@ -121,8 +126,45 @@ describe('Dashboard cover projection', () => {
             getRecentlyAddedLink: () => ['/added'],
             getRecentlyAddedNavigationState: () => undefined,
         };
+        const known = signal(true);
+        const pending = signal(false);
+        const coverFavorites = {
+            load: jest.fn(),
+            failed: signal(false),
+            retry: jest.fn(),
+            favoriteFor: (
+                target: ReturnType<typeof buildDashboardFavoriteTarget>
+            ) =>
+                target && known()
+                    ? membership().some(
+                          (item) =>
+                              item.source === target.sourceType &&
+                              item.playlist_id === target.playlistId &&
+                              item.type === target.contentType &&
+                              String(item.xtream_id) ===
+                                  String(target.xtreamId ?? target.stalkerId)
+                      )
+                    : undefined,
+            actionsFor(
+                target: ReturnType<typeof buildDashboardFavoriteTarget>
+            ) {
+                const favoriteState = this.favoriteFor(target);
+                return favoriteState === undefined
+                    ? []
+                    : [
+                          {
+                              id: 'favorite',
+                              icon: 'favorite',
+                              favoriteState,
+                              disabled: pending(),
+                          },
+                      ];
+            },
+            toggleFavorite: jest.fn().mockResolvedValue(undefined),
+        };
         TestBed.configureTestingModule({
             providers: [
+                { provide: ContentCoverDataService, useValue: coverFavorites },
                 { provide: DashboardDataService, useValue: data },
                 {
                     provide: DashboardLiveEpgPresenter,
@@ -200,6 +242,12 @@ describe('Dashboard cover projection', () => {
             added,
             trendingItems,
             recommendations,
+            coverFavorites,
+            known,
+            pending,
+            playlistsReady,
+            favoritesReady,
+            positionsReady,
         };
     }
 
@@ -219,6 +267,168 @@ describe('Dashboard cover projection', () => {
             expect(card.indicators?.watchState).toBe('unwatched');
             expect(card.indicators?.progress).toBeNull();
         }
+    });
+
+    it('loads strict command membership only after initial sources are ready and refreshes meaningful membership changes', () => {
+        const { coverFavorites, playlistsReady, favoritesReady, membership } =
+            setup();
+        playlistsReady.set(false);
+        favoritesReady.set(false);
+        TestBed.tick();
+        expect(coverFavorites.load).not.toHaveBeenCalled();
+        playlistsReady.set(true);
+        TestBed.tick();
+        expect(coverFavorites.load).not.toHaveBeenCalled();
+        favoritesReady.set(true);
+        TestBed.tick();
+        expect(coverFavorites.load).toHaveBeenCalledTimes(1);
+        membership.set([
+            { ...favorite, title: 'Same identity, updated title' },
+        ]);
+        TestBed.tick();
+        expect(coverFavorites.load).toHaveBeenCalledTimes(1);
+        membership.set([{ ...favorite, xtream_id: 99 }]);
+        TestBed.tick();
+        expect(coverFavorites.load).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers ready semantic hearts for Recent and Recently Added using parent ownership', () => {
+        const { component, recent, added, membership, data } = setup();
+        recent.set([
+            {
+                ...favorite,
+                xtream_id: 909,
+                historyContentType: 'episode',
+                viewed_at: '',
+            },
+        ]);
+        added.set([{ ...favorite, xtream_id: 909 }]);
+        membership.set([{ ...favorite, xtream_id: 900 }]);
+        data.getPlaybackPositionForItem.mockReturnValue({
+            playlistId: 'portal',
+            contentXtreamId: 909,
+            seriesXtreamId: 900,
+            contentType: 'episode',
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        expect(
+            component
+                .continueWatchingCards()[0]
+                .actions?.find((action) => action.id === 'favorite')
+        ).toMatchObject({ favoriteState: true });
+        expect(
+            component
+                .xtreamRecentlyAddedCards()[0]
+                .actions?.find((action) => action.id === 'favorite')
+        ).toMatchObject({ favoriteState: false });
+    });
+
+    it('routes a Recent heart through the existing controller with parent identity, not history storage', async () => {
+        const { component, recent, data, coverFavorites, known, pending } =
+            setup();
+        recent.set([
+            {
+                ...favorite,
+                xtream_id: 909,
+                historyContentType: 'episode',
+                viewed_at: '',
+            },
+        ]);
+        data.getPlaybackPositionForItem.mockReturnValue({
+            playlistId: 'portal',
+            contentXtreamId: 909,
+            seriesXtreamId: 909,
+            contentType: 'episode',
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        const card = component.continueWatchingCards()[0];
+        const action = card.actions?.find(
+            (candidate) => candidate.id === 'favorite'
+        );
+        if (!action) throw new Error('Expected ready heart');
+        component.onContinueWatchingActionSelected({ card, action });
+        await Promise.resolve();
+        expect(coverFavorites.toggleFavorite).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: 909,
+                contentId: undefined,
+                playlistId: 'portal',
+                contentType: 'series',
+            })
+        );
+        expect(data.reloadGlobalFavorites).toHaveBeenCalledTimes(2); // mount + settled write
+        coverFavorites.toggleFavorite.mockClear();
+        pending.set(true);
+        component.onContinueWatchingActionSelected({ card, action });
+        expect(coverFavorites.toggleFavorite).not.toHaveBeenCalled();
+        pending.set(false);
+        known.set(false);
+        component.onContinueWatchingActionSelected({ card, action });
+        expect(coverFavorites.toggleFavorite).not.toHaveBeenCalled();
+        expect(
+            component
+                .continueWatchingCards()[0]
+                .actions?.map((candidate) => candidate.id)
+        ).not.toContain('favorite');
+    });
+
+    it.each([undefined, 'episode'] as const)(
+        'withholds an unknown-position history heart and rejects its stale command (%s)',
+        (historyContentType) => {
+            const { component, recent, positionsReady, coverFavorites } =
+                setup();
+            recent.set([{ ...favorite, historyContentType, viewed_at: '' }]);
+            const card = component.continueWatchingCards()[0];
+            const action = card.actions?.find(
+                (candidate) => candidate.id === 'favorite'
+            );
+            if (!action) throw new Error('Expected ready source heart');
+            positionsReady.set(false);
+            expect(
+                component
+                    .continueWatchingCards()[0]
+                    .actions?.map((candidate) => candidate.id)
+            ).not.toContain('favorite');
+            component.onContinueWatchingActionSelected({ card, action });
+            expect(coverFavorites.toggleFavorite).not.toHaveBeenCalled();
+            positionsReady.set(true);
+            expect(
+                component
+                    .continueWatchingCards()[0]
+                    .actions?.map((candidate) => candidate.id)
+            ).toContain('favorite');
+        }
+    );
+
+    it('toggles Recently Added and favourite rails through the same owner and withholds unresolved episodes', () => {
+        const { component, recent, data, coverFavorites } = setup();
+        for (const card of [
+            component.xtreamRecentlyAddedCards()[0],
+            component.favoriteMoviesAndSeriesCards()[0],
+        ]) {
+            const action = card.actions?.find(
+                (candidate) => candidate.id === 'favorite'
+            );
+            if (!action) throw new Error('Expected known membership command');
+            component.onContentActionSelected({ card, action });
+        }
+        expect(coverFavorites.toggleFavorite).toHaveBeenCalledTimes(2);
+        recent.set([
+            {
+                ...favorite,
+                xtream_id: 909,
+                historyContentType: 'episode',
+                viewed_at: '',
+            },
+        ]);
+        data.getPlaybackPositionForItem.mockReturnValue(null);
+        expect(
+            component
+                .continueWatchingCards()[0]
+                .actions?.map((action) => action.id)
+        ).not.toContain('favorite');
     });
 
     it('reloads match-only playlist scope when Trending or Recommendations matches change', () => {

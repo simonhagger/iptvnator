@@ -24,6 +24,7 @@ import type {
     ContentCoverAction,
     ContentCoverIndicators,
 } from '@iptvnator/portal/shared/util';
+import { resolveContentCoverFavoriteAction } from '@iptvnator/portal/shared/util';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
@@ -135,6 +136,7 @@ export interface DashboardRailActionSelection {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardRailComponent implements AfterViewInit, OnDestroy {
+    protected readonly favoriteActionFor = resolveContentCoverFavoriteAction;
     private readonly settingsStore = inject(SettingsStore);
     private readonly descriptionPrefix = createContentCoverDescriptionId();
 

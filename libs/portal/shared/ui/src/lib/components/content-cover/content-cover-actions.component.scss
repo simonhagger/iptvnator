@@ -1,0 +1,53 @@
+@use '@angular/material' as mat;
+
+:host {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 2;
+    app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    @include mat.icon-button-overrides(
+        (
+            icon-color: var(--app-on-surface),
+            disabled-icon-color: var(--app-eyebrow-color),
+            icon-size: var(--cover-action-icon-size, 24px),
+            state-layer-size: var(--cover-action-size, 32px),
+            touch-target-size: var(--cover-action-size, 32px),
+        )
+    );
+}
+
+button {
+    app-region: no-drag;
+}
+
+button[mat-icon-button] {
+    background: var(--app-widget-bg);
+    border: 1px solid var(--app-widget-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    width: var(--cover-action-size, 32px);
+    height: var(--cover-action-size, 32px);
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+
+    mat-icon {
+        font-size: var(--cover-action-icon-size, 24px);
+        width: var(--cover-action-icon-size, 24px);
+        height: var(--cover-action-icon-size, 24px);
+    }
+}
+
+button:focus-visible {
+    outline: 2px solid var(--app-selection-color);
+    outline-offset: 2px;
+}
+
+.separator {
+    border-top: 1px solid var(--app-widget-border);
+    margin: 4px 0;
+}

@@ -60,7 +60,16 @@ export class UnifiedGridTabComponent {
     }
 
     onRemove(item: UnifiedCollectionItem): void {
-        this.removeItem.emit(item);
+        if (!this.removeActionDisabled(item)) this.removeItem.emit(item);
+    }
+
+    removeActionDisabled(item: UnifiedCollectionItem): boolean {
+        return (
+            this.mode() === 'favorites' &&
+            (this.favoriteActionsDisabled() ||
+                this.pendingFavoriteKeys().has(contentCoverIdentity(item)) ||
+                item.coverIndicators?.favorite !== true)
+        );
     }
 
     coverActions(item: UnifiedCollectionItem): readonly ContentCoverAction[] {
@@ -74,6 +83,7 @@ export class UnifiedGridTabComponent {
         return [
             {
                 id: 'favorite',
+                favoriteState: favorite,
                 icon: favorite ? 'favorite' : 'favorite_border',
                 labelKey: favorite
                     ? 'PORTALS.REMOVE_FROM_FAVORITES'

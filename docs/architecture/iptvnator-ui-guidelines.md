@@ -330,8 +330,13 @@ describes episode progress and says Started, including a completed episode;
 it cannot establish that the entire show was watched. Failed or pending reads
 omit unknown state. Ratings accept finite ten-point values and retain provider,
 provider-supplied IMDb, TMDB or Kinopoisk attribution. A generic provider score
-must not inherit an IMDb label. Status markers occupy the upper left, ratings
-sit below them and progress occupies the poster bottom without moving artwork.
+must not inherit an IMDb label. Ratings occupy the upper left; the favourite
+heart and action menu occupy the upper right on the same row. A membership
+command declares `favoriteState` so the shared actions promote it to an outline
+or filled heart toggle with `aria-pressed`, retaining the owner's disabled and
+persistence behavior. History deletion remains a separate menu action. Watch
+markers sit below a rating when present. Missing indicators reserve no empty
+space, and progress occupies the poster bottom without moving artwork.
 The pure provider rating resolver accepts catalogue fields and nested detail
 `info` fields from saved Stalker favourites. Preserve valid score attribution
 without flattening or mutating the saved provider payload.

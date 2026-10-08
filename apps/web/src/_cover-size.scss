@@ -7,6 +7,9 @@
     --cover-rail-width: 172px;
     --cover-gap: 16px;
     --season-cover-width: 120px;
+    --cover-action-size: 32px;
+    --cover-action-icon-size: 24px;
+    --cover-actions-reserve: 86px;
 }
 
 :root[data-cover-size='small'] {
@@ -14,6 +17,12 @@
     --cover-rail-width: 140px;
     --cover-gap: 12px;
     --season-cover-width: 96px;
+    --cover-action-size: 24px;
+    --cover-action-icon-size: 18px;
+    --cover-actions-reserve: 66px;
+    --cover-rating-icon-size: 14px;
+    --cover-rating-padding: 4px;
+    --cover-rating-gap: 2px;
 }
 
 :root[data-cover-size='medium'] {

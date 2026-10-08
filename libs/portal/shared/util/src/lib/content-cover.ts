@@ -27,6 +27,14 @@ export interface ContentCoverAction {
     readonly destructive?: boolean;
     readonly disabled?: boolean;
     readonly separatorBefore?: boolean;
+    /** Marks a membership command for the direct heart toggle; never history removal. */
+    readonly favoriteState?: boolean;
+}
+
+export function resolveContentCoverFavoriteAction(
+    actions: readonly ContentCoverAction[]
+): ContentCoverAction | undefined {
+    return actions.find((action) => typeof action.favoriteState === 'boolean');
 }
 
 const RATING_SOURCES: ReadonlySet<string> = new Set([

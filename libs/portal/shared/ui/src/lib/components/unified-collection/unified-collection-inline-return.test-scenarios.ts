@@ -116,8 +116,11 @@ export function registerInlineDetailReturnTests(
                 positionSeconds: 40,
                 durationSeconds: 100,
             };
-            harness.favorites.getFavorites.mockResolvedValue([item]);
-            let savedFavorites: UnifiedCollectionItem[] = [];
+            let savedFavorites: UnifiedCollectionItem[] =
+                mode === 'favorites' ? [item] : [];
+            harness.favorites.getFavorites.mockImplementation(
+                async () => savedFavorites
+            );
             harness.favorites.getFavoritesStrict.mockImplementation(
                 async () => savedFavorites
             );
@@ -173,16 +176,25 @@ export function registerInlineDetailReturnTests(
                 window.dispatchEvent(new PopStateEvent('popstate'));
                 await new Promise<void>((resolve) => setTimeout(resolve, 0));
                 hostFixture.detectChanges();
-                expect(page?.allItems()[0].coverIndicators).toMatchObject({
-                    favorite: mode === 'favorites',
-                    watchState: 'unwatched',
-                    progress: 0,
-                });
-                expect(harness.positionsRead).toHaveBeenCalledTimes(reads + 2);
+                if (mode === 'favorites') {
+                    expect(page?.allItems()).toEqual([]);
+                } else {
+                    expect(page?.allItems()[0].coverIndicators).toMatchObject({
+                        favorite: false,
+                        watchState: 'unwatched',
+                        progress: 0,
+                    });
+                }
+                const expectedReads = reads + (mode === 'favorites' ? 1 : 2);
+                expect(harness.positionsRead).toHaveBeenCalledTimes(
+                    expectedReads
+                );
                 hostFixture.destroy();
                 window.dispatchEvent(new PopStateEvent('popstate'));
                 await new Promise<void>((resolve) => setTimeout(resolve, 0));
-                expect(harness.positionsRead).toHaveBeenCalledTimes(reads + 2);
+                expect(harness.positionsRead).toHaveBeenCalledTimes(
+                    expectedReads
+                );
             } finally {
                 hostFixture.destroy();
                 harness.router.url = originalUrl;

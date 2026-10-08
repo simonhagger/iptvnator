@@ -43,11 +43,10 @@ for (const failure of ['denied', 'malformed'] as const) {
         const card = page.locator('app-grid-list mat-card').filter({
             has: page.getByRole('button', { name: title, exact: true }),
         });
-        const menu = card.locator('app-content-cover-actions button');
-        await menu.click();
-        const favorite = page.locator(
-            '[data-test-id="content-cover-action-favorite"]'
+        const menu = card.locator(
+            'app-content-cover-actions button[aria-haspopup="menu"]'
         );
+        const favorite = card.getByTestId('content-cover-favorite-toggle');
         await expect(favorite).toBeEnabled();
         await favorite.click();
         await expect(
@@ -91,6 +90,7 @@ for (const failure of ['denied', 'malformed'] as const) {
             .locator('app-category-content-view')
             .getByRole('alert');
         await expect(alert).toContainText('Could not update or load favorites');
+        await expect(favorite).toHaveCount(0);
         await menu.click();
         await expect(
             page.locator('[data-test-id="content-cover-action-favorite"]')
@@ -116,11 +116,10 @@ for (const failure of ['denied', 'malformed'] as const) {
         await expect(
             card.locator('[data-test-id="content-cover-favorite"]')
         ).toBeVisible();
-        await menu.click();
-        await expect(
-            page.locator('[data-test-id="content-cover-action-favorite"]')
-        ).toContainText('Remove');
-        await page.keyboard.press('Escape');
+        await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+        await expect(favorite).toHaveAccessibleName(
+            'Remove from favorites: ' + title
+        );
         expect(
             await page.evaluate(() => localStorage.getItem('xtream-favorites'))
         ).toBe(original);

@@ -16,6 +16,7 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import {
     ContentCoverAction,
     ContentCoverIndicators,
+    resolveContentCoverFavoriteAction,
 } from '@iptvnator/portal/shared/util';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
@@ -47,6 +48,7 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
+    protected readonly favoriteActionFor = resolveContentCoverFavoriteAction;
     protected readonly coverDescriptionId = createContentCoverDescriptionId();
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
@@ -95,6 +97,8 @@ export class ContentCardComponent {
                     label: this.removeTooltip(),
                     icon: this.removeIcon(),
                     separatorBefore: true,
+                    disabled: this.removeDisabled(),
+                    ...(this.removeIsFavorite() ? { favoriteState: true } : {}),
                 });
             }
             return actions;
@@ -112,6 +116,8 @@ export class ContentCardComponent {
 
     /** The host distinguishes favourite removal from history deletion. */
     readonly removeIcon = input<string>('delete');
+    readonly removeIsFavorite = input(false);
+    readonly removeDisabled = input(false);
 
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);

@@ -1,21 +1,50 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     input,
     output,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { ContentCoverAction } from '@iptvnator/portal/shared/util';
+import {
+    resolveContentCoverFavoriteAction,
+    type ContentCoverAction,
+} from '@iptvnator/portal/shared/util';
 
 /** Keep this a sibling of the cover's link/button, never an interactive descendant. */
 @Component({
     selector: 'app-content-cover-actions',
-    imports: [MatIconButton, MatIcon, MatMenuModule, TranslatePipe],
+    imports: [MatIconButton, MatIcon, MatMenuModule, MatTooltip, TranslatePipe],
     template: `
-        @if (actions().length) {
+        @if (favoriteAction(); as action) {
+            @let label =
+                action.labelKey ? (action.labelKey | translate) : action.label;
+            <button
+                type="button"
+                mat-icon-button
+                data-test-id="content-cover-favorite-toggle"
+                [attr.data-action-id]="action.id"
+                [attr.aria-label]="label ? label + ': ' + title() : title()"
+                [attr.aria-pressed]="action.favoriteState"
+                [matTooltip]="label ?? ''"
+                [disabled]="action.disabled"
+                (click)="select(action)"
+            >
+                <mat-icon
+                    [attr.data-test-id]="
+                        action.favoriteState ? 'content-cover-favorite' : null
+                    "
+                    >{{
+                        action.favoriteState ? 'favorite' : 'favorite_border'
+                    }}</mat-icon
+                >
+            </button>
+        }
+        @if (menuActions().length) {
             <button
                 type="button"
                 mat-icon-button
@@ -28,7 +57,7 @@ import type { ContentCoverAction } from '@iptvnator/portal/shared/util';
                 <mat-icon>more_vert</mat-icon>
             </button>
             <mat-menu #menu="matMenu">
-                @for (action of actions(); track action.id) {
+                @for (action of menuActions(); track action.id) {
                     @if (action.separatorBefore) {
                         <div class="separator" role="separator"></div>
                     }
@@ -53,35 +82,7 @@ import type { ContentCoverAction } from '@iptvnator/portal/shared/util';
             </mat-menu>
         }
     `,
-    styles: `
-        :host {
-            position: absolute;
-            top: 6px;
-            right: 6px;
-            z-index: 2;
-            app-region: no-drag;
-        }
-        button {
-            app-region: no-drag;
-        }
-        button[mat-icon-button] {
-            color: var(--app-on-surface);
-            background: var(--app-widget-bg);
-            border: 1px solid var(--app-widget-border);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-            width: 32px;
-            height: 32px;
-            padding: 4px;
-        }
-        button:focus-visible {
-            outline: 2px solid var(--app-selection-color);
-            outline-offset: 2px;
-        }
-        .separator {
-            border-top: 1px solid var(--app-widget-border);
-            margin: 4px 0;
-        }
-    `,
+    styleUrl: './content-cover-actions.component.scss',
     host: {
         '(click)': '$event.stopPropagation()',
         '(keydown)': 'isolateActivation($event)',
@@ -93,6 +94,12 @@ export class ContentCoverActionsComponent {
     readonly actions = input<readonly ContentCoverAction[]>([]);
     readonly testId = input<string | null>(null);
     readonly actionSelected = output<ContentCoverAction>();
+    protected readonly favoriteAction = computed(() =>
+        resolveContentCoverFavoriteAction(this.actions())
+    );
+    protected readonly menuActions = computed(() =>
+        this.actions().filter((action) => action !== this.favoriteAction())
+    );
 
     protected isolateActivation(event: KeyboardEvent): void {
         if (event.key === 'Enter' || event.key === ' ') {

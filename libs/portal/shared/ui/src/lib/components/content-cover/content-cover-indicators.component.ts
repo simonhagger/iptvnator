@@ -60,58 +60,66 @@ const RATING_LABELS: Record<ContentCoverRatingSource, string> = {
                 }
             }
         </span>
-        <div class="status-row">
-            @if (state().favorite) {
+        <div class="indicator-stack">
+            @if (state().rating; as rating) {
                 <span
-                    class="favorite"
+                    class="rating"
                     role="img"
-                    data-test-id="content-cover-favorite"
-                    [attr.aria-label]="'COVER.FAVORITE' | translate"
-                    [matTooltip]="'COVER.FAVORITE' | translate"
+                    data-test-id="content-cover-rating"
+                    [attr.data-rating-source]="rating.source"
+                    [attr.aria-label]="
+                        (ratingLabel() | translate) +
+                        ': ' +
+                        rating.value.toFixed(1) +
+                        '/10'
+                    "
+                    [matTooltip]="ratingLabel() | translate"
                 >
-                    <mat-icon>favorite</mat-icon>
+                    <mat-icon>star</mat-icon
+                    ><span>{{ rating.value.toFixed(1) }}</span>
                 </span>
             }
             @if (
+                (showFavorite() && state().favorite) ||
                 state().watchState === 'watched' ||
                 state().watchState === 'in-progress'
             ) {
-                <span
-                    data-test-id="content-cover-watch"
-                    [attr.data-watch-state]="state().watchState"
-                    [matTooltip]="watchLabel() | translate"
-                >
-                    <app-watched-badge
-                        [isWatched]="true"
-                        [inline]="true"
-                        [icon]="
-                            state().watchState === 'watched'
-                                ? 'check_circle'
-                                : 'remove_red_eye'
-                        "
-                        [label]="watchLabel() | translate"
-                    />
-                </span>
+                <div class="status-row">
+                    @if (showFavorite() && state().favorite) {
+                        <span
+                            class="favorite"
+                            role="img"
+                            data-test-id="content-cover-favorite"
+                            [attr.aria-label]="'COVER.FAVORITE' | translate"
+                            [matTooltip]="'COVER.FAVORITE' | translate"
+                        >
+                            <mat-icon>favorite</mat-icon>
+                        </span>
+                    }
+                    @if (
+                        state().watchState === 'watched' ||
+                        state().watchState === 'in-progress'
+                    ) {
+                        <span
+                            data-test-id="content-cover-watch"
+                            [attr.data-watch-state]="state().watchState"
+                            [matTooltip]="watchLabel() | translate"
+                        >
+                            <app-watched-badge
+                                [isWatched]="true"
+                                [inline]="true"
+                                [icon]="
+                                    state().watchState === 'watched'
+                                        ? 'check_circle'
+                                        : 'remove_red_eye'
+                                "
+                                [label]="watchLabel() | translate"
+                            />
+                        </span>
+                    }
+                </div>
             }
         </div>
-        @if (state().rating; as rating) {
-            <span
-                class="rating"
-                role="img"
-                data-test-id="content-cover-rating"
-                [attr.data-rating-source]="rating.source"
-                [attr.aria-label]="
-                    (ratingLabel() | translate) +
-                    ': ' +
-                    rating.value.toFixed(1) +
-                    '/10'
-                "
-                [matTooltip]="ratingLabel() | translate"
-            >
-                <mat-icon>star</mat-icon
-                ><span>{{ rating.value.toFixed(1) }}</span>
-            </span>
-        }
         @if (state().progress; as progress) {
             @if (state().watchState !== 'watched') {
                 <span
@@ -141,6 +149,8 @@ const RATING_LABELS: Record<ContentCoverRatingSource, string> = {
 export class ContentCoverIndicatorsComponent {
     readonly descriptionId = input<string | null>(null);
     readonly indicators = input<ContentCoverIndicators | null>(null);
+    /** Omit the passive heart when the sibling actions expose its direct toggle. */
+    readonly showFavorite = input(true);
     protected readonly state = computed(() =>
         normalizeContentCoverIndicators(this.indicators())
     );

@@ -153,10 +153,10 @@ for (const mode of ['favorites', 'recent', 'search'] as const) {
             ).toHaveCount(0);
             if (mode === 'search') {
                 await expectCoverTypeClearOfControls(first);
-                const trigger = await openCoverMenu(page, first);
                 await expect(
-                    page.getByTestId('content-cover-action-favorite')
+                    first.getByTestId('content-cover-favorite-toggle')
                 ).toBeEnabled();
+                const trigger = await openCoverMenu(page, first);
                 await page.keyboard.press('Escape');
                 await expect(trigger).toBeFocused();
             }

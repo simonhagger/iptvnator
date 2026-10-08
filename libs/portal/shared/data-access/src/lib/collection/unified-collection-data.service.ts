@@ -125,17 +125,15 @@ export class UnifiedCollectionDataService {
             if (requestId !== this.requestId || this.destroyRef.destroyed)
                 return null;
             const hasVod = items.some((item) => item.contentType !== 'live');
-            if (params.mode === 'recent' && hasVod)
-                await this.covers.load(params);
+            if (hasVod) await this.covers.load(params);
             else void this.covers.load(null);
             if (requestId !== this.requestId || this.destroyRef.destroyed)
                 return null;
-            const favorites =
-                params.mode === 'favorites'
-                    ? items
-                    : hasVod
-                      ? this.covers.knownFavorites()
-                      : await this.loadFavoriteItems(params);
+            const favorites = hasVod
+                ? this.covers.knownFavorites()
+                : params.mode === 'favorites'
+                  ? items
+                  : await this.loadFavoriteItems(params);
             const projection = hasVod
                 ? await loadCollectionCoverProjection(
                       items,
@@ -160,8 +158,7 @@ export class UnifiedCollectionDataService {
             );
             // A mounted row may have changed membership while watch positions
             // were loading. Publish the current persisted cover snapshot.
-            if (params.mode === 'recent' && hasVod)
-                this.refreshCoverFavorites();
+            if (hasVod) this.refreshCoverFavorites();
             return this.allItems();
         } catch {
             if (requestId !== this.requestId) {
@@ -183,6 +180,19 @@ export class UnifiedCollectionDataService {
         item: UnifiedCollectionItem
     ): Promise<void> {
         const requestId = this.requestId;
+        if (
+            mode === 'favorites' &&
+            item.contentType !== 'live' &&
+            item.sourceType !== 'm3u'
+        ) {
+            // Removal is an explicit intent. A stale collection row must not
+            // add an item that another surface has already removed.
+            if (this.covers.favoriteFor(item) === true)
+                await this.covers.toggleFavorite(item);
+            if (requestId === this.requestId && !this.destroyRef.destroyed)
+                this.refreshCoverFavorites();
+            return;
+        }
         if (mode === 'favorites') {
             await this.favoritesData.removeFavorite(item);
         } else {
@@ -247,12 +257,13 @@ export class UnifiedCollectionDataService {
             retryId === this.retryId &&
             loadedRequest === this.loadedRequest() &&
             !this.destroyRef.destroyed;
-        if (mode === 'recent') await this.covers.retry();
+        if (mode === 'recent' || this.covers.failed())
+            await this.covers.retry();
         if (!isCurrent()) return;
         const items = this.allItems();
         const projection = await loadCollectionCoverProjection(
             items,
-            mode === 'recent' ? this.covers.knownFavorites() : items,
+            this.covers.knownFavorites(),
             this.playbackPositions,
             mode === 'recent' ? 'history' : 'catalog'
         );
@@ -276,7 +287,7 @@ export class UnifiedCollectionDataService {
             })
         );
         this.failedWatchPlaylistIds.set(projection.failedWatchPlaylistIds);
-        if (mode === 'recent') this.refreshCoverFavorites();
+        this.refreshCoverFavorites();
     }
 
     private refreshCoverFavorites(): void {
@@ -284,24 +295,32 @@ export class UnifiedCollectionDataService {
         if (favorites)
             this.favoriteUidSet.set(new Set(favorites.map((item) => item.uid)));
         this.allItems.update((items) =>
-            items.map((candidate) =>
-                candidate.contentType !== 'live' &&
-                candidate.sourceType !== 'm3u'
-                    ? {
-                          ...candidate,
-                          coverIndicators: {
-                              ...candidate.coverIndicators,
-                              favorite:
-                                  candidate.coverFavoriteTarget === null
-                                      ? undefined
-                                      : this.covers.favoriteFor(
-                                            candidate.coverFavoriteTarget ??
-                                                candidate
-                                        ),
-                          },
-                      }
-                    : candidate
-            )
+            items
+                .filter(
+                    (candidate) =>
+                        this.loadedMode !== 'favorites' ||
+                        candidate.contentType === 'live' ||
+                        candidate.sourceType === 'm3u' ||
+                        this.covers.favoriteFor(candidate) !== false
+                )
+                .map((candidate) =>
+                    candidate.contentType !== 'live' &&
+                    candidate.sourceType !== 'm3u'
+                        ? {
+                              ...candidate,
+                              coverIndicators: {
+                                  ...candidate.coverIndicators,
+                                  favorite:
+                                      candidate.coverFavoriteTarget === null
+                                          ? undefined
+                                          : this.covers.favoriteFor(
+                                                candidate.coverFavoriteTarget ??
+                                                    candidate
+                                            ),
+                              },
+                          }
+                        : candidate
+                )
         );
     }
 

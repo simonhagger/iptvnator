@@ -155,7 +155,7 @@ describe('unified collection VOD cover actions', () => {
             progress: 60,
             watchState: 'in-progress',
         });
-        expect(favorites.getFavoritesStrict).not.toHaveBeenCalled();
+        expect(favorites.getFavoritesStrict).toHaveBeenCalledTimes(1);
         expect(favorites.getFavorites).toHaveBeenCalledTimes(1);
         expect(data.watchReadFailed()).toBe(false);
         expect(data.coverReadFailed()).toBe(false);
@@ -285,6 +285,111 @@ describe('unified collection VOD cover actions', () => {
             'movie',
         ]);
         expect(data.favoriteUidSet().has(movie.uid)).toBe(true);
+    });
+
+    it('serializes Favorites cover removal and ignores a repeated click while saving', async () => {
+        persisted = [movie, series];
+        await data.load({ ...scope, mode: 'favorites' });
+        let finish!: () => void;
+        favorites.removeFavorite.mockImplementationOnce(async (item) => {
+            await new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            persisted = persisted.filter(
+                (row) =>
+                    contentCoverIdentity(row) !== contentCoverIdentity(item)
+            );
+        });
+        const selected = data.allItems()[1];
+        const first = data.removeItem('favorites', selected);
+        const repeated = data.removeItem('favorites', selected);
+        expect(
+            data.pendingFavoriteKeys().has(contentCoverIdentity(series))
+        ).toBe(true);
+        await repeated;
+        expect(data.allItems()).toHaveLength(2);
+        finish();
+        await first;
+        expect(favorites.removeFavorite).toHaveBeenCalledTimes(1);
+        expect(favorites.addFavorite).not.toHaveBeenCalled();
+        expect(data.allItems().map((row) => row.contentType)).toEqual([
+            'movie',
+        ]);
+        expect(data.pendingFavoriteKeys().size).toBe(0);
+    });
+
+    it('retains a Favorites cover and reports failure when its removal rejects', async () => {
+        await data.load({ ...scope, mode: 'favorites' });
+        favorites.removeFavorite.mockRejectedValueOnce(new Error('private'));
+        await expect(
+            data.removeItem('favorites', data.allItems()[0])
+        ).resolves.toBeUndefined();
+        expect(data.allItems()).toHaveLength(1);
+        expect(data.allItems()[0].coverIndicators?.favorite).toBe(true);
+        expect(data.favoriteFailed()).toBe(true);
+        expect(data.pendingFavoriteKeys().size).toBe(0);
+        expect(persisted).toEqual([movie]);
+    });
+
+    it('keeps a Favorites cover after an unresolved removal no-op', async () => {
+        await data.load({ ...scope, mode: 'favorites' });
+        favorites.removeFavorite.mockResolvedValueOnce(undefined);
+        await data.removeItem('favorites', data.allItems()[0]);
+        expect(data.allItems()).toHaveLength(1);
+        expect(data.allItems()[0].coverIndicators?.favorite).toBe(true);
+        expect(data.favoriteFailed()).toBe(false);
+    });
+
+    it('keeps Favorites membership unknown when the complete read fails despite loaded display rows', async () => {
+        favorites.getFavoritesStrict = jest
+            .fn(async () => [...persisted])
+            .mockRejectedValueOnce(new Error('private'));
+        await data.load({ ...scope, mode: 'favorites' });
+        expect(data.allItems()).toHaveLength(1);
+        expect(data.allItems()[0].coverIndicators?.favorite).toBeUndefined();
+        expect(data.favoriteFailed()).toBe(true);
+        await data.removeItem('favorites', data.allItems()[0]);
+        expect(favorites.removeFavorite).not.toHaveBeenCalled();
+        expect(favorites.addFavorite).not.toHaveBeenCalled();
+        await data.retryFavorites();
+        expect(data.allItems()[0].coverIndicators?.favorite).toBe(true);
+        expect(data.favoriteFailed()).toBe(false);
+    });
+
+    it('reads complete Favorites membership independently of capped display rows', async () => {
+        persisted = [movie, series];
+        favorites.getFavorites = jest.fn().mockResolvedValue([movie]);
+        await data.load({ ...scope, mode: 'favorites' });
+        expect(data.allItems()).toHaveLength(1);
+        expect(favorites.getFavoritesStrict).toHaveBeenCalledWith(
+            'playlist',
+            'portal',
+            'stalker'
+        );
+        expect(
+            TestBed.inject(ContentCoverDataService).favoriteFor(series)
+        ).toBe(true);
+        await data.removeItem('favorites', data.allItems()[0]);
+        expect(data.allItems()).toEqual([]);
+        expect(persisted).toEqual([series]);
+    });
+
+    it('retains unknown Favorites membership after readback failure and removes the persisted row on Retry', async () => {
+        await data.load({ ...scope, mode: 'favorites' });
+        favorites.getFavoritesStrict.mockRejectedValueOnce(
+            new Error('private')
+        );
+        await data.removeItem('favorites', data.allItems()[0]);
+        expect(persisted).toEqual([]);
+        expect(data.allItems()).toHaveLength(1);
+        expect(data.allItems()[0].coverIndicators?.favorite).toBeUndefined();
+        expect(data.favoriteFailed()).toBe(true);
+        await data.removeItem('favorites', data.allItems()[0]);
+        expect(favorites.removeFavorite).toHaveBeenCalledTimes(1);
+        await data.retryFavorites();
+        expect(data.allItems()).toEqual([]);
+        expect(data.favoriteFailed()).toBe(false);
+        expect(favorites.addFavorite).not.toHaveBeenCalled();
     });
 
     it('adds a same-ID series without removing its favourite movie and retains watch progress', async () => {

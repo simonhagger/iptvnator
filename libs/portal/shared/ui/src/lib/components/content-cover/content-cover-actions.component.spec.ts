@@ -54,7 +54,10 @@ describe('ContentCoverActionsComponent', () => {
         return result;
     }
     const trigger = () =>
-        requiredElement<HTMLButtonElement>(fixture.nativeElement, 'button');
+        requiredElement<HTMLButtonElement>(
+            fixture.nativeElement,
+            'button[aria-haspopup="menu"]'
+        );
     const row = (id: string) =>
         requiredElement<HTMLButtonElement>(
             overlay,
@@ -96,6 +99,97 @@ describe('ContentCoverActionsComponent', () => {
         expect(
             (fixture.nativeElement as HTMLElement).querySelector('button')
         ).toBeNull();
+    });
+
+    it.each([false, true])(
+        'runs the favourite command in one click with saved membership %s',
+        async (favoriteState) => {
+            const favorite: ContentCoverAction = {
+                ...actions[1],
+                favoriteState,
+                label: favoriteState
+                    ? 'Remove from favorites'
+                    : 'Add to favorites',
+            };
+            fixture.componentRef.setInput('actions', [actions[0], favorite]);
+            fixture.detectChanges();
+            const selected = jest.fn();
+            fixture.componentInstance.actionSelected.subscribe(selected);
+            const toggle = requiredElement<HTMLButtonElement>(
+                fixture.nativeElement,
+                '[data-test-id="content-cover-favorite-toggle"]'
+            );
+            expect(toggle.getAttribute('aria-pressed')).toBe(
+                String(favoriteState)
+            );
+            expect(toggle.getAttribute('aria-label')).toBe(
+                favorite.label + ': Cover movie'
+            );
+            expect(toggle.textContent?.trim()).toBe(
+                favoriteState ? 'favorite' : 'favorite_border'
+            );
+            toggle.click();
+            fixture.detectChanges();
+            expect(selected).toHaveBeenCalledTimes(1);
+            expect(selected).toHaveBeenCalledWith(favorite);
+            expect(overlay.querySelector('[role="menu"]')).toBeNull();
+            await open();
+            expect(
+                overlay.querySelector(
+                    '[data-test-id="content-cover-action-favorite"]'
+                )
+            ).toBeNull();
+        }
+    );
+
+    it('disables a pending favourite toggle without mutating its saved state', () => {
+        fixture.componentRef.setInput('actions', [
+            {
+                ...actions[1],
+                favoriteState: true,
+                disabled: true,
+            },
+        ]);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        fixture.componentInstance.actionSelected.subscribe(selected);
+        const toggle = requiredElement<HTMLButtonElement>(
+            fixture.nativeElement,
+            '[data-test-id="content-cover-favorite-toggle"]'
+        );
+        expect(toggle.disabled).toBe(true);
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        toggle.click();
+        toggle.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(selected).not.toHaveBeenCalled();
+    });
+
+    it('promotes explicit favourite removal without promoting history deletion', async () => {
+        const removal: ContentCoverAction = {
+            id: 'remove',
+            icon: 'favorite',
+            label: 'Remove from favorites',
+            favoriteState: true,
+        };
+        fixture.componentRef.setInput('actions', [actions[0], removal]);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        fixture.componentInstance.actionSelected.subscribe(selected);
+        const toggle = requiredElement<HTMLButtonElement>(
+            fixture.nativeElement,
+            '[data-test-id="content-cover-favorite-toggle"]'
+        );
+        toggle.click();
+        expect(selected).toHaveBeenCalledWith(removal);
+        fixture.componentRef.setInput('actions', [actions[0], actions[2]]);
+        fixture.detectChanges();
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '[data-test-id="content-cover-favorite-toggle"]'
+            )
+        ).toBeNull();
+        await open();
+        expect(row('remove').disabled).toBe(true);
     });
 
     it('honours disabled actions and emits only the chosen enabled action', async () => {

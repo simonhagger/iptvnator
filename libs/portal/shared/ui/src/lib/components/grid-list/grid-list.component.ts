@@ -22,6 +22,7 @@ import {
     ContentCoverIndicators,
     normalizeContentCoverRating,
     resolveProviderCoverRating,
+    resolveContentCoverFavoriteAction,
 } from '@iptvnator/portal/shared/util';
 import {
     ContentCoverActionsComponent,
@@ -103,6 +104,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    protected readonly favoriteActionFor = resolveContentCoverFavoriteAction;
     private readonly descriptions = new WeakMap<GridListItem, string>();
     protected coverDescriptionId(item: GridListItem): string {
         let id = this.descriptions.get(item);

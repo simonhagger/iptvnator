@@ -110,6 +110,29 @@ describe('UnifiedGridTabComponent posters-only wall', () => {
         );
     });
 
+    it('guards direct favourite removal while pending or membership is unknown, keeping history removal independent', () => {
+        const component = fixture.componentInstance;
+        const item = { ...ITEMS[0], coverIndicators: { favorite: true } };
+        const removed = jest.fn();
+        component.removeItem.subscribe(removed);
+        fixture.componentRef.setInput(
+            'pendingFavoriteKeys',
+            new Set([contentCoverIdentity(item)])
+        );
+        expect(component.removeActionDisabled(item)).toBe(true);
+        component.onRemove(item);
+        expect(removed).not.toHaveBeenCalled();
+        fixture.componentRef.setInput('pendingFavoriteKeys', new Set());
+        expect(component.removeActionDisabled(ITEMS[0])).toBe(true);
+        component.onRemove(ITEMS[0]);
+        expect(removed).not.toHaveBeenCalled();
+        component.onRemove(item);
+        expect(removed).toHaveBeenCalledWith(item);
+        fixture.componentRef.setInput('mode', 'recent');
+        component.onRemove(ITEMS[0]);
+        expect(removed).toHaveBeenCalledTimes(2);
+    });
+
     it('locks an episode history action by its parent favourite while retaining history ownership', () => {
         fixture.componentRef.setInput('mode', 'recent');
         const parent: UnifiedCollectionItem = {

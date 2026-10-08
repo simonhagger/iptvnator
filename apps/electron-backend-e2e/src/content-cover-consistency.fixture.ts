@@ -76,13 +76,17 @@ export async function captureCover(
 export async function configureCoverSettings(
     page: Page,
     theme: 'light' | 'dark',
-    titles = true
+    titles = true,
+    size: 'small' | 'medium' | 'large' = 'medium'
 ): Promise<void> {
     await openSettings(page);
     await openSettingsSection(page, 'general');
     await page
         .getByTestId(theme === 'light' ? 'LIGHT_THEME' : 'DARK_THEME')
         .click();
+    const coverSize = page.getByTestId(`cover-size-${size}`);
+    await coverSize.click();
+    await expect(coverSize).toHaveAttribute('aria-checked', 'true');
     await page
         .getByTestId('cover-titles-toggle')
         .locator('input')
@@ -95,6 +99,127 @@ export async function configureCoverSettings(
     await expect(page.locator('body')).toHaveClass(
         theme === 'dark' ? /dark-theme/ : /^(?!.*dark-theme)/
     );
+    await expect(page.locator('html')).toHaveAttribute('data-cover-size', size);
+}
+
+/** Render the supported minimum width and widest score without changing data. */
+export async function expectCompactCoverHeader(
+    card: Locator,
+    favorite: boolean
+): Promise<void> {
+    const toggle = card.getByTestId('content-cover-favorite-toggle');
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toBeEnabled();
+    await expect(toggle).toHaveAttribute('aria-pressed', String(favorite));
+    await expect(toggle.locator('mat-icon')).toHaveText(
+        favorite ? 'favorite' : 'favorite_border'
+    );
+    await expect(card.getByTestId('content-cover-rating')).toBeVisible();
+    const original = await card.evaluate((element) => {
+        const card = element as HTMLElement;
+        const score = card.querySelector<HTMLElement>(
+            '[data-test-id="content-cover-rating"] > span'
+        );
+        if (!score) throw new Error('Expected rendered rating value');
+        const original = {
+            style: card.getAttribute('style'),
+            text: score.textContent,
+        };
+        for (const property of [
+            'width',
+            'min-width',
+            'max-width',
+            'flex-basis',
+        ])
+            card.style.setProperty(property, '120px', 'important');
+        card.style.setProperty('box-sizing', 'border-box', 'important');
+        score.textContent = '10.0';
+        return original;
+    });
+    try {
+        await expect(card).toHaveCSS('width', '120px');
+        const layout = await card.evaluate((element) => {
+            const rectangle = (node: Element) => {
+                const { left, top, right, bottom, width, height } =
+                    node.getBoundingClientRect();
+                return { left, top, right, bottom, width, height };
+            };
+            const find = (selector: string, parent: Element = element) => {
+                const node = parent.querySelector(selector);
+                if (!node)
+                    throw new Error(`Missing compact control: ${selector}`);
+                return node;
+            };
+            const buttons = [
+                find('[data-test-id="content-cover-favorite-toggle"]'),
+                find('app-content-cover-actions button[aria-haspopup="menu"]'),
+            ];
+            const rating = rectangle(
+                find('[data-test-id="content-cover-rating"]')
+            );
+            const watch = element.querySelector(
+                '[data-test-id="content-cover-watch"]'
+            );
+            return {
+                card: rectangle(element),
+                rating,
+                watch: watch ? rectangle(watch) : null,
+                buttons: buttons.map((button) => ({
+                    button: rectangle(button),
+                    icon: rectangle(find('mat-icon', button)),
+                    touch: rectangle(
+                        find('.mat-mdc-button-touch-target', button)
+                    ),
+                })),
+            };
+        });
+        await test
+            .info()
+            .attach(`compact-cover-header-${favorite ? 'filled' : 'outline'}`, {
+                body: JSON.stringify(layout),
+                contentType: 'application/json',
+            });
+        expect(layout.card.width).toBeCloseTo(120, 1);
+        const controls = [
+            layout.rating,
+            ...layout.buttons.map(({ button }) => button),
+        ];
+        if (layout.watch) controls.push(layout.watch);
+        for (let i = 0; i < controls.length; i++) {
+            const first = controls[i];
+            expect(first.left).toBeGreaterThanOrEqual(layout.card.left);
+            expect(first.right).toBeLessThanOrEqual(layout.card.right);
+            for (const second of controls.slice(i + 1)) {
+                expect(
+                    Math.min(first.right, second.right) >
+                        Math.max(first.left, second.left) &&
+                        Math.min(first.bottom, second.bottom) >
+                            Math.max(first.top, second.top)
+                ).toBe(false);
+            }
+        }
+        for (const { button, icon, touch } of layout.buttons) {
+            expect(button.width).toBeGreaterThanOrEqual(24);
+            expect(button.height).toBeGreaterThanOrEqual(24);
+            expect(touch.width).toBeGreaterThanOrEqual(24);
+            expect(touch.height).toBeGreaterThanOrEqual(24);
+            for (const inner of [icon, touch]) {
+                expect(inner.left).toBeGreaterThanOrEqual(button.left - 0.5);
+                expect(inner.top).toBeGreaterThanOrEqual(button.top - 0.5);
+                expect(inner.right).toBeLessThanOrEqual(button.right + 0.5);
+                expect(inner.bottom).toBeLessThanOrEqual(button.bottom + 0.5);
+            }
+        }
+    } finally {
+        await card.evaluate((element, original) => {
+            if (original.style === null) element.removeAttribute('style');
+            else element.setAttribute('style', original.style);
+            const score = element.querySelector(
+                '[data-test-id="content-cover-rating"] > span'
+            );
+            if (score) score.textContent = original.text;
+        }, original);
+    }
 }
 
 /** Covers are local fixtures; external poster hosts never affect the result. */
@@ -151,6 +276,31 @@ export async function expectCoverTypeClearOfControls(
     expect(overlaps).toEqual([]);
 }
 
+/** Missing status must not reserve an empty row above the rating. */
+export async function expectCoverIndicatorsStacked(
+    card: Locator
+): Promise<void> {
+    const layout = await card
+        .locator('app-content-cover-indicators')
+        .evaluate((element) => {
+            const top = element.getBoundingClientRect().top;
+            const rating = element
+                .querySelector('[data-test-id="content-cover-rating"]')
+                ?.getBoundingClientRect();
+            const status = element
+                .querySelector(
+                    '[data-test-id="content-cover-favorite"], [data-test-id="content-cover-watch"]'
+                )
+                ?.getBoundingClientRect();
+            return {
+                firstOffset: (rating?.top ?? status?.top ?? top + 8) - top,
+                statusGap: rating && status ? status.top - rating.bottom : null,
+            };
+        });
+    expect(layout.firstOffset).toBeCloseTo(8, 0);
+    if (layout.statusGap !== null) expect(layout.statusGap).toBeGreaterThan(0);
+}
+
 export async function firstCatalogTitle(page: Page): Promise<string> {
     const card = page.locator('app-grid-list mat-card').first();
     await expect(card).toBeVisible();
@@ -172,7 +322,9 @@ export async function openCoverMenu(
     page: Page,
     card: Locator
 ): Promise<Locator> {
-    const trigger = card.locator('app-content-cover-actions button').first();
+    const trigger = card
+        .locator('app-content-cover-actions button[aria-haspopup="menu"]')
+        .first();
     await expect(trigger).toBeEnabled();
     // A retained pointer over a status badge can open a delayed tooltip above
     // the menu. Exercise keyboard dismissal with the pointer on app chrome.
@@ -222,6 +374,19 @@ export async function selectCoverAction(
     card: Locator,
     action: 'details' | 'favorite' | 'remove' | 'mark-watched'
 ): Promise<void> {
+    const toggle = card.getByTestId('content-cover-favorite-toggle');
+    if (
+        action === 'favorite' ||
+        ((await toggle.count()) > 0 &&
+            (await toggle.getAttribute('data-action-id')) === action)
+    ) {
+        await expect(toggle).toHaveAttribute('data-action-id', action);
+        await expect(toggle).toBeVisible();
+        await expect(toggle).toBeEnabled();
+        await toggle.click();
+        await expect(page.getByRole('menu')).toHaveCount(0);
+        return;
+    }
     await openCoverMenu(page, card);
     await page.getByTestId(`content-cover-action-${action}`).click();
     await expect(page.getByRole('menu')).toHaveCount(0);

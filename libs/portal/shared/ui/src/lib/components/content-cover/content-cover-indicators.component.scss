@@ -5,13 +5,21 @@
     z-index: 1;
 }
 
-.status-row {
+.indicator-stack {
     position: absolute;
     top: 8px;
     left: 8px;
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    max-width: calc(100% - var(--cover-actions-reserve, 86px));
+}
+
+.status-row {
+    display: flex;
+    flex-wrap: wrap;
     gap: 4px;
-    max-width: calc(100% - 54px);
 }
 
 .favorite,
@@ -42,11 +50,15 @@
     border-radius: 50%;
 }
 .rating {
-    position: absolute;
-    left: 8px;
-    top: 38px;
-    padding: 0 5px;
+    padding: 0 var(--cover-rating-padding, 5px);
+    gap: var(--cover-rating-gap, 3px);
     border-radius: 6px;
+
+    mat-icon {
+        font-size: var(--cover-rating-icon-size, 16px);
+        width: var(--cover-rating-icon-size, 16px);
+        height: var(--cover-rating-icon-size, 16px);
+    }
 }
 
 .status-row > span {

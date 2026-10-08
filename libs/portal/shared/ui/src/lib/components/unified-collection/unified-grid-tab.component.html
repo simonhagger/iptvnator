@@ -31,6 +31,8 @@
                 [date]="item.addedAt ?? item.viewedAt"
                 [showRemoveButton]="true"
                 [removeIcon]="mode() === 'favorites' ? 'favorite' : 'delete'"
+                [removeIsFavorite]="mode() === 'favorites'"
+                [removeDisabled]="removeActionDisabled(item)"
                 [removeTooltip]="
                     (mode() === 'favorites'
                         ? 'PORTALS.REMOVE_FROM_FAVORITES'

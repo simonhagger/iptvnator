@@ -280,6 +280,7 @@ export class ContentCoverDataService {
         if (item && favorite !== undefined) {
             actions.push({
                 id: 'favorite',
+                favoriteState: favorite,
                 icon: favorite ? 'favorite' : 'favorite_border',
                 labelKey: favorite
                     ? 'PORTALS.REMOVE_FROM_FAVORITES'

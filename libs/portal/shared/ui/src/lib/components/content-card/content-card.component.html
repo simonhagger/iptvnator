@@ -52,6 +52,7 @@
             @if (isVod()) {
                 <app-content-cover-indicators
                     [indicators]="coverIndicators()"
+                    [showFavorite]="!favoriteActionFor(menuActions())"
                     [descriptionId]="coverDescriptionId"
                 />
             }

@@ -220,6 +220,11 @@
                                     <app-content-cover-indicators
                                         [descriptionId]="descriptionId"
                                         [indicators]="cardIndicators(card)"
+                                        [showFavorite]="
+                                            !favoriteActionFor(
+                                                card.actions ?? []
+                                            )
+                                        "
                                     />
                                 }
                             </div>

@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     computed,
     effect,
     inject,
@@ -17,12 +18,15 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 import {
     isPortalPlaybackWatched,
     normalizeContentCoverRating,
     ContentCoverIndicators,
 } from '@iptvnator/portal/shared/util';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
+import { buildDashboardFavoriteTarget } from './dashboard-favorite-target';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -56,7 +60,6 @@ import {
     buildDashboardCoverIndicators,
     dashboardCoverIdentity,
     dashboardFavoriteCardId,
-    resolveDashboardSeriesHistory,
     isDashboardRecentDetailAvailable,
     findDashboardFavoriteForCard,
     resolveSourceExpiryBadge,
@@ -109,6 +112,7 @@ import type {
         DashboardRailComponent,
         EmptyStateComponent,
         TranslatePipe,
+        MatButtonModule,
     ],
     templateUrl: './workspace-dashboard-rails.component.html',
     styleUrl: './workspace-dashboard-rails.component.scss',
@@ -120,10 +124,13 @@ import type {
         DashboardLiveEpgClock,
         DashboardLiveEpgPresenter,
         DashboardPortalLiveEpgPresenter,
+        ContentCoverDataService,
     ],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
+    readonly coverFavorites = inject(ContentCoverDataService);
+    private readonly destroyRef = inject(DestroyRef);
     /** One facade for both live-EPG sources: uploaded XMLTV and the portal. */
     readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly dialog = inject(MatDialog);
@@ -146,6 +153,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly sourceExpiry = inject(DashboardSourceExpiryService);
     readonly trendingService = inject(DashboardTrendingService);
     readonly recommendationsService = inject(DashboardRecommendationsService);
+    private favoriteSnapshotKey: string | null = null;
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
@@ -229,12 +237,6 @@ export class WorkspaceDashboardRailsComponent {
             ...this.data.xtreamRecentlyAddedItems(),
             ...this.matchedPlaybackItems(),
         ])
-    );
-    private readonly favoriteIdentities = computed(
-        () =>
-            new Set(
-                this.data.globalFavoriteMembership().map(dashboardCoverIdentity)
-            )
     );
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
@@ -339,6 +341,26 @@ export class WorkspaceDashboardRailsComponent {
     readonly railSkeletons = createDashboardRailSkeletons(this);
 
     constructor() {
+        effect(() => {
+            if (
+                !this.data.playlistsLoaded() ||
+                !this.data.globalFavoritesLoaded()
+            )
+                return;
+            const key = JSON.stringify([
+                this.data
+                    .playlists()
+                    .map((playlist) => playlist._id)
+                    .sort(),
+                this.data
+                    .globalFavoriteMembership()
+                    .map((item) => [dashboardCoverIdentity(item), item.id])
+                    .sort(),
+            ]);
+            if (key === this.favoriteSnapshotKey) return;
+            this.favoriteSnapshotKey = key;
+            untracked(() => void this.coverFavorites.load({ scope: 'all' }));
+        });
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
         // changes made while viewing details, including newly backfilled
         // backdrops that do not change recency ordering.
@@ -456,7 +478,10 @@ export class WorkspaceDashboardRailsComponent {
     onContinueWatchingActionSelected(
         selection: DashboardRailActionSelection
     ): void {
-        if (selection.action.id === 'details') {
+        if (
+            selection.action.id === 'details' ||
+            selection.action.id === 'favorite'
+        ) {
             this.onContentActionSelected(selection);
             return;
         }
@@ -558,6 +583,7 @@ export class WorkspaceDashboardRailsComponent {
                 ? {
                       actions: [
                           ...(detailsEnabled ? this.detailActions() : []),
+                          ...this.favoriteActions(item, 'history'),
                           ...buildDashboardContinueWatchingActions({
                               canResume:
                                   this.data.getRecentItemResumeNavigation(
@@ -590,16 +616,15 @@ export class WorkspaceDashboardRailsComponent {
             liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
-            indicators: this.coverIndicators(item, true),
+            indicators: this.coverIndicators(
+                item,
+                item.type === 'live' ? true : undefined
+            ),
             ...(item.type !== 'live'
                 ? {
                       actions: [
                           ...this.detailActions(),
-                          {
-                              id: 'favorite',
-                              labelKey: 'PORTALS.REMOVE_FROM_FAVORITES',
-                              icon: 'favorite',
-                          },
+                          ...this.favoriteActions(item),
                       ],
                   }
                 : {}),
@@ -620,7 +645,7 @@ export class WorkspaceDashboardRailsComponent {
             link: this.data.getRecentlyAddedLink(item),
             state: this.data.getRecentlyAddedNavigationState(item),
             indicators: this.coverIndicators(item),
-            actions: this.detailActions(),
+            actions: [...this.detailActions(), ...this.favoriteActions(item)],
         };
     }
 
@@ -699,13 +724,14 @@ export class WorkspaceDashboardRailsComponent {
                 state: current.state,
             });
         } else if (selection.action.id === 'favorite') {
-            const item = findDashboardFavoriteForCard(
-                this.data.globalFavoriteItems(),
-                current.id
+            const action = current.actions?.find(
+                (candidate) => candidate.id === 'favorite'
             );
+            if (!action || action.disabled) return;
+            const item = this.favoriteTargetForCard(current.id);
             if (item)
                 this.runContinueWatchingMutation(() =>
-                    this.data.removeGlobalFavorite(item)
+                    this.toggleCoverFavorite(item)
                 );
         }
     }
@@ -716,33 +742,80 @@ export class WorkspaceDashboardRailsComponent {
         ];
     }
 
+    private favoriteActions(
+        item: PortalActivityItem & DashboardCoverMetadata,
+        scope: 'history' | 'catalog' = 'catalog'
+    ): NonNullable<DashboardRailCard['actions']> {
+        const target = this.favoriteTarget(item, scope);
+        return this.coverFavorites
+            .actionsFor(target)
+            .filter((action) => action.id === 'favorite');
+    }
+
+    private favoriteTarget(
+        item: PortalActivityItem & DashboardCoverMetadata,
+        scope: 'history' | 'catalog' = 'catalog'
+    ) {
+        if (
+            scope === 'history' &&
+            item.source === 'xtream' &&
+            item.type === 'series' &&
+            !this.data.hasLoadedPlaybackPositions(item.playlist_id)
+        )
+            return null;
+        return buildDashboardFavoriteTarget(
+            item,
+            scope,
+            scope === 'history'
+                ? this.data.getPlaybackPositionForItem(item)
+                : null
+        );
+    }
+
+    private favoriteTargetForCard(id: string) {
+        const recent = this.data
+            .globalRecentVodItems()
+            .find((item) => this.recentCardId(item) === id);
+        if (recent) return this.favoriteTarget(recent, 'history');
+        const favorite = findDashboardFavoriteForCard(
+            this.data.globalFavoriteItems(),
+            id
+        );
+        if (favorite) return this.favoriteTarget(favorite);
+        const added = this.data
+            .xtreamRecentlyAddedItems()
+            .find(
+                (item) =>
+                    `added-${item.id}-${item.playlist_id}-${item.added_at}` ===
+                    id
+            );
+        return added ? this.favoriteTarget(added) : null;
+    }
+
+    private async toggleCoverFavorite(
+        item: NonNullable<ReturnType<typeof buildDashboardFavoriteTarget>>
+    ): Promise<void> {
+        await this.coverFavorites.toggleFavorite(item);
+        if (!this.destroyRef.destroyed) await this.data.reloadGlobalFavorites();
+    }
+
+    async retryCoverFavorites(): Promise<void> {
+        await this.coverFavorites.retry();
+        if (!this.destroyRef.destroyed) await this.data.reloadGlobalFavorites();
+    }
+
     private coverIndicators(
         item: PortalActivityItem & DashboardCoverMetadata,
         favorite: boolean | undefined = undefined,
         scope: 'history' | 'catalog' = 'catalog'
     ): ContentCoverIndicators {
         const position = this.data.getPlaybackPositionForItem(item, scope);
-        const history =
-            scope === 'history' &&
-            item.source === 'xtream' &&
-            item.type === 'series';
-        const seriesId = history
-            ? resolveDashboardSeriesHistory(item, position ? [position] : [])
-                  ?.seriesId
-            : undefined;
-        const identity = history
-            ? seriesId == null
-                ? null
-                : { ...item, xtream_id: seriesId }
-            : item;
         return buildDashboardCoverIndicators(
             item,
             favorite ??
-                (identity
-                    ? this.favoriteIdentities().has(
-                          dashboardCoverIdentity(identity)
-                      )
-                    : undefined),
+                this.coverFavorites.favoriteFor(
+                    buildDashboardFavoriteTarget(item, scope, position)
+                ),
             position,
             this.data.hasLoadedPlaybackPositions(item.playlist_id)
         );

@@ -36,6 +36,8 @@ import {
     configureCoverSettings,
     dismissCoverMenu,
     expectAvailableRating,
+    expectCoverIndicatorsStacked,
+    expectCompactCoverHeader,
     expectCoverState,
     expectSavedCoverPosition,
     expectSeriesOnlyFavorites,
@@ -71,7 +73,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
             await routeCoverArtwork(page);
             await routePlayableStreams(page);
             try {
-                await configureCoverSettings(page, theme);
+                await configureCoverSettings(page, theme, true, 'small');
                 await openSources(page);
                 if (provider === 'xtream') {
                     await addXtreamPortal(page, {
@@ -106,6 +108,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 )?.[1];
                 expect(playlistId).toBeTruthy();
                 const rating = movieCard.getByTestId('content-cover-rating');
+                await expectCoverIndicatorsStacked(movieCard);
                 const catalogRating = (await rating.count())
                     ? await rating.textContent()
                     : null;
@@ -113,10 +116,13 @@ for (const provider of ['xtream', 'stalker'] as const) {
                     ? await rating.getAttribute('data-rating-source')
                     : null;
                 await dismissCoverMenu(page, movieCard);
+                await expectCompactCoverHeader(movieCard, false);
                 await selectCoverAction(page, movieCard, 'favorite');
                 await expect(
                     movieCard.getByTestId('content-cover-favorite')
                 ).toBeVisible();
+                await expectCoverIndicatorsStacked(movieCard);
+                await expectCompactCoverHeader(movieCard, true);
                 await expect(page.locator('app-content-hero')).toHaveCount(0);
                 await captureCover(
                     page,
@@ -148,6 +154,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 const seriesRating = seriesCard.getByTestId(
                     'content-cover-rating'
                 );
+                await expectCoverIndicatorsStacked(seriesCard);
                 const seriesCatalogRating = (await seriesRating.count())
                     ? await seriesRating.textContent()
                     : null;
@@ -167,6 +174,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 );
                 expect(seriesId).toBeGreaterThan(0);
                 await selectCoverAction(page, seriesCard, 'favorite');
+                await expectCoverIndicatorsStacked(seriesCard);
                 await selectCoverAction(page, seriesCard, 'details');
                 const episode = page.locator('.episode-card').first();
                 await expect(episode).toBeVisible();
@@ -230,6 +238,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                 ).first();
                 await expectCoverState(favoriteMovie, 'in-progress', 40);
                 await expectAvailableRating(favoriteMovie, catalogRating);
+                await expectCompactCoverHeader(favoriteMovie, true);
                 await dismissCoverMenu(page, favoriteMovie);
                 await captureCover(
                     page,
@@ -261,6 +270,7 @@ for (const provider of ['xtream', 'stalker'] as const) {
                     'episode'
                 );
                 await expectAvailableRating(dashboardMovie, catalogRating);
+                await expectCompactCoverHeader(dashboardMovie, true);
                 await dismissCoverMenu(page, dashboardMovie);
                 await captureCover(
                     page,
