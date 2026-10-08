@@ -1,6 +1,7 @@
 import {
     buildProviderCoverItem,
     collectionCoverIndicators,
+    collectionRowIdentity,
     contentCoverIdentity,
     findLatestSeriesEpisodePosition,
     resolveCollectionSeriesHistory,
@@ -185,6 +186,73 @@ describe('collection series history identity', () => {
         durationSeconds: 100,
         updatedAt: '2026-10-01T12:00:00Z',
     };
+
+    it('keeps an episode history row distinct from the colliding parent series without changing raw IDs', () => {
+        const parent = Object.freeze({
+            ...series,
+            historyContentType: 'series' as const,
+            contentId: 11,
+        });
+        const recentEpisode = Object.freeze({
+            ...series,
+            historyContentType: 'episode' as const,
+            contentId: 22,
+        });
+        expect(contentCoverIdentity(recentEpisode)).toBe(
+            contentCoverIdentity(parent)
+        );
+        expect(collectionRowIdentity(recentEpisode)).not.toBe(
+            collectionRowIdentity(parent)
+        );
+        const rows = [parent, recentEpisode];
+        expect(new Set(rows.map(collectionRowIdentity)).size).toBe(2);
+        expect(
+            rows.filter(
+                (row) =>
+                    collectionRowIdentity(row) !==
+                    collectionRowIdentity(recentEpisode)
+            )
+        ).toEqual([parent]);
+        expect(recentEpisode).toMatchObject({
+            uid: series.uid,
+            xtreamId: 909,
+            contentId: 22,
+        });
+    });
+
+    it('keeps history row identities scoped and stable across native and PWA storage IDs', () => {
+        const recentEpisode = {
+            ...series,
+            historyContentType: 'episode' as const,
+        };
+        expect(collectionRowIdentity({ ...recentEpisode, contentId: 22 })).toBe(
+            collectionRowIdentity({ ...recentEpisode, contentId: 909 })
+        );
+        expect(
+            new Set(
+                [
+                    recentEpisode,
+                    { ...recentEpisode, playlistId: 'b' },
+                    { ...recentEpisode, xtreamId: 910 },
+                    {
+                        ...recentEpisode,
+                        sourceType: 'stalker' as const,
+                        xtreamId: undefined,
+                        stalkerId: '909',
+                    },
+                ].map(collectionRowIdentity)
+            ).size
+        ).toBe(4);
+        expect(collectionRowIdentity(series)).toBe(
+            contentCoverIdentity(series)
+        );
+        expect(
+            collectionRowIdentity({ ...series, historyContentType: 'series' })
+        ).toBe(contentCoverIdentity(series));
+        expect(collectionRowIdentity({ ...series, contentType: 'live' })).toBe(
+            series.uid
+        );
+    });
 
     it('resolves episode-keyed recent history while preserving the parent-only catalogue lookup', () => {
         expect(

@@ -36,6 +36,19 @@ export function contentCoverIdentity(item: UnifiedCollectionItem): string {
     ]);
 }
 
+/** Mounted collection ownership; does not change provider or favourite IDs. */
+export function collectionRowIdentity(item: UnifiedCollectionItem): string {
+    if (item.contentType === 'live') return item.uid;
+    const identity = contentCoverIdentity(item);
+    // Episode and parent provider IDs can coincide. Storage IDs differ between
+    // native and PWA records, so provenance, not the database ID, owns this row.
+    return item.sourceType === 'xtream' &&
+        item.contentType === 'series' &&
+        item.historyContentType === 'episode'
+        ? JSON.stringify([identity, 'history-episode'])
+        : identity;
+}
+
 /** Presentation recency only; does not choose what should auto-play next. */
 export function findLatestSeriesEpisodePosition(
     positions: readonly PlaybackPositionData[],
