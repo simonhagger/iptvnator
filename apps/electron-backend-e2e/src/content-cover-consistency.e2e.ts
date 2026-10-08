@@ -510,7 +510,8 @@ test('@cover @xtream @electron @persistence Recent inline detail return refreshe
         });
         await goBackFromDetail(page);
         await openGlobalRecent(page);
-        await switchUnifiedCollectionContent(page, 'Movies');
+        // A movie-only history selects Movies automatically and omits the toggle.
+        await expect(page.locator('.content-toggle')).toHaveCount(0);
         const card = contentCardByTitle(page, title).first();
         await expect(card.getByTestId('content-cover-favorite')).toHaveCount(0);
         await expect(
@@ -592,10 +593,12 @@ test('@cover @xtream @electron @persistence Recent inline detail return refreshe
         await goBackFromDetail(page);
         await expect(page.locator('app-content-hero')).toHaveCount(0);
         await expect(card.getByTestId('content-cover-favorite')).toHaveCount(0);
-        await expect(card.getByTestId('content-cover-watch')).toHaveAttribute(
-            'data-watch-state',
-            'unwatched'
-        );
+        // Unwatched content has no watch badge; its stored position was cleared above.
+        await expect(card).toBeVisible();
+        await expect(card.getByTestId('content-cover-watch')).toHaveCount(0);
+        await expect(
+            card.locator('.content-card__activation')
+        ).not.toHaveAccessibleDescription(/Started|watched/i);
         await expect(card.getByTestId('content-cover-progress')).toHaveCount(0);
         // The refreshed menu must offer Add, rather than invert a stale Remove intent.
         await selectCoverAction(page, card, 'favorite');
