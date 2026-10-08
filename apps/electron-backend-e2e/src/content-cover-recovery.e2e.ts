@@ -92,8 +92,13 @@ for (const mode of ['favorites', 'recent'] as const) {
             // progress bridge used by the collection. Membership remains healthy.
             app = await restartElectronApp(app, dataDir);
             await app.electronApp.evaluate(({ ipcMain }) => {
+                const state = globalThis as typeof globalThis & {
+                    coverRecoveryFailedReads: number;
+                };
+                state.coverRecoveryFailedReads = 0;
                 ipcMain.removeHandler('DB_GET_ALL_PLAYBACK_POSITIONS');
                 ipcMain.handle('DB_GET_ALL_PLAYBACK_POSITIONS', () => {
+                    ++state.coverRecoveryFailedReads;
                     throw new Error('Synthetic progress read failure');
                 });
             });
@@ -121,9 +126,20 @@ for (const mode of ['favorites', 'recent'] as const) {
             await page.screenshot({
                 path: test.info().outputPath('progress-read-failed.png'),
             });
+            const failedReads = () =>
+                app.electronApp.evaluate(
+                    () =>
+                        (
+                            globalThis as typeof globalThis & {
+                                coverRecoveryFailedReads: number;
+                            }
+                        ).coverRecoveryFailedReads
+                );
+            const beforeRetry = await failedReads();
             await alert
                 .getByRole('button', { name: 'Retry', exact: true })
                 .click();
+            await expect.poll(failedReads).toBeGreaterThan(beforeRetry);
             await expect(alert).toBeVisible();
 
             // Return the real SQLite snapshot captured above. This app instance
