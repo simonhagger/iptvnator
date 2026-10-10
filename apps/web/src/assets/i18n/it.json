@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Impossibile caricare l'avanzamento della visione. Riprova.",
+        "MORE_ACTIONS": "Altre azioni per {{title}}",
+        "DETAILS": "Apri dettagli",
+        "FAVORITE": "Preferito",
+        "STARTED": "Iniziato",
+        "RATING_PROVIDER": "Valutazione del fornitore",
+        "RATING_IMDB": "Valutazione IMDb fornita dal fornitore",
+        "RATING_TMDB": "Valutazione TMDB",
+        "RATING_KINOPOISK": "Valutazione Kinopoisk",
+        "PROGRESS": "Avanzamento della visione",
+        "EPISODE_PROGRESS": "Avanzamento dell’episodio attuale",
+        "FAVORITES_FAILED": "Impossibile aggiornare o caricare i preferiti. Riprova."
+    },
     "CANCEL": "Annulla",
     "CLEAR": "Cancella",
     "CLOSE": "Chiudi",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Aggiornamento applicazione",
         "APP_UPDATE_DESCRIPTION": "Controlla GitHub Releases per gli aggiornamenti dell’app desktop.",
         "APP_UPDATE_IDLE": "Pronto per controllare gli aggiornamenti",
+        "APP_UPDATE_DISABLED": "Gli aggiornamenti sono disabilitati per questa versione personale.",
         "APP_UPDATE_CHECKING": "Controllo aggiornamenti…",
         "APP_UPDATE_AVAILABLE": "La versione {{version}} è disponibile",
         "APP_UPDATE_NOT_AVAILABLE": "Stai usando la versione più recente",

@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Δεν ήταν δυνατή η φόρτωση της προόδου προβολής. Δοκιμάστε ξανά.",
+        "MORE_ACTIONS": "Περισσότερες ενέργειες για {{title}}",
+        "DETAILS": "Άνοιγμα λεπτομερειών",
+        "FAVORITE": "Αγαπημένο",
+        "STARTED": "Ξεκίνησε",
+        "RATING_PROVIDER": "Βαθμολογία παρόχου",
+        "RATING_IMDB": "Βαθμολογία IMDb από τον πάροχο",
+        "RATING_TMDB": "Βαθμολογία TMDB",
+        "RATING_KINOPOISK": "Βαθμολογία Kinopoisk",
+        "PROGRESS": "Πρόοδος προβολής",
+        "EPISODE_PROGRESS": "Πρόοδος τρέχοντος επεισοδίου",
+        "FAVORITES_FAILED": "Δεν ήταν δυνατή η ενημέρωση ή φόρτωση αγαπημένων. Δοκιμάστε ξανά."
+    },
     "CANCEL": "Ακύρωση",
     "CLEAR": "Εκκαθάριση",
     "CLOSE": "Κλείσιμο",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Ενημέρωση εφαρμογής",
         "APP_UPDATE_DESCRIPTION": "Έλεγχος GitHub Releases για ενημερώσεις της desktop εφαρμογής.",
         "APP_UPDATE_IDLE": "Έτοιμο για έλεγχο ενημερώσεων",
+        "APP_UPDATE_DISABLED": "Οι ενημερώσεις είναι απενεργοποιημένες για αυτή την προσωπική έκδοση.",
         "APP_UPDATE_CHECKING": "Έλεγχος για ενημερώσεις…",
         "APP_UPDATE_AVAILABLE": "Η έκδοση {{version}} είναι διαθέσιμη",
         "APP_UPDATE_NOT_AVAILABLE": "Χρησιμοποιείτε την πιο πρόσφατη έκδοση",

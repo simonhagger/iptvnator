@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Der Wiedergabefortschritt konnte nicht geladen werden. Bitte erneut versuchen.",
+        "MORE_ACTIONS": "Weitere Aktionen für {{title}}",
+        "DETAILS": "Details öffnen",
+        "FAVORITE": "Favorit",
+        "STARTED": "Begonnen",
+        "RATING_PROVIDER": "Anbieterbewertung",
+        "RATING_IMDB": "Vom Anbieter gelieferte IMDb-Bewertung",
+        "RATING_TMDB": "TMDB-Bewertung",
+        "RATING_KINOPOISK": "Kinopoisk-Bewertung",
+        "PROGRESS": "Wiedergabefortschritt",
+        "EPISODE_PROGRESS": "Fortschritt der aktuellen Folge",
+        "FAVORITES_FAILED": "Favoriten konnten nicht aktualisiert oder geladen werden. Bitte erneut versuchen."
+    },
     "CANCEL": "Abbrechen",
     "CLEAR": "Leeren",
     "CLOSE": "Schließen",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Anwendungsupdate",
         "APP_UPDATE_DESCRIPTION": "GitHub Releases auf Updates für die Desktop-App prüfen.",
         "APP_UPDATE_IDLE": "Bereit zur Update-Prüfung",
+        "APP_UPDATE_DISABLED": "Updates sind für diesen persönlichen Build deaktiviert.",
         "APP_UPDATE_CHECKING": "Suche nach Updates…",
         "APP_UPDATE_AVAILABLE": "Version {{version}} ist verfügbar",
         "APP_UPDATE_NOT_AVAILABLE": "Du verwendest die neueste Version",

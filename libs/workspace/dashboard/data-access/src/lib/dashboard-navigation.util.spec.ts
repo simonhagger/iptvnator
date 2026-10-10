@@ -43,6 +43,7 @@ type RecentNavigationState = {
             sourceType?: string;
             contentType?: string;
             stalkerId?: string;
+            contentId?: number;
         };
         seriesResume?: unknown;
     };
@@ -61,6 +62,7 @@ describe('getRecentItemNavigationState series resume target', () => {
             seasonNumber: 3,
             episodeNumber: 7,
         });
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
     });
 
     it('keeps watched rows out of resume selection', () => {
@@ -78,6 +80,62 @@ describe('getRecentItemNavigationState series resume target', () => {
 });
 
 describe('getRecentItemDetailNavigationState', () => {
+    it('clears episode storage ownership even when parent and episode provider IDs coincide', () => {
+        const item = Object.freeze({
+            ...recentSeries,
+            xtream_id: 4007,
+            historyContentType: 'episode' as const,
+        });
+        const state = getRecentItemDetailNavigationState(
+            item,
+            episodePosition({ seriesXtreamId: 4007 })
+        ) as RecentNavigationState;
+        expect(state.openCollectionDetailItem?.item?.xtreamId).toBe(4007);
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
+        expect(item.id).toBe(200);
+        expect(item.xtream_id).toBe(4007);
+    });
+    it('opens the resolved parent without inventing resume coordinates', () => {
+        const item = {
+            ...recentSeries,
+            xtream_id: 4007,
+            historyContentType: 'episode' as const,
+        };
+        const position = episodePosition({
+            seasonNumber: undefined,
+            episodeNumber: undefined,
+        });
+        const state = getRecentItemDetailNavigationState(
+            item,
+            position
+        ) as RecentNavigationState;
+        expect(state.openCollectionDetailItem?.item?.xtreamId).toBe(4000);
+        expect(state.openCollectionDetailItem?.item?.contentId).toBeUndefined();
+        expect(state.openCollectionDetailItem?.seriesResume).toBeUndefined();
+        expect(getRecentItemResumeNavigation(item, position)).toBeNull();
+    });
+
+    it.each([
+        null,
+        episodePosition({ seriesXtreamId: undefined }),
+        episodePosition({ playlistId: 'other' }),
+    ])(
+        'does not navigate an unresolved episode history ID as a parent show (%s)',
+        (position) => {
+            const item = {
+                ...recentSeries,
+                xtream_id: 4007,
+                historyContentType: 'episode' as const,
+            };
+            expect(
+                getRecentItemDetailNavigationState(item, position)
+            ).toBeUndefined();
+            expect(
+                getRecentItemNavigationState(item, position)
+            ).toBeUndefined();
+        }
+    );
+
     it('never carries a resume target, even for an in-progress series', () => {
         // Continue Watching default click is detail-only (issue #1441) —
         // resuming is an explicit card action instead.

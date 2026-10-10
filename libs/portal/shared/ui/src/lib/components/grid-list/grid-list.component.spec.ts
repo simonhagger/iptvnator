@@ -1,9 +1,14 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslateModule, TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { SettingsStore } from '@iptvnator/services';
+import {
+    ContentCoverActionsComponent,
+    ContentCoverIndicatorsComponent,
+} from '../content-cover';
 import {
     formatGridRating,
     GridListComponent,
@@ -11,6 +16,12 @@ import {
 } from './grid-list.component';
 
 describe('grid list rating helpers', () => {
+    it.each(['N/A', '7junk', -1, 11, Infinity, NaN, ''])(
+        'does not display malformed or out-of-scale ratings (%s)',
+        (rating) => {
+            expect(formatGridRating(rating)).toBeUndefined();
+        }
+    );
     it('rounds numeric ratings to a single decimal place', () => {
         expect(formatGridRating(7.243)).toBe('7.2');
         expect(formatGridRating('6.529')).toBe('6.5');
@@ -41,7 +52,11 @@ describe('GridListComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [GridListComponent],
+            imports: [
+                GridListComponent,
+                TranslateModule.forRoot(),
+                NoopAnimationsModule,
+            ],
         })
             .overrideComponent(GridListComponent, {
                 remove: { imports: [TranslatePipe] },
@@ -196,9 +211,7 @@ describe('GridListComponent', () => {
         // The icon is aria-hidden — the status must also exist as
         // visually-hidden text for assistive technology.
         const srText = badge.query(By.css('.visually-hidden'));
-        expect(srText.nativeElement.textContent).toContain(
-            'CATCHUP_AVAILABLE'
-        );
+        expect(srText.nativeElement.textContent).toContain('CATCHUP_AVAILABLE');
     });
 
     it('hides the catch-up badge for live cards without a playable archive', () => {
@@ -217,6 +230,137 @@ describe('GridListComponent', () => {
             )
         ).toHaveLength(0);
     });
+
+    it('keeps VOD action controls beside, not inside, card activation', () => {
+        const item = {
+            title: 'Film',
+            rating: '7.2',
+            progress: 95,
+            watchState: 'watched' as const,
+        };
+        fixture.componentRef.setInput('items', [item]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.detectChanges();
+        const actions = fixture.debugElement.query(
+            By.directive(ContentCoverActionsComponent)
+        );
+        expect(actions).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '.grid-card-primary app-content-cover-actions'
+            )
+        ).toBeNull();
+        const clicked = jest.fn();
+        fixture.componentInstance.itemClicked.subscribe(clicked);
+        actions.componentInstance.actionSelected.emit({
+            id: 'favorite',
+            icon: 'favorite',
+        });
+        expect(clicked).not.toHaveBeenCalled();
+        actions.componentInstance.actionSelected.emit({
+            id: 'details',
+            icon: 'info',
+        });
+        expect(clicked).toHaveBeenCalledTimes(1);
+        expect(clicked).toHaveBeenCalledWith(item);
+    });
+
+    it('attributes generic ratings and preserves watched movie indicators', () => {
+        fixture.componentRef.setInput('items', [
+            {
+                title: 'Film',
+                rating: '7.2',
+                progress: 95,
+                watchState: 'watched',
+            },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.detectChanges();
+        const indicators = fixture.debugElement.query(
+            By.directive(ContentCoverIndicatorsComponent)
+        ).componentInstance;
+        expect(indicators.indicators()).toMatchObject({
+            rating: { value: 7.2, source: 'provider' },
+            watchState: 'watched',
+            progress: 95,
+        });
+        expect(
+            fixture.nativeElement.querySelector('.grid-card-primary > .rating')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelectorAll(
+                '[data-test-id="content-cover-rating"]'
+            )
+        ).toHaveLength(1);
+        const activation = fixture.nativeElement.querySelector(
+            '.grid-card-primary'
+        ) as HTMLElement;
+        const summary = fixture.nativeElement.querySelector(
+            `#${activation.getAttribute('aria-describedby')}`
+        ) as HTMLElement;
+        expect(summary).not.toBeNull();
+        expect(summary.textContent).toContain('PORTALS.DETAIL.WATCHED');
+        expect(summary.textContent).toContain('COVER.RATING_PROVIDER');
+    });
+
+    it('keeps an open menu associated with its source item when the grid reorders', async () => {
+        const first = { id: 1, title: 'Film A' };
+        const second = { id: 2, title: 'Film B' };
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput(
+            'identityForItem',
+            (item: { id: number }) => `source-a::movie::${item.id}`
+        );
+        fixture.componentRef.setInput('actionsForItem', () => [
+            { id: 'favorite', icon: 'favorite', label: 'Favourite' },
+        ]);
+        fixture.detectChanges();
+        const selected = jest.fn();
+        fixture.componentInstance.actionSelected.subscribe(selected);
+        const trigger = fixture.nativeElement.querySelector(
+            'app-content-cover-actions button'
+        ) as HTMLButtonElement;
+        trigger.click();
+        await fixture.whenStable();
+        expect(
+            document.querySelector(
+                '[data-test-id="content-cover-action-favorite"]'
+            )
+        ).not.toBeNull();
+        fixture.componentRef.setInput('items', [second, first]);
+        fixture.detectChanges();
+        (
+            document.querySelector(
+                '[data-test-id="content-cover-action-favorite"]'
+            ) as HTMLButtonElement
+        ).click();
+        expect(selected).toHaveBeenCalledWith({
+            item: first,
+            action: { id: 'favorite', icon: 'favorite', label: 'Favourite' },
+        });
+    });
+
+    it.each(['live', 'itv', 'radio'])(
+        'does not add VOD menu controls to %s cards',
+        (type) => {
+            fixture.componentRef.setInput('items', [
+                { name: 'Channel', rating: '7.2' },
+            ]);
+            fixture.componentRef.setInput('type', type);
+            fixture.detectChanges();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(ContentCoverActionsComponent)
+                )
+            ).toBeNull();
+            expect(
+                fixture.debugElement.query(
+                    By.directive(ContentCoverIndicatorsComponent)
+                )
+            ).toBeNull();
+        }
+    );
 
     it('never shows the catch-up badge on VOD grids', () => {
         fixture.componentRef.setInput('items', [
@@ -262,7 +406,7 @@ describe('GridListComponent with strip country prefix enabled', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [GridListComponent],
+            imports: [GridListComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: SettingsStore,
@@ -301,9 +445,7 @@ describe('GridListComponent with strip country prefix enabled', () => {
     });
 
     it('keeps VOD titles untouched', () => {
-        fixture.componentRef.setInput('items', [
-            { title: 'US | Some Movie' },
-        ]);
+        fixture.componentRef.setInput('items', [{ title: 'US | Some Movie' }]);
         fixture.componentRef.setInput('type', 'vod');
 
         fixture.detectChanges();
@@ -319,7 +461,7 @@ describe('GridListComponent posters-only wall', () => {
     beforeEach(async () => {
         showCoverTitles = signal(false);
         await TestBed.configureTestingModule({
-            imports: [GridListComponent],
+            imports: [GridListComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: SettingsStore,
@@ -358,9 +500,7 @@ describe('GridListComponent posters-only wall', () => {
             'grid-list--posters-only'
         );
         expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
-        expect(overlay().nativeElement.textContent.trim()).toBe(
-            'Blade Runner'
-        );
+        expect(overlay().nativeElement.textContent.trim()).toBe('Blade Runner');
         expect(overlay().nativeElement.classList).not.toContain(
             'cover-title-overlay--pinned'
         );
@@ -472,7 +612,7 @@ describe('GridListComponent keyboard access', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [GridListComponent],
+            imports: [GridListComponent, TranslateModule.forRoot()],
             providers: [{ provide: SettingsStore, useValue: {} }],
         })
             .overrideComponent(GridListComponent, {
@@ -497,7 +637,7 @@ describe('GridListComponent keyboard access', () => {
     });
 
     it('exposes each card as a focusable button named after the item', () => {
-        const card = fixture.debugElement.query(By.css('mat-card'))
+        const card = fixture.debugElement.query(By.css('.grid-card-primary'))
             .nativeElement as HTMLElement;
 
         expect(card.getAttribute('role')).toBe('button');
@@ -513,7 +653,7 @@ describe('GridListComponent keyboard access', () => {
     it('activates a card with Enter and Space without scrolling the grid', () => {
         const clicked = jest.fn();
         fixture.componentInstance.itemClicked.subscribe(clicked);
-        const card = fixture.debugElement.query(By.css('mat-card'));
+        const card = fixture.debugElement.query(By.css('.grid-card-primary'));
 
         card.triggerEventHandler('keydown.enter', new KeyboardEvent('keydown'));
         const space = new KeyboardEvent('keydown', {

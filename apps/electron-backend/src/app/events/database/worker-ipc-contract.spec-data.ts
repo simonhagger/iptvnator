@@ -294,6 +294,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: {},
     },
     {
+        operation: 'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP',
+        args: [],
+        payload: {},
+    },
+    {
         operation: 'DB_REORDER_GLOBAL_FAVORITES',
         args: [reorderUpdates],
         payload: { updates: reorderUpdates },

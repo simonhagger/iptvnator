@@ -79,9 +79,14 @@ export class SettingsAboutSectionComponent {
     readonly openManualAppUpdate = output<void>();
     readonly openAppUpdateReleaseNotes = output<void>();
 
+    readonly updatesEnabled = computed(
+        () => this.appUpdateStatus()?.updatesEnabled !== false
+    );
+
     readonly canSelectUpdateChannel = computed(
         () =>
             this.isDesktop() &&
+            this.updatesEnabled() &&
             this.form() !== null &&
             this.updateChannelOptions().length > 0
     );
@@ -130,6 +135,7 @@ export class SettingsAboutSectionComponent {
         const status = this.appUpdateStatus()?.status;
 
         return (
+            this.updatesEnabled() &&
             this.hasPendingChannelChange() &&
             status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading &&
             status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
@@ -165,6 +171,7 @@ export class SettingsAboutSectionComponent {
     }
 
     readonly appliedChannelLabelKey = computed(() => {
+        if (!this.updatesEnabled()) return null;
         const channel = this.verdictChannel();
 
         return channel ? this.channelLabelKey(channel) : null;
@@ -183,6 +190,7 @@ export class SettingsAboutSectionComponent {
         const status = this.appUpdateStatus();
 
         return (
+            this.updatesEnabled() &&
             status?.supportedSelfUpdate === true &&
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available
         );
@@ -192,6 +200,7 @@ export class SettingsAboutSectionComponent {
         const status = this.appUpdateStatus();
 
         return (
+            this.updatesEnabled() &&
             status?.supportedSelfUpdate === true &&
             status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         );
@@ -201,6 +210,7 @@ export class SettingsAboutSectionComponent {
         const status = this.appUpdateStatus();
 
         return Boolean(
+            this.updatesEnabled() &&
             status?.currentVersion &&
             status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking
         );
@@ -209,10 +219,15 @@ export class SettingsAboutSectionComponent {
     readonly canOpenManualAppUpdate = computed(() => {
         const status = this.appUpdateStatus();
 
-        return Boolean(status && !status.supportedSelfUpdate);
+        return Boolean(
+            this.updatesEnabled() &&
+            status?.manualDownloadUrl &&
+            !status.supportedSelfUpdate
+        );
     });
 
     readonly appUpdateStatusLabelKey = computed(() => {
+        if (!this.updatesEnabled()) return 'SETTINGS.APP_UPDATE_DISABLED';
         const status =
             this.appUpdateStatus()?.status ??
             ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle;

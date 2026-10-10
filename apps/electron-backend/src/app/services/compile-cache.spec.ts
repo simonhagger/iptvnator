@@ -76,6 +76,26 @@ describe('startup compile cache guard', () => {
                 join('/tmp/e2e-run', 'user-data', 'v8-compile-cache')
             );
         });
+
+        it('uses the production profile before Electron bootstrap reads userData', () => {
+            const userDataPath = jest.fn(() => userData);
+            expect(
+                resolveCompileCacheDirectory(
+                    { IPTVNATOR_DATA_DIR: '/personal' },
+                    userDataPath
+                )
+            ).toBe(join('/personal', 'user-data', 'v8-compile-cache'));
+            expect(userDataPath).not.toHaveBeenCalled();
+            expect(
+                resolveCompileCacheDirectory(
+                    {
+                        IPTVNATOR_DATA_DIR: '/personal',
+                        IPTVNATOR_E2E_DATA_DIR: '/test',
+                    },
+                    userDataPath
+                )
+            ).toBe(join('/test', 'user-data', 'v8-compile-cache'));
+        });
     });
 
     describe('kill switch', () => {

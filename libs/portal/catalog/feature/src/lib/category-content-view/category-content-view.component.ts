@@ -20,6 +20,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 import {
     GridListComponent,
     InfiniteScrollDirective,
@@ -38,24 +39,24 @@ import {
     PORTAL_CATALOG_FACADE,
     PROVIDER_ONLY_DETAIL_PRESENTATION_STATE_KEY,
     PortalCatalogSortMode,
+    ContentCoverAction,
+    ContentCoverIndicators,
+    buildProviderCoverItem,
+    contentCoverIdentity,
 } from '@iptvnator/portal/shared/util';
 
-interface CategoryContentItem {
-    id?: number | string;
-    is_series?: number | string | boolean;
-    movie_id?: number | string;
-    xtream_id?: number | string;
-    series_id?: number | string;
-    stream_id?: number | string;
-    category_id?: number | string;
-    [key: string]: unknown;
-}
+import {
+    CategoryContentItem,
+    categoryContentCoverIndicators,
+    categorySortLabelKey,
+} from './category-content-presentation';
 
 @Component({
     selector: 'app-category-content-view',
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [ContentCoverDataService],
     imports: [
         GridListComponent,
         InfiniteScrollDirective,
@@ -74,6 +75,7 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly router = inject(Router);
     private readonly translate = inject(TranslateService);
+    readonly covers = inject(ContentCoverDataService);
     private readonly providerOnlyStalkerItemId = signal<string | null>(null);
     private readonly catalog = inject(
         PORTAL_CATALOG_FACADE
@@ -129,24 +131,9 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     readonly activeRefinementCount = computed(() =>
         this.minRating() !== null ? 1 : 0
     );
-    readonly activeSortLabelKey = computed(() => {
-        switch (this.contentSortMode()) {
-            case 'date-desc':
-                return 'WORKSPACE.SORT_DATE_DESC';
-            case 'date-asc':
-                return 'WORKSPACE.SORT_DATE_ASC';
-            case 'name-asc':
-                return 'WORKSPACE.SORT_NAME_ASC';
-            case 'name-desc':
-                return 'WORKSPACE.SORT_NAME_DESC';
-            case 'rating-desc':
-                return 'WORKSPACE.SORT_TOP_RATED';
-            case 'rating-asc':
-                return 'WORKSPACE.SORT_LOWEST_RATED';
-            default:
-                return 'WORKSPACE.SORT_CUSTOM';
-        }
-    });
+    readonly activeSortLabelKey = computed(() =>
+        categorySortLabelKey(this.contentSortMode())
+    );
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -175,6 +162,43 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
             ...this.catalog.getItemProgress(item),
         }))
     );
+    private coverItem(item: CategoryContentItem) {
+        const playlist = this.catalog.playlist();
+        if (!playlist || this.catalog.routeReady?.() === false) return null;
+        return buildProviderCoverItem(
+            {
+                provider: this.catalog.provider,
+                playlistId: playlist.id,
+                playlistName: playlist.title,
+                contentType: this.contentType() ?? '',
+            },
+            item
+        );
+    }
+    readonly coverActions = (item: CategoryContentItem) =>
+        this.covers.actionsFor(this.coverItem(item));
+    readonly coverIdentity = (item: CategoryContentItem) => {
+        const cover = this.coverItem(item);
+        return cover ? contentCoverIdentity(cover) : item;
+    };
+    readonly coverIndicators = (
+        item: CategoryContentItem
+    ): ContentCoverIndicators =>
+        categoryContentCoverIndicators(
+            item,
+            this.catalog.getItemProgress(item),
+            this.catalog.provider,
+            this.contentType(),
+            this.covers.favoriteFor(this.coverItem(item))
+        );
+    onCoverAction(event: {
+        item: CategoryContentItem;
+        action: ContentCoverAction;
+    }): void {
+        if (event.action.id === 'favorite') {
+            void this.covers.toggleFavorite(this.coverItem(event.item));
+        }
+    }
     /**
      * Identity of the rendered list. A change means the grid shows a
      * different result set: the scroll resets to the top and the infinite
@@ -201,6 +225,25 @@ export class CategoryContentViewComponent implements OnInit, OnDestroy {
     } | null = null;
 
     constructor() {
+        effect(() => {
+            const playlist = this.catalog.playlist();
+            const ready = this.catalog.routeReady?.() !== false;
+            // Returning from an inline Stalker detail refreshes membership
+            // changed on that detail. Reads are surface-level, never per row.
+            this.selectedItem();
+            untracked(
+                () =>
+                    void this.covers.load(
+                        playlist && ready
+                            ? {
+                                  scope: 'playlist',
+                                  playlistId: playlist.id,
+                                  portalType: this.catalog.provider,
+                              }
+                            : null
+                    )
+            );
+        });
         effect(() => {
             const category = this.routeCategory();
             if (!category || this.catalog.routeReady?.() === false) {

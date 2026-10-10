@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Nie udało się wczytać postępu oglądania. Spróbuj ponownie.",
+        "MORE_ACTIONS": "Więcej działań dla {{title}}",
+        "DETAILS": "Otwórz szczegóły",
+        "FAVORITE": "Ulubione",
+        "STARTED": "Rozpoczęte",
+        "RATING_PROVIDER": "Ocena dostawcy",
+        "RATING_IMDB": "Ocena IMDb podana przez dostawcę",
+        "RATING_TMDB": "Ocena TMDB",
+        "RATING_KINOPOISK": "Ocena Kinopoisk",
+        "PROGRESS": "Postęp oglądania",
+        "EPISODE_PROGRESS": "Postęp bieżącego odcinka",
+        "FAVORITES_FAILED": "Nie udało się zaktualizować lub wczytać ulubionych. Spróbuj ponownie."
+    },
     "CANCEL": "Anuluj",
     "CLEAR": "Wyczyść",
     "CLOSE": "Zamknij",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Aktualizacja aplikacji",
         "APP_UPDATE_DESCRIPTION": "Sprawdzaj aktualizacje aplikacji desktopowej w GitHub Releases.",
         "APP_UPDATE_IDLE": "Gotowe do sprawdzenia aktualizacji",
+        "APP_UPDATE_DISABLED": "Aktualizacje są wyłączone dla tej prywatnej kompilacji.",
         "APP_UPDATE_CHECKING": "Sprawdzanie aktualizacji…",
         "APP_UPDATE_AVAILABLE": "Dostępna jest wersja {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "Używasz najnowszej wersji",

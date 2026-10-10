@@ -295,6 +295,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [],
     },
     {
+        method: 'dbGetAllGlobalFavoriteMembership',
+        args: [],
+        channel: 'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP',
+        forwardedArgs: [],
+    },
+    {
         method: 'dbReorderGlobalFavorites',
         args: [reorderUpdates],
         channel: 'DB_REORDER_GLOBAL_FAVORITES',

@@ -45,6 +45,7 @@ import { registerStreamProbeHandlers } from '../events/stream-probe';
 import { registerConnectivityGuardHandlers } from '../events/connectivity-guard.events';
 import { traceStartupPhase } from '../services/debug-trace';
 import { AppUpdateService } from '../services/app-update.service';
+import { getDistributionProfile } from '../services/distribution-profile';
 import {
     onAppUpdateChannelChange,
     readStoredAppUpdateChannel,
@@ -70,6 +71,7 @@ export function bootstrapDeferredEvents(
     const { windowCloseGuard } = context;
     const appUpdateService = new AppUpdateService({
         app,
+        updatesEnabled: getDistributionProfile() !== 'personal',
         appVersion: context.appVersion,
         channel: readStoredAppUpdateChannel(),
         getMainWindow: () => App.mainWindow,

@@ -15,6 +15,19 @@
             (addPlaylistClicked)="onAddPlaylist($event)"
         />
     } @else {
+        @if (coverFavorites.failed()) {
+            <p role="status" data-test-id="dashboard-favorites-failed">
+                {{ 'COVER.FAVORITES_FAILED' | translate }}
+                <button
+                    mat-button
+                    type="button"
+                    (click)="retryCoverFavorites()"
+                    data-test-id="dashboard-favorites-retry"
+                >
+                    {{ 'RETRY' | translate }}
+                </button>
+            </p>
+        }
         <!-- Hero: rotating cinematic banner. Renders its own skeleton while
              the first history load runs, and nothing when there is nothing
              to feature. Each block below renders as soon as ITS data is
@@ -106,6 +119,7 @@
                 [seeAllLink]="['/workspace/global-favorites']"
                 [seeAllState]="favoriteMoviesAndSeriesSeeAllState()"
                 [testId]="'dashboard-favorite-vod-rail'"
+                (actionSelected)="onContentActionSelected($event)"
             />
         }
 
@@ -162,6 +176,7 @@
                 [items]="xtreamRecentlyAddedCards()"
                 [totalCount]="data.xtreamRecentlyAddedItems().length"
                 [testId]="'dashboard-xtream-recently-added-rail'"
+                (actionSelected)="onContentActionSelected($event)"
             />
         } @else if (railSkeletons.xtreamRecentlyAdded()) {
             <section
@@ -188,6 +203,7 @@
                 [items]="recommendationCards()"
                 [totalCount]="recommendationCards().length"
                 [testId]="'dashboard-tmdb-recommendations-rail'"
+                (actionSelected)="onContentActionSelected($event)"
             />
         } @else if (railSkeletons.tmdbRecommendations()) {
             <section
@@ -211,6 +227,7 @@
                 [items]="trendingCards()"
                 [totalCount]="trendingCards().length"
                 [testId]="'dashboard-tmdb-trending-rail'"
+                (actionSelected)="onContentActionSelected($event)"
             />
         } @else if (railSkeletons.tmdbTrending()) {
             <section

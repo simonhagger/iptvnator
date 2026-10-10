@@ -36,6 +36,7 @@ import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-i
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 import {
     isWorkspaceLayoutRoute,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -43,6 +44,7 @@ import {
     PORTAL_PLAYER,
     queryParamSignal,
     workspacePortalCommands,
+    ProviderCoverContext,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
@@ -87,8 +89,21 @@ interface StalkerFilter {
     templateUrl: './stalker-search.component.html',
     styleUrl: './stalker-search.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [ContentCoverDataService],
 })
 export class StalkerSearchComponent {
+    readonly covers = inject(ContentCoverDataService);
+    readonly coverContext = computed<ProviderCoverContext | null>(() => {
+        const playlist = this.currentPlaylist();
+        return playlist
+            ? {
+                  provider: 'stalker',
+                  playlistId: playlist._id,
+                  playlistName: playlist.title,
+                  contentType: this.selectedFilterType(),
+              }
+            : null;
+    });
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly dataService = inject(DataService);
@@ -219,6 +234,28 @@ export class StalkerSearchComponent {
     readonly isSelectedVodFavorite = signal<boolean>(false);
 
     constructor() {
+        effect(() => {
+            const context = this.coverContext();
+            this.itemDetails();
+            untracked(
+                () =>
+                    void this.covers.load(
+                        context
+                            ? {
+                                  scope: 'playlist',
+                                  playlistId: context.playlistId,
+                                  portalType: 'stalker',
+                              }
+                            : null
+                    )
+            );
+            untracked(
+                () =>
+                    void this.covers.loadWatchPositions(
+                        context ? [context.playlistId] : []
+                    )
+            );
+        });
         this.currentPlaybackOwnerKey = this.playbackOwnerKey();
         effect(() => {
             const ownerKey = this.playbackOwnerKey();

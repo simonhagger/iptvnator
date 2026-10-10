@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Nem sikerült betölteni a megtekintési állapotot. Próbálja újra.",
+        "MORE_ACTIONS": "További műveletek: {{title}}",
+        "DETAILS": "Részletek megnyitása",
+        "FAVORITE": "Kedvenc",
+        "STARTED": "Elkezdve",
+        "RATING_PROVIDER": "Szolgáltatói értékelés",
+        "RATING_IMDB": "Szolgáltató által megadott IMDb-értékelés",
+        "RATING_TMDB": "TMDB-értékelés",
+        "RATING_KINOPOISK": "Kinopoisk-értékelés",
+        "PROGRESS": "Megtekintési folyamat",
+        "EPISODE_PROGRESS": "Aktuális epizód előrehaladása",
+        "FAVORITES_FAILED": "A kedvencek frissítése vagy betöltése sikertelen. Próbálja újra."
+    },
     "CANCEL": "Mégse",
     "CLEAR": "Törlés",
     "CLOSE": "Bezárás",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Alkalmazásfrissítés",
         "APP_UPDATE_DESCRIPTION": "Asztali alkalmazásfrissítések keresése a GitHub Releases oldalon.",
         "APP_UPDATE_IDLE": "Készen áll a frissítések keresésére",
+        "APP_UPDATE_DISABLED": "A frissítések le vannak tiltva ebben a személyes változatban.",
         "APP_UPDATE_CHECKING": "Frissítések keresése…",
         "APP_UPDATE_AVAILABLE": "{{version}} verzió érhető el",
         "APP_UPDATE_NOT_AVAILABLE": "A legújabb verziót használja",

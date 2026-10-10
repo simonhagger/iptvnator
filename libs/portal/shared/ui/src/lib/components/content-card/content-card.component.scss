@@ -11,6 +11,10 @@
     .content-card__activation {
         border-radius: inherit;
         outline: none;
+
+        &[aria-disabled='true'] {
+            cursor: default;
+        }
     }
 
     &:has(> .content-card__activation:focus-visible) {
@@ -30,6 +34,13 @@
 
         .type-badge {
             @include grid.type-badge;
+
+            // Keep mixed-search labels clear of shared status and action controls.
+            :host(.content-card--vod) & {
+                top: 42px;
+                right: 8px;
+                left: auto;
+            }
         }
     }
 
@@ -40,5 +51,9 @@
 
 .content-card:hover .cover-title-overlay,
 .content-card__activation:focus-visible .cover-title-overlay {
+    opacity: 1;
+}
+
+.content-card:focus-within .cover-title-overlay {
     opacity: 1;
 }

@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Не ўдалося загрузіць прагрэс прагляду. Паспрабуйце яшчэ раз.",
+        "MORE_ACTIONS": "Іншыя дзеянні для {{title}}",
+        "DETAILS": "Адкрыць звесткі",
+        "FAVORITE": "Абранае",
+        "STARTED": "Пачата",
+        "RATING_PROVIDER": "Ацэнка правайдара",
+        "RATING_IMDB": "Ацэнка IMDb ад правайдара",
+        "RATING_TMDB": "Ацэнка TMDB",
+        "RATING_KINOPOISK": "Ацэнка Кінапошуку",
+        "PROGRESS": "Прагрэс прагляду",
+        "EPISODE_PROGRESS": "Прагрэс бягучага эпізоду",
+        "FAVORITES_FAILED": "Не ўдалося абнавіць або загрузіць абранае. Паспрабуйце яшчэ раз."
+    },
     "CANCEL": "Адмена",
     "CLEAR": "Ачысціць",
     "CLOSE": "Закрыць",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Абнаўленне праграмы",
         "APP_UPDATE_DESCRIPTION": "Правяраць абнаўленні настольнай праграмы ў GitHub Releases.",
         "APP_UPDATE_IDLE": "Гатова да праверкі абнаўленняў",
+        "APP_UPDATE_DISABLED": "Абнаўленні адключаны для гэтай асабістай зборкі.",
         "APP_UPDATE_CHECKING": "Праверка абнаўленняў…",
         "APP_UPDATE_AVAILABLE": "Даступная версія {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "Вы выкарыстоўваеце найноўшую версію",

@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Impossible de charger la progression du visionnage. Veuillez réessayer.",
+        "MORE_ACTIONS": "Autres actions pour {{title}}",
+        "DETAILS": "Ouvrir les détails",
+        "FAVORITE": "Favori",
+        "STARTED": "Commencé",
+        "RATING_PROVIDER": "Note du fournisseur",
+        "RATING_IMDB": "Note IMDb fournie par le fournisseur",
+        "RATING_TMDB": "Note TMDB",
+        "RATING_KINOPOISK": "Note Kinopoisk",
+        "PROGRESS": "Progression du visionnage",
+        "EPISODE_PROGRESS": "Progression de l’épisode actuel",
+        "FAVORITES_FAILED": "Impossible de modifier ou charger les favoris. Veuillez réessayer."
+    },
     "CANCEL": "Annuler",
     "CLEAR": "Effacer",
     "CLOSE": "Fermer",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Mise à jour de l’application",
         "APP_UPDATE_DESCRIPTION": "Consultez GitHub Releases pour les mises à jour de l’application de bureau.",
         "APP_UPDATE_IDLE": "Prêt à rechercher des mises à jour",
+        "APP_UPDATE_DISABLED": "Les mises à jour sont désactivées pour cette version personnelle.",
         "APP_UPDATE_CHECKING": "Recherche de mises à jour…",
         "APP_UPDATE_AVAILABLE": "La version {{version}} est disponible",
         "APP_UPDATE_NOT_AVAILABLE": "Vous utilisez la dernière version",

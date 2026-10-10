@@ -36,6 +36,7 @@ handleWorkerRequest('DB_GET_FAVORITES', (playlistId: string) => ({
 
 handleWorkerRequest('DB_GET_GLOBAL_FAVORITES', () => ({}));
 handleWorkerRequest('DB_GET_ALL_GLOBAL_FAVORITES', () => ({}));
+handleWorkerRequest('DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP', () => ({}));
 
 handleWorkerRequest(
     'DB_REORDER_GLOBAL_FAVORITES',

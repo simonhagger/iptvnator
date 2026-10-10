@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "De kijkvoortgang kon niet worden geladen. Probeer het opnieuw.",
+        "MORE_ACTIONS": "Meer acties voor {{title}}",
+        "DETAILS": "Details openen",
+        "FAVORITE": "Favoriet",
+        "STARTED": "Gestart",
+        "RATING_PROVIDER": "Beoordeling van aanbieder",
+        "RATING_IMDB": "IMDb-beoordeling van aanbieder",
+        "RATING_TMDB": "TMDB-beoordeling",
+        "RATING_KINOPOISK": "Kinopoisk-beoordeling",
+        "PROGRESS": "Kijkvoortgang",
+        "EPISODE_PROGRESS": "Voortgang van huidige aflevering",
+        "FAVORITES_FAILED": "Favorieten konden niet worden bijgewerkt of geladen. Probeer opnieuw."
+    },
     "CANCEL": "Annuleren",
     "CLEAR": "Wissen",
     "CLOSE": "Afsluiten",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Applicatie-update",
         "APP_UPDATE_DESCRIPTION": "Controleer GitHub Releases op updates voor de desktopapp.",
         "APP_UPDATE_IDLE": "Klaar om op updates te controleren",
+        "APP_UPDATE_DISABLED": "Updates zijn uitgeschakeld voor deze persoonlijke build.",
         "APP_UPDATE_CHECKING": "Controleren op updates…",
         "APP_UPDATE_AVAILABLE": "Versie {{version}} is beschikbaar",
         "APP_UPDATE_NOT_AVAILABLE": "U gebruikt de nieuwste versie",

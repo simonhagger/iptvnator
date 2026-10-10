@@ -17,7 +17,16 @@ mat-card:hover {
 }
 
 mat-card {
-    @include grid.card-focus-ring;
+    position: relative;
+}
+
+.grid-card-primary {
+    border-radius: inherit;
+    outline: none;
+}
+
+mat-card:has(> .grid-card-primary:focus-visible) {
+    @include grid.focus-ring-declarations;
 }
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────
@@ -100,7 +109,7 @@ mat-card {
         }
 
         &:hover .cover-title-overlay,
-        &:focus-visible .cover-title-overlay {
+        &:focus-within .cover-title-overlay {
             opacity: 1;
         }
 

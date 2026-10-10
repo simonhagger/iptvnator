@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "İzleme ilerlemesi yüklenemedi. Lütfen tekrar deneyin.",
+        "MORE_ACTIONS": "{{title}} için diğer işlemler",
+        "DETAILS": "Ayrıntıları aç",
+        "FAVORITE": "Favori",
+        "STARTED": "Başlandı",
+        "RATING_PROVIDER": "Sağlayıcı puanı",
+        "RATING_IMDB": "Sağlayıcının sunduğu IMDb puanı",
+        "RATING_TMDB": "TMDB puanı",
+        "RATING_KINOPOISK": "Kinopoisk puanı",
+        "PROGRESS": "İzleme ilerlemesi",
+        "EPISODE_PROGRESS": "Geçerli bölümün ilerlemesi",
+        "FAVORITES_FAILED": "Favoriler güncellenemedi veya yüklenemedi. Lütfen tekrar deneyin."
+    },
     "CANCEL": "İptal",
     "CLEAR": "Temizle",
     "CLOSE": "Kapat",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Uygulama güncellemesi",
         "APP_UPDATE_DESCRIPTION": "Masaüstü uygulaması güncellemeleri için GitHub Releases’i denetleyin.",
         "APP_UPDATE_IDLE": "Güncellemeleri denetlemeye hazır",
+        "APP_UPDATE_DISABLED": "Bu kişisel derlemede güncellemeler devre dışıdır.",
         "APP_UPDATE_CHECKING": "Güncellemeler denetleniyor…",
         "APP_UPDATE_AVAILABLE": "{{version}} sürümü mevcut",
         "APP_UPDATE_NOT_AVAILABLE": "En son sürümü kullanıyorsunuz",

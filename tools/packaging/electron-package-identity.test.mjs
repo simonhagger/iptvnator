@@ -414,9 +414,13 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
     assert.match(packageLayoutVerifier, /require\(['"]@electron\/asar['"]\)/);
     assert.doesNotMatch(packageLayoutVerifier, /electronBuilderRequire/);
     assert.match(
-        packageLayoutVerifier,
+        fs.readFileSync(
+            join(currentDir, 'package-verification-config.mjs'),
+            'utf8'
+        ),
         /buildElectronBuilderMetadata\(\s*packageMetadata,\s*electronBuilderConfig\s*\)\.extraMetadata/s
     );
+    assert.match(packageLayoutVerifier, /resolvePackageVerificationConfig\(/);
     assert.doesNotMatch(
         packageLayoutVerifier,
         /const packagedPackageMetadata = \{\s*name:/s

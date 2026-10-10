@@ -7,6 +7,8 @@ import {
     PORTAL_CATALOG_FACADE,
     resolvePortalSeriesWatchState,
     watchStateFromProgressPercent,
+    findLatestSeriesEpisodePosition,
+    playbackProgressPercent,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
@@ -30,7 +32,6 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     unknown
 > {
     private readonly xtreamStore = inject(XtreamStore);
-    private loadedPositionsPlaylistId: string | null = null;
 
     readonly provider = 'xtream' as const;
     readonly contentType = this.xtreamStore.selectedContentType;
@@ -83,13 +84,13 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         }
 
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        if (playlistId && this.loadedPositionsPlaylistId !== playlistId) {
-            this.loadedPositionsPlaylistId = playlistId;
-            // A failed initial load leaves the maps empty (same as before);
-            // the read now rejects instead of masquerading as empty.
-            void this.xtreamStore.loadAllPositions(playlistId).catch(() => {
-                this.loadedPositionsPlaylistId = null;
-            });
+        if (playlistId) {
+            // Collection watch actions persist outside this facade. Each
+            // catalogue arrival refreshes the shared bulk position maps.
+            // Failed reads retain known maps; the next arrival retries.
+            void this.xtreamStore
+                .loadAllPositions(playlistId)
+                .catch(() => undefined);
         }
 
         this.clearSelectedItem();
@@ -171,7 +172,13 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
         }
 
         if (isSeries) {
+            const latest = findLatestSeriesEpisodePosition(
+                this.xtreamStore.seriesPositions().get(itemId) ?? [],
+                itemId
+            );
+            const progress = playbackProgressPercent(latest);
             return {
+                ...(progress !== null ? { progress } : {}),
                 watchState: resolvePortalSeriesWatchState(
                     this.xtreamStore.hasSeriesProgress(itemId)
                 ),

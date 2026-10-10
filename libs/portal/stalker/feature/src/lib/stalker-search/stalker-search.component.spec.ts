@@ -35,6 +35,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { StalkerSearchComponent } from './stalker-search.component';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -153,6 +154,21 @@ describe('StalkerSearchComponent playback session key', () => {
         })
             .overrideComponent(StalkerSearchComponent, {
                 set: {
+                    providers: [
+                        {
+                            provide: ContentCoverDataService,
+                            useValue: {
+                                coverReadFailed: signal(false),
+                                failureMessageKey: () =>
+                                    'COVER.FAVORITES_FAILED',
+                                retry: jest.fn().mockResolvedValue(undefined),
+                                load: jest.fn().mockResolvedValue(undefined),
+                                loadWatchPositions: jest
+                                    .fn()
+                                    .mockResolvedValue(undefined),
+                            },
+                        },
+                    ],
                     imports: [StubStalkerInlineDetailComponent],
                     template: `
                         @if (showingDetails) {
@@ -368,6 +384,18 @@ describe('StalkerSearchComponent result paging', () => {
         });
         TestBed.configureTestingModule({
             providers: [
+                {
+                    provide: ContentCoverDataService,
+                    useValue: {
+                        coverReadFailed: signal(false),
+                        failureMessageKey: () => 'COVER.FAVORITES_FAILED',
+                        retry: jest.fn().mockResolvedValue(undefined),
+                        load: jest.fn().mockResolvedValue(undefined),
+                        loadWatchPositions: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
+                    },
+                },
                 {
                     provide: ActivatedRoute,
                     useValue: {

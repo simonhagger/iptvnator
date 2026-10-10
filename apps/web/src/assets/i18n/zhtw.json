@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "無法載入觀看進度。請重試。",
+        "MORE_ACTIONS": "{{title}}的更多操作",
+        "DETAILS": "開啟詳細資料",
+        "FAVORITE": "收藏",
+        "STARTED": "已開始觀看",
+        "RATING_PROVIDER": "供應商評分",
+        "RATING_IMDB": "供應商提供的 IMDb 評分",
+        "RATING_TMDB": "TMDB 評分",
+        "RATING_KINOPOISK": "Kinopoisk 評分",
+        "PROGRESS": "觀看進度",
+        "EPISODE_PROGRESS": "目前集數的進度",
+        "FAVORITES_FAILED": "無法更新或載入收藏。請重試。"
+    },
     "CANCEL": "取消",
     "CLEAR": "清除",
     "CLOSE": "關閉",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "應用程式更新",
         "APP_UPDATE_DESCRIPTION": "檢查 GitHub Releases 中的桌面應用程式更新。",
         "APP_UPDATE_IDLE": "已準備好檢查更新",
+        "APP_UPDATE_DISABLED": "此個人組建版本已停用更新。",
         "APP_UPDATE_CHECKING": "正在檢查更新…",
         "APP_UPDATE_AVAILABLE": "版本 {{version}} 可用",
         "APP_UPDATE_NOT_AVAILABLE": "您正在使用最新版本",

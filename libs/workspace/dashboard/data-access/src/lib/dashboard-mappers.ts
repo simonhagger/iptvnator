@@ -19,6 +19,11 @@ import {
     isStalkerSeriesItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
+import {
+    normalizeContentCoverRating,
+    resolveXtreamRecentHistoryType,
+} from '@iptvnator/portal/shared/util';
+import type { DashboardCoverMetadata } from './dashboard-cover-indicators.util';
 
 // ────── Type / label helpers ──────
 
@@ -58,7 +63,7 @@ function readContentTmdbIdentity(item: {
 
 export function mapDbFavoriteToItem(
     item: DbGlobalFavoriteItem
-): PortalFavoriteItem {
+): PortalFavoriteItem & DashboardCoverMetadata {
     return {
         id: item.id,
         title: item.title,
@@ -71,15 +76,22 @@ export function mapDbFavoriteToItem(
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
         ...readContentTmdbIdentity(item),
+        coverRating: normalizeContentCoverRating(item.rating, 'provider'),
         source: 'xtream',
     };
 }
 
-export function mapDbRecentToItem(item: DbGlobalRecentItem): PortalRecentItem {
+export function mapDbRecentToItem(
+    item: DbGlobalRecentItem
+): PortalRecentItem & DashboardCoverMetadata {
     return {
         id: item.id,
         title: item.title,
-        type: normalizeActivityType(item.type),
+        type:
+            item.type === 'episode'
+                ? 'series'
+                : normalizeActivityType(item.type),
+        historyContentType: resolveXtreamRecentHistoryType(item.type),
         playlist_id: item.playlist_id,
         playlist_name: item.playlist_name,
         viewed_at: normalizeStalkerDate(item.viewed_at),
@@ -88,13 +100,14 @@ export function mapDbRecentToItem(item: DbGlobalRecentItem): PortalRecentItem {
         poster_url: item.poster_url,
         backdrop_url: item.backdrop_url ?? undefined,
         ...readContentTmdbIdentity(item),
+        coverRating: normalizeContentCoverRating(item.rating, 'provider'),
         source: 'xtream',
     };
 }
 
 export function mapDbRecentlyAddedToItem(
     item: DbGlobalRecentlyAddedItem
-): PortalAddedItem {
+): PortalAddedItem & DashboardCoverMetadata {
     return {
         id: item.id,
         title: item.title,
@@ -105,6 +118,7 @@ export function mapDbRecentlyAddedToItem(
         category_id: item.category_id,
         xtream_id: item.xtream_id,
         poster_url: item.poster_url,
+        coverRating: normalizeContentCoverRating(item.rating, 'provider'),
         source: 'xtream',
     };
 }

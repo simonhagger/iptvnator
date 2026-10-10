@@ -99,6 +99,12 @@
 
     <!-- Results -->
     <ng-container results>
+        @if (covers.coverReadFailed()) {
+            <p role="alert">{{ covers.failureMessageKey() | translate }}</p>
+            <button mat-button (click)="covers.retry()">
+                {{ 'RETRY' | translate }}
+            </button>
+        }
         @if (isGlobalSearch) {
             <!-- Global Search Results -->
             @if (groupByPlaylist()) {
@@ -118,7 +124,13 @@
                                 >
                             </h3>
                             <div class="results-grid">
-                                @for (item of group.items; track item.id) {
+                                @for (
+                                    item of group.items;
+                                    track covers.identityForProvider(
+                                        coverContext(item),
+                                        item
+                                    )
+                                ) {
                                     <app-content-card
                                         [allowPostersOnly]="false"
                                         [posterUrl]="
@@ -126,6 +138,25 @@
                                         "
                                         [title]="item.title"
                                         [type]="getDisplayType(item)"
+                                        [coverIndicators]="
+                                            covers.indicatorsForProvider(
+                                                coverContext(item),
+                                                item
+                                            )
+                                        "
+                                        [actions]="
+                                            covers.actionsForProvider(
+                                                coverContext(item),
+                                                item
+                                            )
+                                        "
+                                        (actionSelected)="
+                                            covers.onProviderAction(
+                                                coverContext(item),
+                                                item,
+                                                $event
+                                            )
+                                        "
                                         [showPlaceholder]="true"
                                         (cardClick)="selectItem(item)"
                                     />
@@ -137,12 +168,37 @@
             } @else {
                 <!-- Flat list -->
                 <div class="results-grid">
-                    @for (item of xtreamStore.searchResults(); track item.id) {
+                    @for (
+                        item of xtreamStore.searchResults();
+                        track covers.identityForProvider(
+                            coverContext(item),
+                            item
+                        )
+                    ) {
                         <app-content-card
                             [allowPostersOnly]="false"
                             [posterUrl]="item.poster_url ?? undefined"
                             [title]="item.title"
                             [type]="getDisplayType(item)"
+                            [coverIndicators]="
+                                covers.indicatorsForProvider(
+                                    coverContext(item),
+                                    item
+                                )
+                            "
+                            [actions]="
+                                covers.actionsForProvider(
+                                    coverContext(item),
+                                    item
+                                )
+                            "
+                            (actionSelected)="
+                                covers.onProviderAction(
+                                    coverContext(item),
+                                    item,
+                                    $event
+                                )
+                            "
                             [showPlaceholder]="true"
                             (cardClick)="selectItem(item)"
                         />
@@ -163,12 +219,31 @@
         } @else {
             <!-- Playlist-level Search Results (windowed; grows via nearEnd) -->
             <div class="results-grid">
-                @for (item of visibleInPortalResults(); track item.id) {
+                @for (
+                    item of visibleInPortalResults();
+                    track covers.identityForProvider(coverContext(item), item)
+                ) {
                     <app-content-card
                         [allowPostersOnly]="false"
                         [posterUrl]="item.poster_url ?? undefined"
                         [title]="item.title"
                         [type]="item.type"
+                        [coverIndicators]="
+                            covers.indicatorsForProvider(
+                                coverContext(item),
+                                item
+                            )
+                        "
+                        [actions]="
+                            covers.actionsForProvider(coverContext(item), item)
+                        "
+                        (actionSelected)="
+                            covers.onProviderAction(
+                                coverContext(item),
+                                item,
+                                $event
+                            )
+                        "
                         [showPlaceholder]="true"
                         (cardClick)="selectItem(item)"
                     />

@@ -17,6 +17,11 @@ import {
     WorkspaceNavigationTarget,
     type SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
+import {
+    DashboardCoverMetadata,
+    isDashboardRecentDetailAvailable,
+    resolveDashboardSeriesHistory,
+} from './dashboard-cover-indicators.util';
 
 /**
  * Pure navigation/link helpers for dashboard items.
@@ -62,13 +67,13 @@ export function getRecentItemLink(item: PortalRecentItem): string[] {
 }
 
 export function getRecentItemNavigationState(
-    item: PortalRecentItem,
+    item: PortalRecentItem & DashboardCoverMetadata,
     playbackPosition?: PlaybackPositionData | null
 ): WorkspaceNavigationTarget['state'] {
-    return getRecentItemNavigation(
-        item,
-        buildRecentSeriesResumeTarget(item, playbackPosition)
-    ).state;
+    const resume = buildRecentSeriesResumeTarget(item, playbackPosition);
+    return resume
+        ? getRecentItemNavigation(item, resume).state
+        : getRecentItemDetailNavigationState(item, playbackPosition);
 }
 
 /**
@@ -81,9 +86,22 @@ export function getRecentItemNavigationState(
  * would target the episode id.
  */
 export function getRecentItemDetailNavigationState(
-    item: PortalRecentItem,
+    item: PortalRecentItem & DashboardCoverMetadata,
     playbackPosition?: PlaybackPositionData | null
 ): WorkspaceNavigationTarget['state'] {
+    if (!isDashboardRecentDetailAvailable(item, playbackPosition ?? null))
+        return undefined;
+    if (item.source === 'xtream' && item.type === 'series') {
+        const seriesId = resolveDashboardSeriesHistory(
+            item,
+            playbackPosition ? [playbackPosition] : []
+        )?.seriesId;
+        if (seriesId != null)
+            return getRecentItemNavigation(item, null, {
+                seriesParentId: seriesId,
+                resumeIdentityOnly: true,
+            }).state;
+    }
     return getRecentItemNavigation(
         item,
         buildRecentSeriesIdentityTarget(item, playbackPosition),
@@ -97,7 +115,7 @@ export function getRecentItemDetailNavigationState(
  * coordinate-less rows). Powers the card's explicit "Resume episode" action.
  */
 export function getRecentItemResumeNavigation(
-    item: PortalRecentItem,
+    item: PortalRecentItem & DashboardCoverMetadata,
     playbackPosition?: PlaybackPositionData | null
 ): WorkspaceNavigationTarget | null {
     const resumeTarget = buildRecentSeriesResumeTarget(item, playbackPosition);
@@ -105,9 +123,11 @@ export function getRecentItemResumeNavigation(
 }
 
 export function buildRecentSeriesResumeTarget(
-    item: PortalRecentItem,
+    item: PortalRecentItem & DashboardCoverMetadata,
     playbackPosition?: PlaybackPositionData | null
 ): SeriesResumeTarget | null {
+    if (!isDashboardRecentDetailAvailable(item, playbackPosition ?? null))
+        return null;
     // A watched row is a completion marker (natural finish or a manual/bulk
     // "mark watched"), not resumable progress — auto-playing it would start
     // the episode at its end. Detail-only handoff lets the series page's

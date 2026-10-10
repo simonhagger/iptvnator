@@ -13,9 +13,17 @@ import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
+import {
+    ContentCoverAction,
+    ContentCoverIndicators,
+    resolveContentCoverFavoriteAction,
+} from '@iptvnator/portal/shared/util';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
+import { ContentCoverActionsComponent } from '../content-cover/content-cover-actions.component';
+import { ContentCoverIndicatorsComponent } from '../content-cover/content-cover-indicators.component';
+import { createContentCoverDescriptionId } from '../content-cover/content-cover-description-id';
 
 /** Channel-like cards always keep their label: logos rarely identify them. */
 const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
@@ -23,13 +31,25 @@ const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 @Component({
     selector: 'app-content-card',
     standalone: true,
-    imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
+    imports: [
+        DatePipe,
+        MatIcon,
+        MatIconButton,
+        MatTooltip,
+        ContentCoverActionsComponent,
+        ContentCoverIndicatorsComponent,
+    ],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
-    host: { '[class.content-card--posters-only]': 'postersOnly()' },
+    host: {
+        '[class.content-card--posters-only]': 'postersOnly()',
+        '[class.content-card--vod]': 'isVod()',
+    },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
+    protected readonly favoriteActionFor = resolveContentCoverFavoriteAction;
+    protected readonly coverDescriptionId = createContentCoverDescriptionId();
     private readonly translate = inject(TranslateService);
     private readonly coverTitles = inject(CoverTitlesService);
     private readonly languageTick = toSignal(
@@ -45,6 +65,45 @@ export class ContentCardComponent {
 
     /** Content type (live, movie, series) */
     readonly type = input<string>();
+    readonly coverIndicators = input<ContentCoverIndicators | null>(null);
+    readonly actions = input<readonly ContentCoverAction[]>([]);
+    /** Hosts may retain removal actions when a detail identity is unavailable. */
+    readonly detailsEnabled = input(true);
+    readonly actionSelected = output<ContentCoverAction>();
+    protected readonly isVod = computed(() =>
+        ['movie', 'vod', 'series'].includes(this.type() ?? '')
+    );
+    protected readonly menuActions = computed<readonly ContentCoverAction[]>(
+        () => {
+            const actions = this.actions().filter(
+                (action) => this.detailsEnabled() || action.id !== 'details'
+            );
+            if (
+                this.detailsEnabled() &&
+                !actions.some((action) => action.id === 'details')
+            ) {
+                actions.unshift({
+                    id: 'details',
+                    labelKey: 'COVER.DETAILS',
+                    icon: 'info',
+                });
+            }
+            if (
+                this.showRemoveButton() &&
+                !actions.some((action) => action.id === 'remove')
+            ) {
+                actions.push({
+                    id: 'remove',
+                    label: this.removeTooltip(),
+                    icon: this.removeIcon(),
+                    separatorBefore: true,
+                    disabled: this.removeDisabled(),
+                    ...(this.removeIsFavorite() ? { favoriteState: true } : {}),
+                });
+            }
+            return actions;
+        }
+    );
 
     /** Optional date to display (Date, string, or timestamp number) */
     readonly date = input<Date | string | number>();
@@ -54,6 +113,11 @@ export class ContentCardComponent {
 
     /** Tooltip text for the remove button */
     readonly removeTooltip = input<string>('Remove');
+
+    /** The host distinguishes favourite removal from history deletion. */
+    readonly removeIcon = input<string>('delete');
+    readonly removeIsFavorite = input(false);
+    readonly removeDisabled = input(false);
 
     /** Whether to show placeholder when no poster */
     readonly showPlaceholder = input<boolean>(true);
@@ -110,7 +174,7 @@ export class ContentCardComponent {
     }
 
     onCardClick(): void {
-        this.cardClick.emit();
+        if (this.detailsEnabled()) this.cardClick.emit();
     }
 
     /**
@@ -120,12 +184,20 @@ export class ContentCardComponent {
      */
     onCardKey(event: Event): void {
         event.preventDefault();
-        this.cardClick.emit();
+        this.onCardClick();
     }
 
     onRemoveClick(event: Event): void {
         event.stopPropagation();
         this.remove.emit();
+    }
+
+    onCoverAction(action: ContentCoverAction): void {
+        if (action.disabled) return;
+        if (action.id === 'details' && !this.detailsEnabled()) return;
+        if (action.id === 'details') this.onCardClick();
+        if (action.id === 'remove') this.remove.emit();
+        this.actionSelected.emit(action);
     }
 
     onImageError(): void {

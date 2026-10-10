@@ -58,14 +58,30 @@
 
     <!-- Results -->
     <ng-container results>
+        @if (covers.coverReadFailed()) {
+            <p role="alert">{{ covers.failureMessageKey() | translate }}</p>
+            <button mat-button (click)="covers.retry()">
+                {{ 'RETRY' | translate }}
+            </button>
+        }
         <div class="results-grid">
-            @for (item of searchResults(); track item.id) {
+            @for (
+                item of searchResults();
+                track covers.identityForProvider(coverContext(), item)
+            ) {
                 <app-content-card
                     [allowPostersOnly]="false"
                     [title]="item.o_name || item.name || ''"
                     [posterUrl]="item.screenshot_uri"
                     [type]="selectedFilterType() === 'vod' ? 'movie' : 'series'"
                     [showPlaceholder]="true"
+                    [coverIndicators]="
+                        covers.indicatorsForProvider(coverContext(), item)
+                    "
+                    [actions]="covers.actionsForProvider(coverContext(), item)"
+                    (actionSelected)="
+                        covers.onProviderAction(coverContext(), item, $event)
+                    "
                     (cardClick)="selectItem(item)"
                 />
             }

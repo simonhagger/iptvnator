@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "시청 진행 상황을 불러오지 못했습니다. 다시 시도해 주세요.",
+        "MORE_ACTIONS": "{{title}} 추가 작업",
+        "DETAILS": "상세 정보 열기",
+        "FAVORITE": "즐겨찾기",
+        "STARTED": "시청 시작됨",
+        "RATING_PROVIDER": "제공업체 평점",
+        "RATING_IMDB": "제공업체의 IMDb 평점",
+        "RATING_TMDB": "TMDB 평점",
+        "RATING_KINOPOISK": "Kinopoisk 평점",
+        "PROGRESS": "시청 진행률",
+        "EPISODE_PROGRESS": "현재 에피소드 진행률",
+        "FAVORITES_FAILED": "즐겨찾기를 업데이트하거나 불러올 수 없습니다. 다시 시도하세요."
+    },
     "CANCEL": "취소",
     "CLEAR": "지우기",
     "CLOSE": "닫기",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "애플리케이션 업데이트",
         "APP_UPDATE_DESCRIPTION": "데스크톱 앱 업데이트를 GitHub Releases에서 확인합니다.",
         "APP_UPDATE_IDLE": "업데이트를 확인할 준비가 되었습니다",
+        "APP_UPDATE_DISABLED": "이 개인용 빌드에서는 업데이트가 비활성화되어 있습니다.",
         "APP_UPDATE_CHECKING": "업데이트 확인 중…",
         "APP_UPDATE_AVAILABLE": "버전 {{version}} 사용 가능",
         "APP_UPDATE_NOT_AVAILABLE": "최신 버전을 사용 중입니다",

@@ -104,6 +104,11 @@ export async function getAllGlobalFavorites(db: AppDatabase) {
     return selectGlobalFavoriteRows(db, { includeBackdrop: true }).limit(500);
 }
 
+/** Complete persisted membership; display limits must not affect cover actions. */
+export async function getAllGlobalFavoriteMembership(db: AppDatabase) {
+    return selectGlobalFavoriteRows(db, { includeBackdrop: true });
+}
+
 function selectGlobalFavoriteRows(
     db: AppDatabase,
     options: { includeBackdrop: boolean }

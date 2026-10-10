@@ -4,6 +4,7 @@ import {
     type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
 import type { GlobalRecentItem } from '@iptvnator/workspace/dashboard/data-access';
+import type { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 
 import {
     formatRemainingLabel,
@@ -13,6 +14,23 @@ import {
 
 export type DashboardRemainingLabel = RemainingTimeLabel;
 export { formatRemainingLabel, playbackProgressPercent };
+
+/** Only matched titles own saved positions; unmatched discovery cards do not. */
+export function buildDashboardMatchedPlaybackItems(
+    items: readonly { match: CatalogTitleMatch | null }[]
+): Pick<GlobalRecentItem, 'playlist_id' | 'type' | 'xtream_id'>[] {
+    return items.reduce<
+        Pick<GlobalRecentItem, 'playlist_id' | 'type' | 'xtream_id'>[]
+    >((scopes, { match }) => {
+        if (match)
+            scopes.push({
+                playlist_id: match.playlistId,
+                type: match.type,
+                xtream_id: match.xtreamId,
+            });
+        return scopes;
+    }, []);
+}
 
 export function buildPlaybackPositionReloadKey(
     items: readonly Pick<

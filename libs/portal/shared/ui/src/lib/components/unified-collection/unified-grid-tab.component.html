@@ -24,9 +24,15 @@
                 [posterUrl]="item.posterUrl ?? ''"
                 [title]="item.name"
                 [type]="item.contentType"
+                [coverIndicators]="item.coverIndicators ?? null"
+                [actions]="coverActions(item)"
+                [detailsEnabled]="item.coverDetailTarget !== null"
                 [showTypeBadge]="false"
                 [date]="item.addedAt ?? item.viewedAt"
                 [showRemoveButton]="true"
+                [removeIcon]="mode() === 'favorites' ? 'favorite' : 'delete'"
+                [removeIsFavorite]="mode() === 'favorites'"
+                [removeDisabled]="removeActionDisabled(item)"
                 [removeTooltip]="
                     (mode() === 'favorites'
                         ? 'PORTALS.REMOVE_FROM_FAVORITES'
@@ -35,6 +41,7 @@
                 "
                 (cardClick)="onCardClick(item)"
                 (remove)="onRemove(item)"
+                (actionSelected)="onCoverAction(item, $event)"
             />
         }
     </div>

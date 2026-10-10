@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "تعذّر تحميل تقدّم المشاهدة. يرجى المحاولة مرة أخرى.",
+        "MORE_ACTIONS": "المزيد من الإجراءات لـ {{title}}",
+        "DETAILS": "فتح التفاصيل",
+        "FAVORITE": "مفضّل",
+        "STARTED": "بدأت المشاهدة",
+        "RATING_PROVIDER": "تقييم المزوّد",
+        "RATING_IMDB": "تقييم IMDb مقدّم من المزوّد",
+        "RATING_TMDB": "تقييم TMDB",
+        "RATING_KINOPOISK": "تقييم Kinopoisk",
+        "PROGRESS": "تقدّم المشاهدة",
+        "EPISODE_PROGRESS": "تقدّم الحلقة الحالية",
+        "FAVORITES_FAILED": "تعذّر تحديث المفضّلة أو تحميلها. يرجى المحاولة مجددًا."
+    },
     "CANCEL": "إلغاء",
     "CLEAR": "مسح",
     "CLOSE": "إغلاق",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "تحديث التطبيق",
         "APP_UPDATE_DESCRIPTION": "تحقق من GitHub Releases للحصول على تحديثات تطبيق سطح المكتب.",
         "APP_UPDATE_IDLE": "جاهز للتحقق من التحديثات",
+        "APP_UPDATE_DISABLED": "التحديثات معطّلة لهذه النسخة الشخصية.",
         "APP_UPDATE_CHECKING": "جارٍ التحقق من التحديثات…",
         "APP_UPDATE_AVAILABLE": "الإصدار {{version}} متاح",
         "APP_UPDATE_NOT_AVAILABLE": "أنت تستخدم أحدث إصدار",

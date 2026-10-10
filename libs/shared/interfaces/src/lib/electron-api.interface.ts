@@ -258,6 +258,8 @@ export interface ElectronBridgeAppUpdateProgress {
 }
 
 export interface ElectronBridgeAppUpdateStatus {
+    /** False for a private distribution with no update feed or manual install. */
+    updatesEnabled?: boolean;
     status: ElectronBridgeAppUpdateStatusValue;
     currentVersion: string;
     latestVersion?: string;
@@ -1102,6 +1104,9 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbGetGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbGetAllGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
+    dbGetAllGlobalFavoriteMembership: () => Promise<
+        ElectronBridgeGlobalFavoriteItem[]
+    >;
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;

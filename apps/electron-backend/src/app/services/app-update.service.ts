@@ -81,6 +81,8 @@ interface AppUpdaterAdapter extends AppUpdateFeedTarget {
 type AppUpdaterAdapterProvider = AppUpdaterAdapter | (() => AppUpdaterAdapter);
 
 export interface AppUpdateServiceOptions {
+    /** Package-owned private distributions deliberately have no update feed. */
+    updatesEnabled?: boolean;
     app: AppUpdateAppAdapter;
     appVersion?: string;
     updater: AppUpdaterAdapterProvider;
@@ -183,11 +185,13 @@ export class AppUpdateService {
         );
         this.isPackaged = options.app.isPackaged;
         this.channel = options.channel ?? DEFAULT_APP_UPDATE_CHANNEL;
-        this.supportedSelfUpdate = isSelfUpdateSupported(
-            options.app.isPackaged,
-            options.platform ?? process.platform,
-            options.processEnv ?? process.env
-        );
+        this.supportedSelfUpdate =
+            options.updatesEnabled !== false &&
+            isSelfUpdateSupported(
+                options.app.isPackaged,
+                options.platform ?? process.platform,
+                options.processEnv ?? process.env
+            );
         const releaseFetcher: ReleaseFetcher =
             options.releaseFetcher ??
             ((url, init) => fetch(url, init) as Promise<ReleaseFetchResponse>);
@@ -196,8 +200,11 @@ export class AppUpdateService {
             `iptvnator/${this.currentVersion}`
         );
         this.status = {
+            ...(options.updatesEnabled === false
+                ? { updatesEnabled: false }
+                : {}),
             currentVersion: this.currentVersion,
-            manualDownloadUrl: appUpdateReleasesPageUrl(this.channel),
+            manualDownloadUrl: this.manualDownloadUrl(),
             status: getInitialStatus(this.supportedSelfUpdate),
             supportedSelfUpdate: this.supportedSelfUpdate,
             channel: this.channel,
@@ -236,7 +243,7 @@ export class AppUpdateService {
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
 
-        if (busy || !this.isPackaged) {
+        if (busy || !this.isPackaged || this.options.updatesEnabled === false) {
             this.setStatus({});
             return;
         }
@@ -259,7 +266,7 @@ export class AppUpdateService {
     }
 
     private async runCheckForUpdates(): Promise<ElectronBridgeAppUpdateStatus> {
-        if (!this.isPackaged) {
+        if (!this.isPackaged || this.options.updatesEnabled === false) {
             this.setStatus({
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             });
@@ -289,7 +296,7 @@ export class AppUpdateService {
     }
 
     async checkForUpdatesOnStartup(): Promise<ElectronBridgeAppUpdateStatus> {
-        if (!this.isPackaged) {
+        if (!this.isPackaged || this.options.updatesEnabled === false) {
             return this.getStatus();
         }
 
@@ -300,6 +307,10 @@ export class AppUpdateService {
     getReleaseNotes(
         request: ElectronBridgeAppUpdateReleaseNotesRequest = {}
     ): Promise<ElectronBridgeAppUpdateReleaseNotes> {
+        if (this.options.updatesEnabled === false)
+            return Promise.reject(
+                new Error('Updates are disabled for this distribution')
+            );
         return this.catalogs.getReleaseNotes(this.channel, request);
     }
 
@@ -485,7 +496,7 @@ export class AppUpdateService {
             ...this.status,
             ...update,
             currentVersion: this.currentVersion,
-            manualDownloadUrl: appUpdateReleasesPageUrl(this.channel),
+            manualDownloadUrl: this.manualDownloadUrl(),
             supportedSelfUpdate: this.supportedSelfUpdate,
             channel: this.channel,
             installedChannel: this.status.installedChannel,
@@ -504,5 +515,11 @@ export class AppUpdateService {
             APP_UPDATE_STATUS_CHANGED,
             this.getStatus()
         );
+    }
+
+    private manualDownloadUrl(): string {
+        return this.options.updatesEnabled === false
+            ? ''
+            : appUpdateReleasesPageUrl(this.channel);
     }
 }

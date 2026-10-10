@@ -3,6 +3,15 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 export const IPTVNATOR_E2E_DATA_DIR_ENV = 'IPTVNATOR_E2E_DATA_DIR';
+export const IPTVNATOR_DATA_DIR_ENV = 'IPTVNATOR_DATA_DIR';
+
+function getExplicitDataRoot(): string | undefined {
+    return (
+        process.env[IPTVNATOR_E2E_DATA_DIR_ENV]?.trim() ||
+        process.env[IPTVNATOR_DATA_DIR_ENV]?.trim() ||
+        undefined
+    );
+}
 
 function ensureDirectory(dirPath: string): string {
     if (!existsSync(dirPath)) {
@@ -13,7 +22,7 @@ function ensureDirectory(dirPath: string): string {
 }
 
 export function getIptvnatorDataRoot(): string {
-    const e2eDataDir = process.env[IPTVNATOR_E2E_DATA_DIR_ENV]?.trim();
+    const e2eDataDir = getExplicitDataRoot();
 
     if (e2eDataDir) {
         return ensureDirectory(e2eDataDir);
@@ -31,7 +40,7 @@ export function getIptvnatorDatabasePath(): string {
 }
 
 export function getElectronUserDataPath(): string | null {
-    const e2eDataDir = process.env[IPTVNATOR_E2E_DATA_DIR_ENV]?.trim();
+    const e2eDataDir = getExplicitDataRoot();
 
     if (!e2eDataDir) {
         return null;
@@ -41,7 +50,7 @@ export function getElectronUserDataPath(): string | null {
 }
 
 export function getElectronConfigDirectory(): string | null {
-    const e2eDataDir = process.env[IPTVNATOR_E2E_DATA_DIR_ENV]?.trim();
+    const e2eDataDir = getExplicitDataRoot();
 
     if (!e2eDataDir) {
         return null;

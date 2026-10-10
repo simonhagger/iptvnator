@@ -1806,6 +1806,46 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('removes only the requested Stalker kind from colliding recent identities', async () => {
+        const playlist = {
+            _id: 'portal-kind-remove',
+            title: 'Portal Recent',
+            count: 0,
+            importDate: '2026-04-01T00:00:00.000Z',
+            lastUsage: '2026-04-01T00:00:00.000Z',
+            autoRefresh: false,
+            recentlyViewed: [
+                { id: '100:episode', title: 'Series', category_id: 'series' },
+                { id: '100', title: 'Movie', category_id: 'vod' },
+                { id: '100', title: 'Channel', category_id: 'itv' },
+            ],
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(playlist)),
+            update: jest.fn((_storeName: string, updated: Playlist) =>
+                of(updated)
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.removeFromPortalRecentlyViewed(
+                'portal-kind-remove',
+                100,
+                'series'
+            )
+        );
+
+        expect(dbService.update).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            expect.objectContaining({
+                recentlyViewed: playlist.recentlyViewed?.slice(1),
+            })
+        );
+    });
+
     it.each([false, true])('does not recreate a removed source on singular refresh (SQLite: %s)', async (sqlite) => {
         const upsert = jest.fn();
         testWindow.electron = sqlite ? {

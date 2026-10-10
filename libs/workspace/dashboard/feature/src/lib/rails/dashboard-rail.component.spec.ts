@@ -104,6 +104,123 @@ describe('DashboardRailComponent', () => {
             return fixture.nativeElement as HTMLElement;
         };
 
+        it('projects shared indicators inside artwork and keeps menu triggers outside links', async () => {
+            const element = await renderCards([
+                card({
+                    contentType: 'series',
+                    indicators: {
+                        favorite: true,
+                        watchState: 'in-progress',
+                        progress: 100,
+                        progressScope: 'episode',
+                        rating: { value: 8.2, source: 'tmdb', scale: 10 },
+                    },
+                    actions: [
+                        {
+                            id: 'details',
+                            labelKey: 'COVER.DETAILS',
+                            icon: 'info_outline',
+                        },
+                    ],
+                }),
+            ]);
+            const art = element.querySelector('.rail__art');
+            if (!art) throw new Error('Expected cover artwork');
+            expect(
+                art.querySelector('[data-test-id="content-cover-favorite"]')
+            ).not.toBeNull();
+            expect(
+                art
+                    .querySelector('[data-test-id="content-cover-watch"]')
+                    ?.getAttribute('data-watch-state')
+            ).toBe('in-progress');
+            expect(
+                art
+                    .querySelector('[data-test-id="content-cover-progress"]')
+                    ?.getAttribute('aria-valuenow')
+            ).toBe('100');
+            expect(
+                art
+                    .querySelector('[data-test-id="content-cover-rating"]')
+                    ?.getAttribute('data-rating-source')
+            ).toBe('tmdb');
+            const descriptionId = element
+                .querySelector('.rail__card-link')
+                ?.getAttribute('aria-describedby');
+            expect(descriptionId).toBeTruthy();
+            const description = art.querySelector('[hidden]');
+            expect(description?.id).toBe(descriptionId);
+            expect(description?.textContent).toContain('COVER.FAVORITE');
+            expect(description?.textContent).toContain('COVER.STARTED');
+            expect(description?.textContent).toContain(
+                'COVER.RATING_TMDB: 8.2/10'
+            );
+            expect(description?.textContent).toContain(
+                'COVER.EPISODE_PROGRESS: 100%'
+            );
+            const trigger = element.querySelector(
+                'app-content-cover-actions button'
+            );
+            if (!trigger) throw new Error('Expected cover actions trigger');
+            expect(trigger.closest('a')).toBeNull();
+            expect(trigger.getAttribute('aria-label')).toBe(
+                'COVER.MORE_ACTIONS'
+            );
+        });
+
+        it('withholds unresolved episode activation while preserving history actions', async () => {
+            const element = await renderCards([
+                card({
+                    contentType: 'series',
+                    detailsEnabled: false,
+                    actions: [
+                        {
+                            id: 'remove-from-history',
+                            label: 'Remove history',
+                            icon: 'delete',
+                        },
+                    ],
+                }),
+            ]);
+            const link = element.querySelector('.rail__card-link');
+            expect(link?.getAttribute('href')).toBeNull();
+            expect(link?.getAttribute('aria-disabled')).toBe('true');
+            expect(link?.getAttribute('tabindex')).toBe('-1');
+            const trigger = element.querySelector(
+                'app-content-cover-actions button'
+            );
+            expect(trigger).not.toBeNull();
+            expect(trigger?.closest('a')).toBeNull();
+        });
+
+        it('creates distinct descriptions for VOD cards without changing live and source links', async () => {
+            const element = await renderCards([
+                card({
+                    id: 'movie / 1',
+                    contentType: 'movie',
+                    indicators: { favorite: true },
+                }),
+                card({
+                    id: 'series / 1',
+                    contentType: 'series',
+                    indicators: { watchState: 'in-progress' },
+                }),
+                card({ id: 'live', contentType: 'live' }),
+                card({ id: 'source' }),
+            ]);
+            const links = [...element.querySelectorAll('.rail__card-link')];
+            const ids = links.map((link) =>
+                link.getAttribute('aria-describedby')
+            );
+            expect(ids[0]).toMatch(/-movie%20%2F%201$/);
+            expect(ids[1]).toMatch(/-series%20%2F%201$/);
+            expect(ids[0]).not.toBe(ids[1]);
+            expect(ids.slice(2)).toEqual([null, null]);
+            expect(
+                element.querySelectorAll('app-content-cover-indicators')
+            ).toHaveLength(2);
+        });
+
         it('renders the chip only for cards with a badge and tones expired ones', async () => {
             const element = await renderCards([
                 card({
@@ -601,7 +718,9 @@ describe('DashboardRailComponent', () => {
             });
 
             element
-                .querySelectorAll<HTMLElement>('.rail__action-trigger')[5]
+                .querySelectorAll<HTMLElement>(
+                    'app-content-cover-actions button'
+                )[5]
                 .focus();
 
             expect(scrollTo).toHaveBeenCalledWith({

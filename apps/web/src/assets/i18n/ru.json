@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "Не удалось загрузить прогресс просмотра. Попробуйте ещё раз.",
+        "MORE_ACTIONS": "Другие действия для {{title}}",
+        "DETAILS": "Открыть сведения",
+        "FAVORITE": "Избранное",
+        "STARTED": "Начато",
+        "RATING_PROVIDER": "Оценка провайдера",
+        "RATING_IMDB": "Оценка IMDb от провайдера",
+        "RATING_TMDB": "Оценка TMDB",
+        "RATING_KINOPOISK": "Оценка Кинопоиска",
+        "PROGRESS": "Прогресс просмотра",
+        "EPISODE_PROGRESS": "Прогресс текущего эпизода",
+        "FAVORITES_FAILED": "Не удалось обновить или загрузить избранное. Повторите попытку."
+    },
     "CANCEL": "Отмена",
     "CLEAR": "Очистить",
     "CLOSE": "Закрыть",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "Обновление приложения",
         "APP_UPDATE_DESCRIPTION": "Проверять обновления настольного приложения в GitHub Releases.",
         "APP_UPDATE_IDLE": "Готово к проверке обновлений",
+        "APP_UPDATE_DISABLED": "Обновления отключены для этой персональной сборки.",
         "APP_UPDATE_CHECKING": "Проверка обновлений…",
         "APP_UPDATE_AVAILABLE": "Доступна версия {{version}}",
         "APP_UPDATE_NOT_AVAILABLE": "У вас установлена последняя версия",

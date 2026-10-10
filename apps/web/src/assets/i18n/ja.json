@@ -1,4 +1,18 @@
 {
+    "COVER": {
+        "PROGRESS_FAILED": "視聴の進行状況を読み込めませんでした。もう一度お試しください。",
+        "MORE_ACTIONS": "{{title}}のその他の操作",
+        "DETAILS": "詳細を開く",
+        "FAVORITE": "お気に入り",
+        "STARTED": "視聴開始済み",
+        "RATING_PROVIDER": "配信元の評価",
+        "RATING_IMDB": "配信元によるIMDb評価",
+        "RATING_TMDB": "TMDB評価",
+        "RATING_KINOPOISK": "Kinopoisk評価",
+        "PROGRESS": "視聴の進行状況",
+        "EPISODE_PROGRESS": "現在のエピソードの進行状況",
+        "FAVORITES_FAILED": "お気に入りを更新または読み込めませんでした。もう一度お試しください。"
+    },
     "CANCEL": "キャンセル",
     "CLEAR": "クリア",
     "CLOSE": "閉じる",
@@ -521,6 +535,7 @@
         "APP_UPDATE_TITLE": "アプリケーションの更新",
         "APP_UPDATE_DESCRIPTION": "デスクトップアプリの更新を GitHub Releases で確認します。",
         "APP_UPDATE_IDLE": "更新を確認できます",
+        "APP_UPDATE_DISABLED": "この個人用ビルドでは更新が無効になっています。",
         "APP_UPDATE_CHECKING": "更新を確認中…",
         "APP_UPDATE_AVAILABLE": "バージョン {{version}} が利用可能です",
         "APP_UPDATE_NOT_AVAILABLE": "最新バージョンを使用中です",

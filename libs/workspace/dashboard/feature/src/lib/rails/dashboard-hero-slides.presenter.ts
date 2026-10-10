@@ -21,7 +21,10 @@ import {
     type PlaybackPositionData,
     type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
-import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
+import {
+    DashboardDataService,
+    isDashboardRecentDetailAvailable,
+} from '@iptvnator/workspace/dashboard/data-access';
 import {
     DashboardHeroTmdbService,
     type DashboardHeroTmdbExtras,
@@ -128,14 +131,13 @@ export class DashboardHeroSlidesPresenter {
 
     private readonly sources = computed(() =>
         pickDashboardHeroSources({
-            continueItems: this.data
-                .globalRecentVodItems()
-                .filter(
-                    (item) =>
-                        !isPortalPlaybackWatched(
-                            this.data.getPlaybackPositionForItem(item)
-                        )
-                ),
+            continueItems: this.data.globalRecentVodItems().filter((item) => {
+                const position = this.data.getPlaybackPositionForItem(item);
+                return (
+                    !isPortalPlaybackWatched(position) &&
+                    isDashboardRecentDetailAvailable(item, position)
+                );
+            }),
             live: this.liveSlide()?.candidate ?? null,
             reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
             favorites: this.data
@@ -144,7 +146,15 @@ export class DashboardHeroSlidesPresenter {
                     (item) => item.type === 'movie' || item.type === 'series'
                 ),
             recentlyAdded: this.data.xtreamRecentlyAddedItems(),
-            mostRecent: this.data.globalRecentItems()[0] ?? null,
+            mostRecent:
+                this.data
+                    .globalRecentItems()
+                    .find((item) =>
+                        isDashboardRecentDetailAvailable(
+                            item,
+                            this.data.getPlaybackPositionForItem(item)
+                        )
+                    ) ?? null,
         })
     );
 
@@ -360,6 +370,18 @@ export class DashboardHeroSlidesPresenter {
                 }
                 const canResume =
                     this.data.getRecentItemResumeNavigation(item) !== null;
+                if (
+                    item.source === 'xtream' &&
+                    item.type === 'series' &&
+                    !canResume
+                )
+                    return {
+                        primaryAction: detailsAction(
+                            link,
+                            this.data.getRecentItemDetailNavigationState(item)
+                        ),
+                        secondaryAction: null,
+                    };
                 return {
                     primaryAction: {
                         labelKey: 'WORKSPACE.DASHBOARD.HERO_CONTINUE',

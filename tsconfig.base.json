@@ -26,6 +26,9 @@
             "@iptvnator/portal/shared/ui": [
                 "libs/portal/shared/ui/src/index.ts"
             ],
+            "@iptvnator/portal/shared/ui/content-cover": [
+                "libs/portal/shared/ui/src/lib/components/content-cover/index.ts"
+            ],
             "@iptvnator/portal/shared/data-access": [
                 "libs/portal/shared/data-access/src/index.ts"
             ],

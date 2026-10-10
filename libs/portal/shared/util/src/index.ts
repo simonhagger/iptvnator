@@ -48,3 +48,6 @@ export * from './lib/pending-playback-start';
 export * from './lib/detail/season-title';
 export * from './lib/detail/playback-progress';
 export * from './lib/detail/country-short-name';
+export * from './lib/content-cover';
+export * from './lib/provider-content-cover';
+export * from './lib/xtream-history-provenance';

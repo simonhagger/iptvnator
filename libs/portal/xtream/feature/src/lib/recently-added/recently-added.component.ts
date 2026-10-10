@@ -2,9 +2,11 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
@@ -12,6 +14,8 @@ import {
     ContentCardComponent,
     ContentRailShellComponent,
 } from '@iptvnator/portal/shared/ui';
+import { ContentCoverDataService } from '@iptvnator/portal/shared/data-access';
+import type { ProviderCoverContext } from '@iptvnator/portal/shared/util';
 import { toXtreamRecentlyAddedTimestamp } from '@iptvnator/shared/interfaces';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ContentType } from '@iptvnator/portal/xtream/data-access';
@@ -41,13 +45,48 @@ const RECENTLY_ADDED_ITEMS_LIMIT = 30;
     templateUrl: './recently-added.component.html',
     styleUrls: ['./recently-added.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ContentCardComponent, ContentRailShellComponent, TranslatePipe],
+    imports: [
+        ContentCardComponent,
+        ContentRailShellComponent,
+        TranslatePipe,
+        MatButtonModule,
+    ],
+    providers: [ContentCoverDataService],
 })
 export class RecentlyAddedComponent {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly router = inject(Router);
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly translate = inject(TranslateService);
+    readonly covers = inject(ContentCoverDataService);
+    coverContext(contentType: string): ProviderCoverContext | null {
+        const playlist = this.xtreamStore.currentPlaylist();
+        return playlist?.id
+            ? {
+                  provider: 'xtream',
+                  playlistId: String(playlist.id),
+                  playlistName: playlist.name ?? playlist.title,
+                  contentType,
+              }
+            : null;
+    }
+    constructor() {
+        effect(() => {
+            const playlistId = this.xtreamStore.currentPlaylist()?.id;
+            void this.covers.load(
+                playlistId
+                    ? {
+                          scope: 'playlist',
+                          playlistId: String(playlistId),
+                          portalType: 'xtream',
+                      }
+                    : null
+            );
+            void this.covers.loadWatchPositions(
+                playlistId ? [String(playlistId)] : []
+            );
+        });
+    }
     // Re-compute translated labels when the active language changes.
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),

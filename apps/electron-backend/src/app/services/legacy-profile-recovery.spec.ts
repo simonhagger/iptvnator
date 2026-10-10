@@ -5,6 +5,7 @@ const mockDestroy = jest.fn();
 const mockAccess = jest.fn();
 const mockCopy = jest.fn();
 const mockRemove = jest.fn();
+import { join } from 'path';
 
 jest.mock('electron', () => ({
     app: {
@@ -36,7 +37,10 @@ jest.mock('./database-worker-client', () => ({
 
 const key = 'playlists-electron-backend-profile-v1';
 describe('optional legacy profile recovery', () => {
+    let originalDataRoot: string | undefined;
     beforeEach(() => {
+        originalDataRoot = process.env.IPTVNATOR_DATA_DIR;
+        delete process.env.IPTVNATOR_DATA_DIR;
         jest.resetModules();
         jest.clearAllMocks();
         mockAccess.mockResolvedValue(undefined);
@@ -45,6 +49,22 @@ describe('optional legacy profile recovery', () => {
         mockRequest.mockResolvedValue(null);
         mockDialog.mockResolvedValue({ response: 0 });
         mockRead.mockResolvedValue([{ _id: 'synthetic-source' }]);
+    });
+    afterEach(() => {
+        if (originalDataRoot === undefined)
+            delete process.env.IPTVNATOR_DATA_DIR;
+        else process.env.IPTVNATOR_DATA_DIR = originalDataRoot;
+    });
+
+    it('never inspects or recovers upstream storage for an explicit production profile', async () => {
+        process.env.IPTVNATOR_DATA_DIR = '/personal';
+        const { recoverLegacyProfile } =
+            await import('./legacy-profile-recovery');
+        await recoverLegacyProfile();
+        expect(mockAccess).not.toHaveBeenCalled();
+        expect(mockCopy).not.toHaveBeenCalled();
+        expect(mockRequest).not.toHaveBeenCalled();
+        expect(mockDialog).not.toHaveBeenCalled();
     });
     it('defaults to keeping current sources and never opens the legacy DB before consent', async () => {
         const { recoverLegacyProfile } =
@@ -72,8 +92,8 @@ describe('optional legacy profile recovery', () => {
             mockCopy.mock.invocationCallOrder[0]
         );
         expect(mockCopy).toHaveBeenCalledWith(
-            '/synthetic/electron-backend/IndexedDB',
-            '/synthetic/snapshot/IndexedDB',
+            join('/synthetic', 'electron-backend', 'IndexedDB'),
+            join('/synthetic', 'snapshot', 'IndexedDB'),
             { recursive: true, dereference: true }
         );
         expect(mockRequest).toHaveBeenCalledWith('DB_MIGRATE_APP_PLAYLISTS', {

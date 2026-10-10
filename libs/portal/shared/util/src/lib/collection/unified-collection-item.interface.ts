@@ -6,6 +6,8 @@
  * all content types: live TV, movies, and series.
  */
 import { Channel } from '@iptvnator/shared/interfaces';
+import type { ContentCoverIndicators } from '../content-cover';
+import type { SeriesResumeTarget } from '../navigation/workspace-portal-navigation';
 
 export type CollectionSourceType = 'm3u' | 'xtream' | 'stalker';
 export type CollectionContentType = 'live' | 'movie' | 'series';
@@ -73,6 +75,17 @@ export interface UnifiedCollectionItem {
 
     /** Content rating (VOD) */
     rating?: string;
+    /** Hydrated presentation data; never persisted as a favourite or position. */
+    coverIndicators?: ContentCoverIndicators;
+    /** Raw history identity, before an episode is presented as a series cover. */
+    readonly historyContentType?: 'episode' | 'series';
+    /** Presentation-only favourite owner; null means its parent could not be resolved. */
+    readonly coverFavoriteTarget?: UnifiedCollectionItem | null;
+    /** Parent details and optional explicit-resume data; Details never auto-plays. */
+    readonly coverDetailTarget?: {
+        readonly item: UnifiedCollectionItem;
+        readonly seriesResume: SeriesResumeTarget | null;
+    } | null;
 
     /** ISO timestamp when added to favorites */
     addedAt?: string;

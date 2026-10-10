@@ -28,6 +28,7 @@ import {
     buildXtreamCollectionUid,
     CollectionScope,
     UnifiedCollectionItem,
+    resolveXtreamRecentHistoryType,
     xtreamContentType,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -38,6 +39,11 @@ import {
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
+
+/** Episodes keep their history identity but use the series cover treatment. */
+function recentContentType(type: string) {
+    return xtreamContentType(type === 'episode' ? 'series' : type);
+}
 
 @Injectable({ providedIn: 'root' })
 export class UnifiedRecentDataService {
@@ -94,7 +100,8 @@ export class UnifiedRecentDataService {
         const updatedPlaylist = await firstValueFrom(
             this.playlistsService.removeFromPortalRecentlyViewed(
                 item.playlistId,
-                item.stalkerId ?? item.uid.split('::')[2]
+                item.stalkerId ?? item.uid.split('::').slice(2).join('::'),
+                item.contentType === 'live' ? undefined : item.contentType
             )
         );
         this.dispatchPlaylistRecentUpdate(item.playlistId, updatedPlaylist);
@@ -375,11 +382,12 @@ export class UnifiedRecentDataService {
             return (rows || []).map((row) => ({
                 uid: buildXtreamCollectionUid(
                     row.playlist_id,
-                    xtreamContentType(row.type),
+                    recentContentType(row.type),
                     row.xtream_id
                 ),
                 name: row.title,
-                contentType: xtreamContentType(row.type),
+                contentType: recentContentType(row.type),
+                historyContentType: resolveXtreamRecentHistoryType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId: row.playlist_id,
                 playlistName: row.playlist_name ?? 'Xtream',
@@ -387,6 +395,7 @@ export class UnifiedRecentDataService {
                 posterUrl:
                     row.type !== 'live' ? (row.poster_url ?? null) : null,
                 xtreamId: row.xtream_id,
+                rating: row.rating ?? undefined,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
                 tvArchive: row.tv_archive ?? null,
@@ -416,11 +425,12 @@ export class UnifiedRecentDataService {
             return (rows || []).map((row) => ({
                 uid: buildXtreamCollectionUid(
                     playlistId,
-                    xtreamContentType(row.type),
+                    recentContentType(row.type),
                     row.xtream_id
                 ),
                 name: row.title,
-                contentType: xtreamContentType(row.type),
+                contentType: recentContentType(row.type),
+                historyContentType: resolveXtreamRecentHistoryType(row.type),
                 sourceType: 'xtream' as const,
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
@@ -428,6 +438,7 @@ export class UnifiedRecentDataService {
                 posterUrl:
                     row.type !== 'live' ? (row.poster_url ?? null) : null,
                 xtreamId: row.xtream_id,
+                rating: row.rating ?? undefined,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
                 tvArchive: row.tv_archive ?? null,
@@ -470,7 +481,7 @@ export class UnifiedRecentDataService {
         playlistId: string,
         playlistName?: string
     ): UnifiedCollectionItem {
-        const contentType = xtreamContentType(item.type);
+        const contentType = recentContentType(item.type);
 
         return {
             uid: buildXtreamCollectionUid(
@@ -480,6 +491,7 @@ export class UnifiedRecentDataService {
             ),
             name: item.title,
             contentType,
+            historyContentType: resolveXtreamRecentHistoryType(item.type),
             sourceType: 'xtream',
             playlistId,
             playlistName: playlistName ?? item.playlist_name ?? 'Xtream',
@@ -487,6 +499,7 @@ export class UnifiedRecentDataService {
             posterUrl:
                 contentType !== 'live' ? (item.poster_url ?? null) : null,
             xtreamId: item.xtream_id,
+            rating: item.rating ?? undefined,
             categoryId: item.category_id,
             tvgId: contentType === 'live' ? String(item.xtream_id) : undefined,
             tvArchive: item.tv_archive ?? null,
