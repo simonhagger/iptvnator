@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "Уключыць гук трэйлера",
             "PROGRESS_RESET": "Прагрэс скінуты",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Схавана з «Працягнуць прагляд»"
-        }
+        },
+        "EPISODE_ORDER": "Парадак серый",
+        "PLAYBACK_QUEUE": "Чарга прайгравання",
+        "AUTOPLAY_NEXT_EPISODE": "Аўтапрайграванне наступнай серыі",
+        "PLAY_FROM_HERE": "Прайграць адсюль",
+        "PLAY_SEASON": "Прайграць сезон",
+        "NEXT_EPISODE_COUNTDOWN": "Наступная серыя праз {{seconds}} секунд:",
+        "PLAY_NOW": "Прайграць зараз",
+        "QUEUE_LOADED_EPISODES": "Даступныя толькі загружаныя серыі. Загрузіце іншы сезон са спіса серый, каб дадаць яго.",
+        "SELECT_EPISODE": "Выбраць серыю",
+        "QUEUE_PLAY_NEXT": "Прайграць наступнай",
+        "ADD_TO_QUEUE": "Дадаць у чаргу",
+        "CLEAR_QUEUE": "Ачысціць чаргу",
+        "QUEUE_MOVE_UP": "Перамясціць серыю раней",
+        "QUEUE_MOVE_DOWN": "Перамясціць серыю пазней",
+        "QUEUE_REMOVE": "Выдаліць з чаргі",
+        "QUEUE_EMPTY": "У чарзе няма серый. Прайграванне спыніцца пасля бягучай серыі."
     },
     "INFORMATION": "Інфармацыя",
     "DOWNLOADS": {

@@ -4,6 +4,7 @@ export * from './lib/multi-source';
 export * from './lib/live-channel-playback-queue';
 
 export * from './lib/source-health.service';
+export * from './lib/series-playback-queue.service';
 
 export * from './lib/source-cleanup.service';
 

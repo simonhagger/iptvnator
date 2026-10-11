@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "Activer le son de la bande-annonce",
             "PROGRESS_RESET": "Progression réinitialisée",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Masqué de « Reprendre »"
-        }
+        },
+        "EPISODE_ORDER": "Ordre des épisodes",
+        "PLAYBACK_QUEUE": "File de lecture",
+        "AUTOPLAY_NEXT_EPISODE": "Lire automatiquement le prochain épisode",
+        "PLAY_FROM_HERE": "Lire à partir d’ici",
+        "PLAY_SEASON": "Lire la saison",
+        "NEXT_EPISODE_COUNTDOWN": "Prochain épisode dans {{seconds}} secondes :",
+        "PLAY_NOW": "Lire maintenant",
+        "QUEUE_LOADED_EPISODES": "Seuls les épisodes chargés sont disponibles. Chargez une autre saison depuis la liste des épisodes pour l’inclure.",
+        "SELECT_EPISODE": "Choisir un épisode",
+        "QUEUE_PLAY_NEXT": "Lire ensuite",
+        "ADD_TO_QUEUE": "Ajouter à la file",
+        "CLEAR_QUEUE": "Vider la file",
+        "QUEUE_MOVE_UP": "Avancer l’épisode",
+        "QUEUE_MOVE_DOWN": "Reculer l’épisode",
+        "QUEUE_REMOVE": "Retirer de la file",
+        "QUEUE_EMPTY": "Aucun épisode dans la file. La lecture s’arrêtera après l’épisode actuel."
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

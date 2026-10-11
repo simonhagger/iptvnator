@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "Trailer-Ton einschalten",
             "PROGRESS_RESET": "Fortschritt zurückgesetzt",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Aus „Weiterschauen“ ausgeblendet"
-        }
+        },
+        "EPISODE_ORDER": "Episodenreihenfolge",
+        "PLAYBACK_QUEUE": "Wiedergabewarteschlange",
+        "AUTOPLAY_NEXT_EPISODE": "Nächste Episode automatisch abspielen",
+        "PLAY_FROM_HERE": "Ab hier abspielen",
+        "PLAY_SEASON": "Staffel abspielen",
+        "NEXT_EPISODE_COUNTDOWN": "Nächste Episode in {{seconds}} Sekunden:",
+        "PLAY_NOW": "Jetzt abspielen",
+        "QUEUE_LOADED_EPISODES": "Nur geladene Episoden sind verfügbar. Lade eine weitere Staffel aus der Episodenliste, um sie hinzuzufügen.",
+        "SELECT_EPISODE": "Episode auswählen",
+        "QUEUE_PLAY_NEXT": "Als Nächstes abspielen",
+        "ADD_TO_QUEUE": "Zur Warteschlange hinzufügen",
+        "CLEAR_QUEUE": "Warteschlange leeren",
+        "QUEUE_MOVE_UP": "Episode nach vorne verschieben",
+        "QUEUE_MOVE_DOWN": "Episode nach hinten verschieben",
+        "QUEUE_REMOVE": "Aus Warteschlange entfernen",
+        "QUEUE_EMPTY": "Keine Episoden vorgemerkt. Die Wiedergabe endet nach der aktuellen Episode."
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

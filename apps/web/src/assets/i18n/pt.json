@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "Ativar som do trailer",
             "PROGRESS_RESET": "Progresso redefinido",
             "HIDDEN_FROM_CONTINUE_WATCHING": "Oculto de «Continuar assistindo»"
-        }
+        },
+        "EPISODE_ORDER": "Ordem dos episódios",
+        "PLAYBACK_QUEUE": "Fila de reprodução",
+        "AUTOPLAY_NEXT_EPISODE": "Reproduzir automaticamente o próximo episódio",
+        "PLAY_FROM_HERE": "Reproduzir a partir daqui",
+        "PLAY_SEASON": "Reproduzir temporada",
+        "NEXT_EPISODE_COUNTDOWN": "Próximo episódio em {{seconds}} segundos:",
+        "PLAY_NOW": "Reproduzir agora",
+        "QUEUE_LOADED_EPISODES": "Só estão disponíveis os episódios carregados. Carregue outra temporada a partir da lista de episódios para a incluir.",
+        "SELECT_EPISODE": "Selecionar episódio",
+        "QUEUE_PLAY_NEXT": "Reproduzir a seguir",
+        "ADD_TO_QUEUE": "Adicionar à fila",
+        "CLEAR_QUEUE": "Limpar fila",
+        "QUEUE_MOVE_UP": "Mover episódio para antes",
+        "QUEUE_MOVE_DOWN": "Mover episódio para depois",
+        "QUEUE_REMOVE": "Remover da fila",
+        "QUEUE_EMPTY": "Não há episódios na fila. A reprodução terminará após o episódio atual."
     },
     "INFORMATION": "Informação",
     "DOWNLOADS": {

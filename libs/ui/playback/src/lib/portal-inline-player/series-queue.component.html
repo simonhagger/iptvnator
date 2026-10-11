@@ -1,0 +1,145 @@
+<section
+    class="series-queue"
+    data-testid="series-playback-queue"
+    [attr.aria-label]="'PORTALS.PLAYBACK_QUEUE' | translate"
+>
+    <div class="series-queue__toolbar">
+        <button
+            mat-button
+            type="button"
+            (click)="expanded.set(!expanded())"
+            [attr.aria-expanded]="expanded()"
+        >
+            <mat-icon>queue_play_next</mat-icon>
+            {{ 'PORTALS.PLAYBACK_QUEUE' | translate }} · {{ upcoming().length }}
+        </button>
+        <mat-checkbox
+            [checked]="queue.autoplay()"
+            (change)="queue.setAutoplay($event.checked)"
+        >
+            {{ 'PORTALS.AUTOPLAY_NEXT_EPISODE' | translate }}
+        </mat-checkbox>
+        <button mat-button type="button" (click)="fromHere()">
+            {{ 'PORTALS.PLAY_FROM_HERE' | translate }}
+        </button>
+        <button mat-button type="button" (click)="fromHere(true)">
+            {{ 'PORTALS.PLAY_SEASON' | translate }}
+        </button>
+    </div>
+    @if (queue.countdown() !== null) {
+        <div class="series-queue__countdown" role="status" aria-live="polite">
+            {{
+                'PORTALS.NEXT_EPISODE_COUNTDOWN'
+                    | translate: { seconds: queue.countdown() }
+            }}
+            {{ nextItem()?.label }} {{ nextItem()?.title }}
+            <button mat-button type="button" (click)="next()">
+                {{ 'PORTALS.PLAY_NOW' | translate }}
+            </button>
+            <button mat-button type="button" (click)="cancel()">
+                {{ 'CANCEL' | translate }}
+            </button>
+        </div>
+    }
+    @if (expanded()) {
+        @if (loadedOnly()) {
+            <p>{{ 'PORTALS.QUEUE_LOADED_EPISODES' | translate }}</p>
+        }
+        <div class="series-queue__toolbar">
+            <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>{{
+                    'PORTALS.SELECT_EPISODE' | translate
+                }}</mat-label>
+                <mat-select
+                    [value]="selected()"
+                    (selectionChange)="selected.set($event.value)"
+                >
+                    @for (item of items(); track item.id) {
+                        <mat-option
+                            [value]="item.id"
+                            [disabled]="item.isPlaying"
+                            >{{ item.label }} {{ item.title }}</mat-option
+                        >
+                    }
+                </mat-select>
+            </mat-form-field>
+            <button
+                mat-button
+                type="button"
+                [disabled]="selected() === null"
+                (click)="enqueue('next')"
+            >
+                {{ 'PORTALS.QUEUE_PLAY_NEXT' | translate }}
+            </button>
+            <button
+                mat-button
+                type="button"
+                [disabled]="selected() === null"
+                (click)="enqueue('last')"
+            >
+                {{ 'PORTALS.ADD_TO_QUEUE' | translate }}
+            </button>
+            <button
+                mat-button
+                type="button"
+                [disabled]="!upcoming().length"
+                (click)="queue.clear()"
+            >
+                {{ 'PORTALS.CLEAR_QUEUE' | translate }}
+            </button>
+        </div>
+        <p>
+            {{ 'PORTALS.NOW_PLAYING' | translate }}: {{ current()?.label }}
+            {{ current()?.title }}
+        </p>
+        <ol class="series-queue__list">
+            @for (
+                item of upcoming();
+                track item.id;
+                let first = $first;
+                let last = $last
+            ) {
+                <li class="series-queue__row">
+                    <button
+                        mat-button
+                        type="button"
+                        class="series-queue__episode"
+                        (click)="play(item.id)"
+                    >
+                        {{ item.label }} {{ item.title }}
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="first"
+                        (click)="queue.move(item.id, -1)"
+                        [attr.aria-label]="'PORTALS.QUEUE_MOVE_UP' | translate"
+                    >
+                        <mat-icon>arrow_upward</mat-icon>
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        [disabled]="last"
+                        (click)="queue.move(item.id, 1)"
+                        [attr.aria-label]="
+                            'PORTALS.QUEUE_MOVE_DOWN' | translate
+                        "
+                    >
+                        <mat-icon>arrow_downward</mat-icon>
+                    </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        (click)="queue.remove(item.id)"
+                        [attr.aria-label]="'PORTALS.QUEUE_REMOVE' | translate"
+                    >
+                        <mat-icon>close</mat-icon>
+                    </button>
+                </li>
+            } @empty {
+                <p>{{ 'PORTALS.QUEUE_EMPTY' | translate }}</p>
+            }
+        </ol>
+    }
+</section>

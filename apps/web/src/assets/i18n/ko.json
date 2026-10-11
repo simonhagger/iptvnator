@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "예고편 소리 켜기",
             "PROGRESS_RESET": "진행 상태를 초기화했습니다",
             "HIDDEN_FROM_CONTINUE_WATCHING": "‘이어서 보기’에서 숨겼습니다"
-        }
+        },
+        "EPISODE_ORDER": "에피소드 순서",
+        "PLAYBACK_QUEUE": "재생 대기열",
+        "AUTOPLAY_NEXT_EPISODE": "다음 에피소드 자동 재생",
+        "PLAY_FROM_HERE": "여기부터 재생",
+        "PLAY_SEASON": "시즌 재생",
+        "NEXT_EPISODE_COUNTDOWN": "{{seconds}}초 후 다음 에피소드:",
+        "PLAY_NOW": "지금 재생",
+        "QUEUE_LOADED_EPISODES": "불러온 에피소드만 사용할 수 있습니다. 다른 시즌을 추가하려면 에피소드 목록에서 불러오세요.",
+        "SELECT_EPISODE": "에피소드 선택",
+        "QUEUE_PLAY_NEXT": "다음에 재생",
+        "ADD_TO_QUEUE": "대기열에 추가",
+        "CLEAR_QUEUE": "대기열 비우기",
+        "QUEUE_MOVE_UP": "에피소드를 앞으로 이동",
+        "QUEUE_MOVE_DOWN": "에피소드를 뒤로 이동",
+        "QUEUE_REMOVE": "대기열에서 제거",
+        "QUEUE_EMPTY": "대기 중인 에피소드가 없습니다. 현재 에피소드가 끝나면 재생이 중지됩니다."
     },
     "INFORMATION": "정보",
     "DOWNLOADS": {

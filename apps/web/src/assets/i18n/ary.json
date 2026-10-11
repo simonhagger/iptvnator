@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "خدّم صوت الإعلان",
             "PROGRESS_RESET": "ترجّع التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تخبّى من «كمّل المشاهدة»"
-        }
+        },
+        "EPISODE_ORDER": "ترتيب الحلقات",
+        "PLAYBACK_QUEUE": "لائحة انتظار التشغيل",
+        "AUTOPLAY_NEXT_EPISODE": "تشغيل الحلقة الجاية بوحدو",
+        "PLAY_FROM_HERE": "شغّل من هنا",
+        "PLAY_SEASON": "شغّل الموسم",
+        "NEXT_EPISODE_COUNTDOWN": "الحلقة الجاية من بعد {{seconds}} ثانية:",
+        "PLAY_NOW": "شغّل دابا",
+        "QUEUE_LOADED_EPISODES": "غير الحلقات اللي تحمّلو متوفرين. حمّل موسم آخر من لائحة الحلقات باش تزيدو.",
+        "SELECT_EPISODE": "اختار حلقة",
+        "QUEUE_PLAY_NEXT": "شغّل من بعد",
+        "ADD_TO_QUEUE": "زيد للائحة الانتظار",
+        "CLEAR_QUEUE": "مسح لائحة الانتظار",
+        "QUEUE_MOVE_UP": "طلّع الحلقة",
+        "QUEUE_MOVE_DOWN": "هبّط الحلقة",
+        "QUEUE_REMOVE": "حيّد من لائحة الانتظار",
+        "QUEUE_EMPTY": "ما كايناش حلقات فالانتظار. التشغيل غادي يوقف من بعد الحلقة الحالية."
     },
     "INFORMATION": "معلومات",
     "DOWNLOADS": {

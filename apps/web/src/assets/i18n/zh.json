@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "取消预告片静音",
             "PROGRESS_RESET": "进度已重置",
             "HIDDEN_FROM_CONTINUE_WATCHING": "已从“继续观看”中隐藏"
-        }
+        },
+        "EPISODE_ORDER": "剧集顺序",
+        "PLAYBACK_QUEUE": "播放队列",
+        "AUTOPLAY_NEXT_EPISODE": "自动播放下一集",
+        "PLAY_FROM_HERE": "从此处播放",
+        "PLAY_SEASON": "播放本季",
+        "NEXT_EPISODE_COUNTDOWN": "{{seconds}} 秒后播放下一集：",
+        "PLAY_NOW": "立即播放",
+        "QUEUE_LOADED_EPISODES": "仅提供已加载的剧集。请从剧集列表加载其他季以将其加入。",
+        "SELECT_EPISODE": "选择剧集",
+        "QUEUE_PLAY_NEXT": "下一项播放",
+        "ADD_TO_QUEUE": "加入队列",
+        "CLEAR_QUEUE": "清空队列",
+        "QUEUE_MOVE_UP": "将剧集前移",
+        "QUEUE_MOVE_DOWN": "将剧集后移",
+        "QUEUE_REMOVE": "从队列移除",
+        "QUEUE_EMPTY": "队列中没有剧集。当前剧集结束后将停止播放。"
     },
     "INFORMATION": "信息",
     "DOWNLOADS": {

@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "予告編の音を出す",
             "PROGRESS_RESET": "再生位置をリセットしました",
             "HIDDEN_FROM_CONTINUE_WATCHING": "「続きを見る」から隠しました"
-        }
+        },
+        "EPISODE_ORDER": "エピソードの順序",
+        "PLAYBACK_QUEUE": "再生キュー",
+        "AUTOPLAY_NEXT_EPISODE": "次のエピソードを自動再生",
+        "PLAY_FROM_HERE": "ここから再生",
+        "PLAY_SEASON": "シーズンを再生",
+        "NEXT_EPISODE_COUNTDOWN": "{{seconds}}秒後に次のエピソード：",
+        "PLAY_NOW": "今すぐ再生",
+        "QUEUE_LOADED_EPISODES": "読み込み済みのエピソードのみ利用できます。別のシーズンを追加するには、エピソード一覧から読み込んでください。",
+        "SELECT_EPISODE": "エピソードを選択",
+        "QUEUE_PLAY_NEXT": "次に再生",
+        "ADD_TO_QUEUE": "キューに追加",
+        "CLEAR_QUEUE": "キューを空にする",
+        "QUEUE_MOVE_UP": "エピソードを前へ移動",
+        "QUEUE_MOVE_DOWN": "エピソードを後ろへ移動",
+        "QUEUE_REMOVE": "キューから削除",
+        "QUEUE_EMPTY": "キューにエピソードがありません。現在のエピソードの後に再生が停止します。"
     },
     "INFORMATION": "情報",
     "DOWNLOADS": {

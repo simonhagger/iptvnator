@@ -39,13 +39,14 @@ import {
     buildUpNextRailItems,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
     TmdbEnrichedCastMember,
     XtreamSerieDetails,
     XtreamSerieEpisode,
-    XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { injectXtreamDetailNavigation } from '../xtream-detail-navigation';
 import {
@@ -99,6 +100,7 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         SeasonContainerComponent,
         SimilarRailComponent,
         TranslatePipe,
@@ -143,6 +145,11 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly seasonWatchBatchRunning = this.playback.seasonWatchBatchRunning;
     readonly activeEpisodeId = this.playback.activeEpisodeId;
     readonly quickStartAction = this.playback.quickStartAction;
+    readonly initialSeriesQueue = this.playback.initialSeriesQueue;
+    readonly canStartSeriesQueue = this.playback.canStartSeriesQueue;
+
+    readonly startSeriesQueue = (request: SeriesQueueStartRequest) =>
+        this.playback.startSeriesQueue(request);
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
     readonly playbackSessionKey = computed(() =>
@@ -276,25 +283,19 @@ export class SerialDetailsComponent implements OnDestroy {
         this.playback.playEpisode(episode);
     }
 
-    playQuickStartEpisode(): void {
+    readonly playQuickStartEpisode = () =>
         this.playback.playQuickStartEpisode();
-    }
 
-    playPreviousEpisode(): void {
-        this.playback.playPreviousEpisode();
-    }
+    readonly playPreviousEpisode = () => this.playback.playPreviousEpisode();
 
-    playNextEpisode(): void {
-        this.playback.playNextEpisode();
-    }
+    readonly playNextEpisode = () => this.playback.playNextEpisode();
 
     playUpNextEpisode(item: UpNextRailItem): void {
         this.playback.playEpisode(item.episode as XtreamSerieEpisode);
     }
 
-    handleInlinePlaybackEnded(): void {
+    readonly handleInlinePlaybackEnded = () =>
         this.playback.handleInlinePlaybackEnded();
-    }
 
     closeInlinePlayer(): void {
         this.playback.closeInlinePlayer();
@@ -341,10 +342,6 @@ export class SerialDetailsComponent implements OnDestroy {
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]
         );
-    }
-
-    getBackdropUrl(info: XtreamSerieInfo): string | undefined {
-        return info.backdrop_path?.[0];
     }
 
     goBack(): void {

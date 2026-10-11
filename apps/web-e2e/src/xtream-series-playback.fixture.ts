@@ -26,6 +26,16 @@ export const DEFAULT_PASSWORD = 'pass1';
  * to the mock server. This avoids any real backend requirement.
  */
 export async function interceptXtreamRequests(page: Page): Promise<void> {
+    await page.addInitScript(() => {
+        window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: 'http://localhost:3000' };
+    });
+    // Use the same intercepted backend in development and a static PWA build.
+    await page.route('**/assets/app-config.js', async (route) => {
+        await route.fulfill({
+            contentType: 'application/javascript',
+            body: 'window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: "http://localhost:3000" };',
+        });
+    });
     const providerTargets = await interceptProviderTargetRegistration(page);
 
     await page.route('**/localhost:3000/xtream**', async (route) => {
@@ -194,7 +204,8 @@ export async function selectWebPlayer(
 /** Add the mock portal and start the first episode of the first series. */
 export async function playFirstSeriesEpisode(
     page: Page,
-    request: APIRequestContext
+    request: APIRequestContext,
+    startPlayback = true
 ): Promise<{ playerView: Locator; video: Locator }> {
     const categories = (await (
         await request.get(
@@ -227,7 +238,7 @@ export async function playFirstSeriesEpisode(
 
     const episodeCards = page.locator('.episode-card');
     await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
-    await episodeCards.first().click();
+    if (startPlayback) await episodeCards.first().click();
 
     const playerView = page.locator(
         'app-portal-inline-player app-web-player-view'

@@ -58,6 +58,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
     createLogger,
+    type SeriesQueueLaunchEvent,
     consumeStalkerReturnMarker,
     createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
@@ -86,6 +87,8 @@ import {
     getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type SeriesPlaybackEpisodeState,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
@@ -152,6 +155,7 @@ interface StalkerSeriesPlaybackRequestContext {
         ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         TranslatePipe,
         SeasonContainerComponent,
     ],
@@ -173,6 +177,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly positions = inject(StalkerSeriesPositionsService);
     private readonly watchToggle = inject(StalkerSeriesWatchToggleService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    readonly canStartSeriesQueue = () => this.portalPlayer.isEmbeddedPlayer();
     private readonly router = inject(Router);
     private readonly location = inject(Location);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -852,6 +857,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName
     ) {
+        this.reportSeriesQueueLaunch('requested');
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
@@ -1002,6 +1008,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.initialSeriesQueue.set(null);
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1072,6 +1079,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     playUpNextEpisode(item: UpNextRailItem): void {
         this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
+    }
+
+    readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+    readonly seriesQueueLaunch = signal<SeriesQueueLaunchEvent | null>(null);
+
+    private reportSeriesQueueLaunch(
+        phase: SeriesQueueLaunchEvent['phase']
+    ): void {
+        this.seriesQueueLaunch.update((event) => ({
+            revision: (event?.revision ?? 0) + 1,
+            phase,
+        }));
+    }
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.initialSeriesQueue.set(request.ids);
+        this.playUpNextEpisode(request.episode);
     }
 
     handleInlinePlaybackEnded(): void {
@@ -1239,6 +1263,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
+            this.reportSeriesQueueLaunch('failed');
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
@@ -1294,6 +1319,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             toStalkerEpisodePlaybackStructuralIdentity(identity)
         );
         this.inlinePlayback.set(playback);
+        this.reportSeriesQueueLaunch('confirmed');
     }
 
     private syncSeriesPlaybackOwner(ownerKey: string): void {

@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "Fragman sesini aç",
             "PROGRESS_RESET": "İlerleme sıfırlandı",
             "HIDDEN_FROM_CONTINUE_WATCHING": "“İzlemeye devam et”ten gizlendi"
-        }
+        },
+        "EPISODE_ORDER": "Bölüm sırası",
+        "PLAYBACK_QUEUE": "Oynatma kuyruğu",
+        "AUTOPLAY_NEXT_EPISODE": "Sonraki bölümü otomatik oynat",
+        "PLAY_FROM_HERE": "Buradan oynat",
+        "PLAY_SEASON": "Sezonu oynat",
+        "NEXT_EPISODE_COUNTDOWN": "{{seconds}} saniye sonra sonraki bölüm:",
+        "PLAY_NOW": "Şimdi oynat",
+        "QUEUE_LOADED_EPISODES": "Yalnızca yüklenen bölümler kullanılabilir. Eklemek için bölüm listesinden başka bir sezon yükleyin.",
+        "SELECT_EPISODE": "Bölüm seç",
+        "QUEUE_PLAY_NEXT": "Sıradaki olarak oynat",
+        "ADD_TO_QUEUE": "Kuyruğa ekle",
+        "CLEAR_QUEUE": "Kuyruğu temizle",
+        "QUEUE_MOVE_UP": "Bölümü öne taşı",
+        "QUEUE_MOVE_DOWN": "Bölümü arkaya taşı",
+        "QUEUE_REMOVE": "Kuyruktan kaldır",
+        "QUEUE_EMPTY": "Kuyrukta bölüm yok. Geçerli bölümden sonra oynatma duracak."
     },
     "INFORMATION": "Bilgi",
     "DOWNLOADS": {

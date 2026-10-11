@@ -1405,7 +1405,23 @@
             "TRAILER_UNMUTE": "تشغيل صوت الإعلان",
             "PROGRESS_RESET": "تمت إعادة ضبط التقدم",
             "HIDDEN_FROM_CONTINUE_WATCHING": "تم الإخفاء من «متابعة المشاهدة»"
-        }
+        },
+        "EPISODE_ORDER": "ترتيب الحلقات",
+        "PLAYBACK_QUEUE": "قائمة انتظار التشغيل",
+        "AUTOPLAY_NEXT_EPISODE": "تشغيل الحلقة التالية تلقائيًا",
+        "PLAY_FROM_HERE": "تشغيل من هنا",
+        "PLAY_SEASON": "تشغيل الموسم",
+        "NEXT_EPISODE_COUNTDOWN": "الحلقة التالية بعد {{seconds}} ثانية:",
+        "PLAY_NOW": "تشغيل الآن",
+        "QUEUE_LOADED_EPISODES": "الحلقات المحمّلة فقط متاحة. حمّل موسمًا آخر من قائمة الحلقات لإضافته.",
+        "SELECT_EPISODE": "اختيار حلقة",
+        "QUEUE_PLAY_NEXT": "تشغيل تاليًا",
+        "ADD_TO_QUEUE": "إضافة إلى قائمة الانتظار",
+        "CLEAR_QUEUE": "مسح قائمة الانتظار",
+        "QUEUE_MOVE_UP": "تقديم الحلقة",
+        "QUEUE_MOVE_DOWN": "تأخير الحلقة",
+        "QUEUE_REMOVE": "إزالة من قائمة الانتظار",
+        "QUEUE_EMPTY": "لا توجد حلقات في قائمة الانتظار. سيتوقف التشغيل بعد الحلقة الحالية."
     },
     "INFORMATION": "معلومات",
     "DOWNLOADS": {
