@@ -85,6 +85,7 @@ local HEVC clip in native MPV (pause, repeated skips, return with the same
 session) and browser element PiP (actual entry/exit). Provider testing then
 covers live without cache ranges, buffered live, and VOD; verify both offered
 controls and actual results. Frame-copy advertises no native floating window.
+
 ### Series queue and continuation
 
 Inline Xtream and Stalker series use a session-scoped playback queue shared
@@ -108,7 +109,16 @@ Next control uses the queue head; an empty queue suppresses legacy host autoplay
 The queue surface sits below the inline player and is available at narrow widths
 and with native MPV. Fullscreen/PiP retain queue advancement, but the countdown
 and editable drawer are currently on the main page, outside the video surface.
-Saved playlists, cross-series queues and fullscreen queue chrome are later work.
+Named saved VOD lists have a separate
+[management and persistence contract](./saved-vod-playlists.md). Playback from
+those lists, cross-series queues and fullscreen queue chrome remain later work.
+
+Both provider hosts report manual launch requests before asynchronous stream
+resolution or external-player handoff. Confirmed and failed acknowledgements
+are fenced to that request, so an earlier launch cannot rearm continuation
+after a newer choice or Close. Explicit zero-offset restart intent survives
+deferred external launches. An initial queue seed belongs only to its chosen
+first episode; conflicting manual choices and failed starts discard it.
 
 The shared-controls preference checkbox is visible only when HTML5, Video.js
 or ArtPlayer is selected in Settings → Playback.

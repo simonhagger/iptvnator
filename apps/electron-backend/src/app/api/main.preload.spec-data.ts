@@ -1,4 +1,7 @@
-import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+import type {
+    ElectronBridgeApi,
+    SavedVodPlaylist,
+} from '@iptvnator/shared/interfaces';
 
 type ElectronBridgeMethodName = Extract<
     {
@@ -29,6 +32,16 @@ const channelIds = ['channel-1', 'channel-2'];
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
 const playlistUpdates = { name: 'Updated playlist' };
+const savedVodPlaylist: SavedVodPlaylist = {
+    schemaVersion: 1,
+    id: 'saved-list-1',
+    name: 'Weekend',
+    revision: 1,
+    createdAt: '2026-10-04T12:00:00Z',
+    updatedAt: '2026-10-04T12:00:00Z',
+    execution: null,
+    entries: [],
+};
 const categories = [{ category_id: '10', category_name: 'Live' }];
 const streams = [{ stream_id: 42, name: 'Channel' }];
 const favorites = [{ contentId: 1, playlistId }];
@@ -64,6 +77,36 @@ const vodSourcePin = {
 };
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
+    {
+        method: 'dbListSavedVodPlaylists',
+        args: [],
+        channel: 'DB_LIST_SAVED_VOD_PLAYLISTS',
+        forwardedArgs: [],
+    },
+    {
+        method: 'dbGetSavedVodPlaylist',
+        args: [savedVodPlaylist.id],
+        channel: 'DB_GET_SAVED_VOD_PLAYLIST',
+        forwardedArgs: [savedVodPlaylist.id],
+    },
+    {
+        method: 'dbSaveSavedVodPlaylist',
+        args: [savedVodPlaylist, null],
+        channel: 'DB_SAVE_SAVED_VOD_PLAYLIST',
+        forwardedArgs: [savedVodPlaylist, null],
+    },
+    {
+        method: 'dbSaveSavedVodPlaylist',
+        args: [savedVodPlaylist, savedVodPlaylist.revision],
+        channel: 'DB_SAVE_SAVED_VOD_PLAYLIST',
+        forwardedArgs: [savedVodPlaylist, savedVodPlaylist.revision],
+    },
+    {
+        method: 'dbDeleteSavedVodPlaylist',
+        args: [savedVodPlaylist.id, savedVodPlaylist.revision],
+        channel: 'DB_DELETE_SAVED_VOD_PLAYLIST',
+        forwardedArgs: [savedVodPlaylist.id, savedVodPlaylist.revision],
+    },
     {
         method: 'dbCreatePlaylist',
         args: [playlist],

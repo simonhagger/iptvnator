@@ -1365,7 +1365,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
             undefined,
             undefined,
-            'http://portal.example/radio_2.mpg'
+            'http://portal.example/radio_2.mpg',
+            undefined,
+            'release'
         );
         expect(component.activePlayback()).toBeNull();
     });
@@ -1395,7 +1397,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
             undefined,
             undefined,
-            'http://portal.example/radio_2.mpg'
+            'http://portal.example/radio_2.mpg',
+            undefined,
+            'release'
         );
     });
 });
