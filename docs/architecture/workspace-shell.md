@@ -59,6 +59,16 @@ Current workspace routes:
 11. `/workspace/xtreams/:id/...`
 12. `/workspace/stalker/:id/...`
 
+Saved VOD lists use `/workspace/saved-playlists`, a global management page
+available in Electron and the PWA without an imported source. It inherits the
+workspace settings/parental-state resolver and additionally gates its content
+on the current parental state. The rail and command palette link it directly;
+Restore last view can return to it without validating a provider source.
+The page owns its list and entry panes, so the shell supplies no context panel
+or provider rail links. The header hides the provider switcher and provider
+search while keeping the global command palette, Add source and parental
+controls available. Changing the active provider does not scope saved lists.
+
 Compatibility redirect:
 
 1. `/settings` -> `/workspace/settings`

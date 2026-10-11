@@ -133,6 +133,9 @@
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],
+            "@iptvnator/shared/interfaces/saved-vod-validation": [
+                "libs/shared/interfaces/src/lib/saved-vod-playlist.validation.ts"
+            ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"
             ],

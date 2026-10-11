@@ -1,6 +1,7 @@
 import {
     episodeRuntimeSeconds,
     formatEpisodePositionText,
+    formatEpisodeSubline,
     parseDuration,
 } from './episode-progress.util';
 
@@ -15,6 +16,64 @@ describe('episodeRuntimeSeconds', () => {
             episodeRuntimeSeconds({ duration_secs: 0, duration: '00:42:00' })
         ).toBe(2520);
         expect(episodeRuntimeSeconds(undefined)).toBe(0);
+    });
+});
+
+describe('episode subline presentation', () => {
+    const translate = (key: string, params?: Record<string, number>) => {
+        if (key === 'PORTALS.DETAIL.DURATION_MINUTES')
+            return `${params?.['minutes']} min`;
+        if (key === 'WORKSPACE.DASHBOARD.REMAINING_MINUTES')
+            return `${params?.['minutes']}m left`;
+        if (key === 'PORTALS.DETAIL.WATCHED') return 'watched';
+        return key;
+    };
+
+    it('keeps runtime and remaining time together without displaying a watched marker', () => {
+        expect(
+            formatEpisodeSubline(
+                { duration: '42 min' },
+                {
+                    contentXtreamId: 1,
+                    contentType: 'episode',
+                    positionSeconds: 1440,
+                    durationSeconds: 2520,
+                },
+                translate
+            )
+        ).toBe('42 min · 18m left');
+    });
+
+    it('replaces remaining time with watched at the completion threshold', () => {
+        expect(
+            formatEpisodeSubline(
+                { duration_secs: 2520 },
+                {
+                    contentXtreamId: 1,
+                    contentType: 'episode',
+                    positionSeconds: 2510,
+                    durationSeconds: 2520,
+                },
+                translate
+            )
+        ).toBe('42 min · watched');
+    });
+
+    it('keeps elapsed time when the provider has no runtime and omits an empty subline', () => {
+        expect(
+            formatEpisodeSubline(
+                undefined,
+                {
+                    contentXtreamId: 1,
+                    contentType: 'episode',
+                    positionSeconds: 61,
+                },
+                translate
+            )
+        ).toBe('01:01');
+        expect(
+            formatEpisodeSubline(undefined, undefined, translate)
+        ).toBeNull();
     });
 });
 

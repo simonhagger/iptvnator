@@ -26,6 +26,7 @@ import {
     TrailerDialogService,
     ViewInPortalActionComponent,
     VodMoreMenuComponent,
+    SAVED_VOD_ADD_MENU_ITEM,
     scrollToCastCrewRow,
     type SimilarRailItem,
 } from '@iptvnator/ui/components';
@@ -140,6 +141,8 @@ export class VodDetailsComponent {
      * but the player about to start would overwrite a row written now.
      */
     readonly playbackStartPending = input(false);
+    /** The provider host has a valid saved-list identity; playback is unrelated. */
+    readonly savedPlaylistAvailable = input(false);
 
     // ============ Outputs ============
 
@@ -193,6 +196,7 @@ export class VodDetailsComponent {
     }>();
     /** "Reset progress": the host clears the saved position. */
     readonly resetProgressRequested = output<VodDetailsItem>();
+    readonly savedPlaylistAddRequested = output<VodDetailsItem>();
 
     // ============ Services ============
 
@@ -296,10 +300,15 @@ export class VodDetailsComponent {
         similarInPortals: this.similarInPortals,
         configuredPlayer: this.settingsStore.player,
         translate: this.translate,
+        savedPlaylistAvailable: this.savedPlaylistAvailable,
     });
 
     runMenuAction(actionId: string): void {
         switch (actionId) {
+            case SAVED_VOD_ADD_MENU_ITEM.id:
+                if (this.savedPlaylistAvailable())
+                    this.savedPlaylistAddRequested.emit(this.item());
+                return;
             case VOD_DETAILS_MENU_ACTION.ExternalPlayer:
                 this.externalPlayRequested.emit({
                     item: this.item(),

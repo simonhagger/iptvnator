@@ -18,9 +18,9 @@ describe('WorkspaceStartupPreferencesService', () => {
         localStorage.clear();
 
         playlistsService = {
-            getAllPlaylists: jest.fn().mockReturnValue(
-                of([{ _id: 'playlist-1' }])
-            ),
+            getAllPlaylists: jest
+                .fn()
+                .mockReturnValue(of([{ _id: 'playlist-1' }])),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -76,6 +76,19 @@ describe('WorkspaceStartupPreferencesService', () => {
         await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
             '/workspace/sources'
         );
+    });
+
+    it('restores saved lists even when there are no provider sources', async () => {
+        settingsStore.startupBehavior.set(StartupBehavior.RestoreLastView);
+        playlistsService.getAllPlaylists.mockReturnValue(of([]));
+        service.persistLastRestorablePath(
+            '/workspace/saved-playlists?q=old#list'
+        );
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/saved-playlists'
+        );
+        expect(playlistsService.getAllPlaylists).not.toHaveBeenCalled();
     });
 
     it('canonicalizes detail routes to their section root', () => {

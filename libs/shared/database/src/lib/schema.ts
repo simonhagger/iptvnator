@@ -21,6 +21,7 @@ import {
 // them so `import * as schema from './schema'` keeps a complete namespace.
 export * from './epg-mapping.schema';
 export * from './vod-source-pins.schema';
+export { savedVodPlaylists } from './saved-vod-playlists.schema';
 
 // Playlists table
 export const playlists = sqliteTable('playlists', {

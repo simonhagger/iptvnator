@@ -109,6 +109,13 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'saved-playlists',
+                loadComponent: () =>
+                    import('@iptvnator/workspace/shell/feature').then(
+                        (c) => c.SavedVodPlaylistsPageComponent
+                    ),
+            },
+            {
                 path: 'playlists/:id',
                 loadChildren: () =>
                     import('@iptvnator/playlist/m3u/feature-player').then((m) =>

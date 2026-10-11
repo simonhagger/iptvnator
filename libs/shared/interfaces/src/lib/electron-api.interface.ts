@@ -1,5 +1,11 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
+import type {
+    SavedVodDeleteResult,
+    SavedVodPlaylist,
+    SavedVodPlaylistSummary,
+    SavedVodWriteResult,
+} from './saved-vod-playlist.interface';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -704,6 +710,16 @@ export interface ElectronRecordingItem {
 }
 
 export interface ElectronBridgeApi {
+    dbListSavedVodPlaylists?: () => Promise<SavedVodPlaylistSummary[]>;
+    dbGetSavedVodPlaylist?: (id: string) => Promise<SavedVodPlaylist | null>;
+    dbSaveSavedVodPlaylist?: (
+        playlist: SavedVodPlaylist,
+        expectedRevision: number | null
+    ) => Promise<SavedVodWriteResult>;
+    dbDeleteSavedVodPlaylist?: (
+        id: string,
+        expectedRevision: number
+    ) => Promise<SavedVodDeleteResult>;
     onPortalDebugEvent?: (
         callback: (data: PortalDebugEvent) => void
     ) => () => void;

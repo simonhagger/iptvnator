@@ -202,6 +202,8 @@
             [playbackPositions]="episodePlaybackPositions()"
             [downloadAdapter]="episodeDownloadAdapter()"
             [downloadsEnabled]="!providerOnly()"
+            [episodeMenuSections]="savedEpisodes.sections"
+            (episodeMenuSelected)="savedEpisodes.select($event)"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"
             [playingEpisodeId]="

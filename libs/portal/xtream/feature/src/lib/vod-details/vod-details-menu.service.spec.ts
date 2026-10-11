@@ -18,6 +18,7 @@ import {
 import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
 
 describe('VodDetailsMenuService', () => {
     const playbackStartPending = signal(false);
@@ -40,6 +41,8 @@ describe('VodDetailsMenuService', () => {
     >([]);
     const resetPending = computed(() => pendingResets().length > 0);
     const openExternal = jest.fn().mockResolvedValue(undefined);
+    const openSavedDialog = jest.fn();
+    const currentPlaylist = signal<{ id: string } | null>({ id: 'playlist-1' });
     let service: VodDetailsMenuService;
 
     beforeEach(() => {
@@ -52,13 +55,18 @@ describe('VodDetailsMenuService', () => {
         vodPlaybackPosition.set(null);
         pendingResets.set([]);
         jest.clearAllMocks();
+        currentPlaylist.set({ id: 'playlist-1' });
         TestBed.configureTestingModule({
             providers: [
                 VodDetailsMenuService,
                 {
+                    provide: SavedVodAddDialogLauncherService,
+                    useValue: { bindOwner: jest.fn(), open: openSavedDialog },
+                },
+                {
                     provide: XtreamStore,
                     useValue: {
-                        currentPlaylist: signal({ id: 'playlist-1' }),
+                        currentPlaylist,
                         loadAllPositions,
                     },
                 },
@@ -132,6 +140,61 @@ describe('VodDetailsMenuService', () => {
             .flatMap((section) => section.items)
             .find((item) => item.id === id);
     }
+    it('adds the route catalog identity rather than a pinned copy, without a playable item', async () => {
+        primaryTarget.set({ playlistId: 'pinned-source', contentId: 991 });
+        service.bind({
+            item: signal(null),
+            savedItem: signal({
+                id: 12345,
+                movie_data: { stream_id: 7 },
+            } as unknown as XtreamVodDetails),
+            savedTitle: signal('Catalog title'),
+            vodId: signal(7),
+            category: signal(null),
+            restart: jest.fn(),
+            openExternal,
+        });
+        TestBed.tick();
+        expect(row('add-to-saved-playlist')).toMatchObject({
+            labelKey: 'SAVED_VOD_PLAYLISTS.ADD_TITLE',
+            icon: 'playlist_add',
+        });
+        await service.run('add-to-saved-playlist');
+        expect(openSavedDialog).toHaveBeenCalledWith([
+            {
+                title: 'Catalog title',
+                reference: {
+                    provider: 'xtream',
+                    sourceId: 'playlist-1',
+                    kind: 'movie',
+                    contentId: '7',
+                },
+            },
+        ]);
+        currentPlaylist.set({ id: 'another-source' });
+        expect(row('add-to-saved-playlist')).toBeUndefined();
+        await service.run('add-to-saved-playlist');
+        expect(openSavedDialog).toHaveBeenCalledTimes(1);
+        currentPlaylist.set(null);
+        expect(row('add-to-saved-playlist')).toBeUndefined();
+        await service.run('add-to-saved-playlist');
+        expect(openSavedDialog).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects missing or stale provider identity instead of treating a local row as the route movie', () => {
+        service.bind({
+            item: signal(null),
+            savedItem: signal({
+                movie_data: { stream_id: 8 },
+            } as XtreamVodDetails),
+            savedTitle: signal('Movie'),
+            vodId: signal(7),
+            category: signal(null),
+            restart: jest.fn(),
+            openExternal,
+        });
+        expect(row('add-to-saved-playlist')).toBeUndefined();
+    });
 
     it('offers the external player and Start over rows while nothing starts', () => {
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBeFalsy();

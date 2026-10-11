@@ -1,6 +1,8 @@
 import {
     isPortalPlaybackWatched,
     parseDurationSeconds,
+    formatDurationLabel,
+    formatRemainingLabel,
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
@@ -60,4 +62,23 @@ export function episodeRuntimeSeconds(
     return Number.isFinite(seconds) && seconds > 0
         ? Math.floor(seconds)
         : parseDuration(info?.duration);
+}
+
+/** Receives translation rather than depending on a renderer or Angular service. */
+export function formatEpisodeSubline(
+    info: { duration_secs?: number; duration?: string } | null | undefined,
+    position: PlaybackPositionData | undefined,
+    translate: (key: string, params?: Record<string, number>) => string
+): string | null {
+    const duration = formatDurationLabel(episodeRuntimeSeconds(info));
+    const remaining = formatRemainingLabel(position);
+    const parts = [
+        duration ? translate(duration.key, duration.params) : null,
+        isPortalPlaybackWatched(position)
+            ? translate('PORTALS.DETAIL.WATCHED')
+            : remaining
+              ? translate(remaining.key, remaining.params)
+              : formatEpisodePositionText(position),
+    ].filter((part): part is string => !!part);
+    return parts.length ? parts.join(' · ') : null;
 }

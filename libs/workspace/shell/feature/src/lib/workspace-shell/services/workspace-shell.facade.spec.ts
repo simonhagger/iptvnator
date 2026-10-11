@@ -749,6 +749,19 @@ describe('WorkspaceShellFacade', () => {
         );
     });
 
+    it('keeps saved lists separate from an active provider and provider search', () => {
+        facade.currentUrl.set('/workspace/saved-playlists');
+        expect(facade.isSavedPlaylistsRoute()).toBe(true);
+        expect(facade.railContext()).toBeNull();
+        expect(facade.primaryContextLinks()).toEqual([]);
+        expect(facade.secondaryContextLinks()).toEqual([]);
+        expect(facade.showContextPanel()).toBe(false);
+        expect(facade.canUseSearch()).toBe(false);
+        expect(
+            facade.commandPaletteCommands().map((command) => command.id)
+        ).not.toContain('open-saved-playlists');
+    });
+
     it('removes the dashboard rail link when dashboard is hidden', () => {
         showDashboardSignal.set(false);
 
@@ -776,6 +789,12 @@ describe('WorkspaceShellFacade', () => {
                 path: ['/workspace/global-recent'],
                 exact: true,
             },
+            {
+                icon: 'playlist_play',
+                tooltip: 'SAVED_VOD_PLAYLISTS.TITLE',
+                path: ['/workspace/saved-playlists'],
+                exact: true,
+            },
         ]);
     });
 
@@ -787,6 +806,7 @@ describe('WorkspaceShellFacade', () => {
             ['/workspace/sources'],
             ['/workspace/global-favorites'],
             ['/workspace/global-recent'],
+            ['/workspace/saved-playlists'],
         ]);
     });
 
@@ -813,6 +833,7 @@ describe('WorkspaceShellFacade', () => {
         expect(commands.map((command) => command.id)).toEqual([
             'open-global-favorites',
             'open-global-recent',
+            'open-saved-playlists',
             'open-downloads',
             'open-settings',
             'open-sources',

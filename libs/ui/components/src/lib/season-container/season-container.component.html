@@ -281,6 +281,13 @@
                                         {{ episode.episode_num }}.
                                         {{ episode.title }}
                                     </h4>
+                                    <app-season-episode-menu
+                                        [episode]="episode"
+                                        [menuSections]="episodeMenuSections()"
+                                        (selected)="
+                                            episodeMenuSelected.emit($event)
+                                        "
+                                    />
                                     @if (episodeInfo?.plot) {
                                         <button
                                             mat-icon-button
@@ -418,6 +425,13 @@
                                 }
                             </div>
                             <div class="episode-list-item__actions">
+                                <app-season-episode-menu
+                                    [episode]="episode"
+                                    [menuSections]="episodeMenuSections()"
+                                    (selected)="
+                                        episodeMenuSelected.emit($event)
+                                    "
+                                />
                                 <button
                                     mat-icon-button
                                     class="action-btn play-btn"

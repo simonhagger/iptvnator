@@ -197,6 +197,8 @@
                 [seasonDescriptions]="seasonDescriptions()"
                 [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
+                [episodeMenuSections]="savedEpisodes.sections"
+                (episodeMenuSelected)="savedEpisodes.select($event)"
                 [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||

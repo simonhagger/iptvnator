@@ -10,6 +10,10 @@ import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
 import type { ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import type { StalkerSeriesViewComponent } from './stalker-series-view.component';
+import type {
+    SeasonContainerEpisodeMenuSelection,
+    SeasonEpisodeMenuSections,
+} from '@iptvnator/ui/components';
 
 export async function stabilizeSeriesFixture<T>(
     fixture: ComponentFixture<T>
@@ -94,6 +98,11 @@ export class StubSeasonContainerComponent {
     readonly seasonPosters = input<unknown>(null);
     readonly isLoading = input(false);
     readonly downloadsEnabled = input(true);
+    readonly episodeMenuSections = input<SeasonEpisodeMenuSections | null>(
+        null
+    );
+    readonly episodeMenuSelected =
+        output<SeasonContainerEpisodeMenuSelection>();
     readonly downloadAdapter = input<SeasonEpisodeDownloadAdapter | null>(null);
     readonly seasonWatchBatchRunning = input(false);
     readonly seasonSelected = output<string>();

@@ -316,6 +316,15 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsSavedVodPlaylistStorage(): boolean {
+        return [
+            'dbListSavedVodPlaylists',
+            'dbGetSavedVodPlaylist',
+            'dbSaveSavedVodPlaylist',
+            'dbDeleteSavedVodPlaylist',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsExternalPlayerPathSettings(): boolean {
         return ['setMpvPlayerPath', 'setVlcPlayerPath'].every((methodName) =>
             this.hasElectronMethod(methodName)

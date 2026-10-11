@@ -250,6 +250,15 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+Saved VOD document validation uses
+`@iptvnator/shared/interfaces/saved-vod-validation`. Its pure validators and
+limits stay out of the eagerly reached interfaces barrel; saved-list types
+remain type-only exports there. Saved-list storage, editing and dialog consumers
+value-import the configured sub-entrypoint so validation loads with their lazy
+features rather than the renderer's initial payload.
+The Electron worker builder's explicit esbuild alias map includes the same
+entry point so worker bundling resolves it independently of the broader barrel.
+
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
 whole library: esbuild keeps every Angular component module a barrel

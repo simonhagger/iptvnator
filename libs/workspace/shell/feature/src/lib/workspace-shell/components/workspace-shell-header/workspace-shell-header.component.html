@@ -44,11 +44,9 @@
         </button>
     }
 
-    <!-- Playlist switcher hidden on /settings: those controls are
-         playlist-scoped, but Settings is a global page. Per the UX
-         audit, leaving them visible implied switching playlists changes
-         which settings you're editing. -->
-    @if (!isSettingsRoute()) {
+    <!-- Settings and saved lists are independent of the active provider.
+         Switching a source cannot scope their contents. -->
+    @if (!isSettingsRoute() && !isSavedPlaylistsRoute()) {
         <app-playlist-switcher
             class="playlist-switcher"
             [currentTitle]="playlistTitle()"
@@ -70,7 +68,7 @@
 
     <!-- Settings search works without any playlist, so a fresh user can
          find settings before importing a first source. -->
-    @if (!hasNoPlaylists() || isSettingsRoute()) {
+    @if ((!hasNoPlaylists() || isSettingsRoute()) && !isSavedPlaylistsRoute()) {
         <label class="search-field">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {
@@ -115,6 +113,23 @@
                 <mat-icon class="command-trigger__icon">bolt</mat-icon>
             </button>
         </label>
+    }
+
+    @if (isSavedPlaylistsRoute()) {
+        <button
+            type="button"
+            class="command-trigger"
+            mat-icon-button
+            (click)="onCommandPaletteRequested()"
+            [matTooltip]="
+                'WORKSPACE.SHELL.COMMAND_PALETTE_SHORTCUT' | translate
+            "
+            [attr.aria-label]="
+                'WORKSPACE.SHELL.OPEN_COMMAND_PALETTE' | translate
+            "
+        >
+            <mat-icon>bolt</mat-icon>
+        </button>
     }
 
     <!-- The "Add playlist" button stays visible on /settings — adding a
@@ -169,7 +184,7 @@
                 }}</mat-icon>
             </button>
         }
-        @if (!isSettingsRoute()) {
+        @if (!isSettingsRoute() && !isSavedPlaylistsRoute()) {
             @if (headerSidebarToggle(); as sidebarToggle) {
                 <button
                     type="button"

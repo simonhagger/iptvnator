@@ -10,6 +10,7 @@ export type WorkspaceShellPageKind =
     | 'global-recent'
     | 'global-search'
     | 'portal'
+    | 'saved-playlists'
     | 'settings'
     | 'sources'
     | 'unknown';
@@ -303,7 +304,9 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
                       ? 'global-search'
                       : page === 'downloads'
                         ? 'downloads'
-                        : 'unknown';
+                        : page === 'saved-playlists'
+                          ? 'saved-playlists'
+                          : 'unknown';
     // Focused detail pages hide the context panel and route search:
     // /workspace/downloads/:downloadId (3 segments) and the recording detail
     // /workspace/downloads/recording/:recordingId (4 segments).

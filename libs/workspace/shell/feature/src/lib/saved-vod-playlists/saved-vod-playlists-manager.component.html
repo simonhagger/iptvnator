@@ -1,0 +1,211 @@
+<header class="page-header">
+    <div>
+        <h1>{{ 'SAVED_VOD_PLAYLISTS.TITLE' | translate }}</h1>
+        <p>{{ 'SAVED_VOD_PLAYLISTS.DESCRIPTION' | translate }}</p>
+    </div>
+    <div class="header-actions">
+        <button
+            type="button"
+            mat-icon-button
+            data-test-id="saved-vod-refresh"
+            [disabled]="pending()"
+            [matTooltip]="'SAVED_VOD_PLAYLISTS.REFRESH' | translate"
+            [attr.aria-label]="'SAVED_VOD_PLAYLISTS.REFRESH' | translate"
+            (click)="controller.refresh()"
+        >
+            <mat-icon>refresh</mat-icon>
+        </button>
+        <button
+            type="button"
+            mat-flat-button
+            data-test-id="saved-vod-new"
+            [disabled]="pending()"
+            (click)="name('create')"
+        >
+            <mat-icon>playlist_add</mat-icon>
+            {{ 'SAVED_VOD_PLAYLISTS.NEW' | translate }}
+        </button>
+    </div>
+</header>
+@if (noticeKey(); as key) {
+    <div
+        class="notice"
+        role="status"
+        aria-live="polite"
+        data-test-id="saved-vod-notice"
+        [attr.data-notice-code]="controller.notice()"
+    >
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span>{{ key | translate }}</span>
+        <button
+            type="button"
+            mat-button
+            [disabled]="pending()"
+            (click)="controller.refresh()"
+        >
+            {{ 'SAVED_VOD_PLAYLISTS.REFRESH' | translate }}
+        </button>
+    </div>
+}
+<div class="panes" [attr.aria-busy]="pending()">
+    <section
+        class="list-pane"
+        [attr.aria-label]="'SAVED_VOD_PLAYLISTS.LISTS' | translate"
+    >
+        <h2>{{ 'SAVED_VOD_PLAYLISTS.LISTS' | translate }}</h2>
+        <div class="nav-list" tabindex="0">
+            @if (controller.loadingLists()) {
+                <p role="status">{{ 'LOADING' | translate }}</p>
+            } @else if (!controller.lists().length) {
+                <p class="empty">
+                    {{ 'SAVED_VOD_PLAYLISTS.EMPTY_LISTS' | translate }}
+                </p>
+            }
+            @for (list of controller.lists(); track list.id) {
+                <button
+                    type="button"
+                    class="nav-item"
+                    data-test-id="saved-vod-list"
+                    [attr.data-list-id]="list.id"
+                    [class.selected]="controller.selectedId() === list.id"
+                    [attr.aria-current]="
+                        controller.selectedId() === list.id ? 'true' : null
+                    "
+                    [disabled]="controller.busy()"
+                    (click)="controller.select(list.id)"
+                >
+                    <mat-icon aria-hidden="true">playlist_play</mat-icon>
+                    <span>{{ list.name }}</span>
+                    <span
+                        class="nav-item-meta"
+                        [attr.aria-label]="
+                            'SAVED_VOD_PLAYLISTS.ENTRY_COUNT'
+                                | translate: { count: list.entryCount }
+                        "
+                        >{{ list.entryCount }}</span
+                    >
+                </button>
+            }
+        </div>
+    </section>
+    <section class="detail-pane">
+        @if (controller.loadingDetail()) {
+            <div class="empty-state" role="status">
+                {{ 'LOADING' | translate }}
+            </div>
+        } @else if (controller.selected(); as selected) {
+            <header class="detail-header">
+                <div class="detail-title">
+                    <h2 tabindex="-1" data-test-id="saved-vod-detail-heading">
+                        {{ selected.name }}
+                    </h2>
+                    <p>
+                        {{
+                            'SAVED_VOD_PLAYLISTS.ENTRY_COUNT'
+                                | translate: { count: selected.entries.length }
+                        }}
+                    </p>
+                </div>
+                <div class="list-actions">
+                    <button
+                        type="button"
+                        mat-button
+                        data-test-id="saved-vod-rename"
+                        [disabled]="pending()"
+                        (click)="name('rename')"
+                    >
+                        <mat-icon>edit</mat-icon
+                        >{{ 'SAVED_VOD_PLAYLISTS.RENAME' | translate }}
+                    </button>
+                    <button
+                        type="button"
+                        mat-button
+                        data-test-id="saved-vod-duplicate"
+                        [disabled]="pending()"
+                        (click)="name('duplicate')"
+                    >
+                        <mat-icon>content_copy</mat-icon
+                        >{{ 'SAVED_VOD_PLAYLISTS.DUPLICATE' | translate }}
+                    </button>
+                    <button
+                        type="button"
+                        mat-button
+                        data-test-id="saved-vod-clear"
+                        [disabled]="pending() || !selected.entries.length"
+                        (click)="confirm('clear')"
+                    >
+                        <mat-icon>clear_all</mat-icon
+                        >{{ 'SAVED_VOD_PLAYLISTS.CLEAR' | translate }}
+                    </button>
+                    <button
+                        type="button"
+                        mat-button
+                        data-test-id="saved-vod-delete"
+                        class="app-destructive-button"
+                        [disabled]="pending()"
+                        (click)="confirm('delete')"
+                    >
+                        <mat-icon>delete_outline</mat-icon
+                        >{{ 'SAVED_VOD_PLAYLISTS.DELETE' | translate }}
+                    </button>
+                </div>
+            </header>
+            @if (selected.execution) {
+                <p class="run-notice">
+                    {{ 'SAVED_VOD_PLAYLISTS.ACTIVE_RUN_NOTICE' | translate }}
+                </p>
+            }
+            @if (controller.undoClear()) {
+                <div class="undo" role="status" aria-live="polite">
+                    <button
+                        type="button"
+                        mat-button
+                        data-test-id="saved-vod-undo"
+                        [disabled]="pending()"
+                        (click)="undo()"
+                    >
+                        <mat-icon>undo</mat-icon
+                        >{{ 'SAVED_VOD_PLAYLISTS.UNDO' | translate }}
+                    </button>
+                </div>
+            }
+            <div
+                class="entries"
+                role="list"
+                [attr.aria-label]="selected.name"
+                tabindex="0"
+            >
+                @for (
+                    entry of selected.entries;
+                    track entry.id;
+                    let index = $index
+                ) {
+                    <app-saved-vod-entry-row
+                        [entry]="entry"
+                        [index]="index"
+                        [count]="selected.entries.length"
+                        [sourceName]="sourceName(entry.reference.sourceId)"
+                        [labels]="rowLabels()"
+                        [disabled]="pending()"
+                        (moveRequested)="move($event)"
+                        (removeRequested)="remove($event)"
+                    />
+                } @empty {
+                    <div class="empty-state">
+                        <mat-icon aria-hidden="true">playlist_add</mat-icon>
+                        <p>
+                            {{ 'SAVED_VOD_PLAYLISTS.EMPTY_LIST' | translate }}
+                        </p>
+                    </div>
+                }
+            </div>
+        } @else {
+            <div class="empty-state">
+                <mat-icon aria-hidden="true">playlist_play</mat-icon>
+                <h2 tabindex="-1" data-test-id="saved-vod-detail-heading">
+                    {{ 'SAVED_VOD_PLAYLISTS.NO_SELECTION' | translate }}
+                </h2>
+            </div>
+        }
+    </section>
+</div>

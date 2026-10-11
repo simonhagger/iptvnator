@@ -55,6 +55,7 @@ import { VodDetailsMenuService } from './vod-details-menu.service';
 import { VodDetailsSelectionService } from './vod-details-selection.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -64,6 +65,7 @@ import { VodMultiSourceHostService } from './vod-multi-source-host.service';
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [
+        SavedVodAddDialogLauncherService,
         VodDetailsSelectionService,
         VodDetailsPlaybackService,
         VodMultiSourceHostService,
@@ -299,6 +301,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         });
         this.menu.bind({
             item: this.playableVodItem,
+            savedItem: this.selectedItem,
+            savedTitle: computed(
+                () => this.selectedVodInfo()?.name ?? this.fallbackView()?.title
+            ),
             vodId: this.selectedVodId,
             category: this.selectedCategory,
             restart: () => this.restartVod(this.playableVodItem()),

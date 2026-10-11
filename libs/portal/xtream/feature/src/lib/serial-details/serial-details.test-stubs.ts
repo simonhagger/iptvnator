@@ -6,6 +6,10 @@ import {
 } from '@angular/core';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
+import type {
+    SeasonContainerEpisodeMenuSelection,
+    SeasonEpisodeMenuSections,
+} from '@iptvnator/ui/components';
 
 /** Stand-ins for the heavy children of the series-details page in specs. */
 
@@ -29,6 +33,11 @@ export class StubSeasonContainerComponent {
     readonly seasonDescriptions = input<unknown>(null);
     readonly seasonPosters = input<unknown>(null);
     readonly seasonWatchBatchRunning = input(false);
+    readonly episodeMenuSections = input<SeasonEpisodeMenuSections | null>(
+        null
+    );
+    readonly episodeMenuSelected =
+        output<SeasonContainerEpisodeMenuSelection>();
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
     readonly seasonPlaybackToggleRequested = output<unknown>();

@@ -4,6 +4,19 @@ import {
 } from './workspace-shell-route.utils';
 
 describe('workspace-shell-route.utils', () => {
+    it('keeps saved lists independent of provider context and query search', () => {
+        expect(
+            parseWorkspaceShellRoute('/workspace/saved-playlists?q=x#list')
+        ).toEqual({
+            kind: 'saved-playlists',
+            context: null,
+            section: null,
+            isPortalFavoritesAllScope: false,
+            contextPanel: 'none',
+            searchMode: 'none',
+            usesQuerySearch: false,
+        });
+    });
     it('parses top-level workspace pages', () => {
         expect(parseWorkspaceShellRoute('/workspace')).toEqual(
             expect.objectContaining({

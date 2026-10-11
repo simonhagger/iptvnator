@@ -53,3 +53,4 @@ export * from './lib/content-cover';
 export * from './lib/provider-content-cover';
 export * from './lib/xtream-history-provenance';
 export * from './lib/resume-time';
+export * from './lib/saved-vod-playlist';

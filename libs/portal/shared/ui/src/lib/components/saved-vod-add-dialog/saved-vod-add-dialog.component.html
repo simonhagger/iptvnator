@@ -1,0 +1,147 @@
+<form [formGroup]="form" (ngSubmit)="submit()">
+    <h2 mat-dialog-title>{{ 'SAVED_VOD_PLAYLISTS.ADD_TITLE' | translate }}</h2>
+    <mat-dialog-content>
+        @if (!state.initialized()) {
+            <p role="status">{{ state.notice() || 'LOADING' | translate }}</p>
+            @if (state.notice()) {
+                <button type="button" mat-button (click)="initialize()">
+                    {{ 'SAVED_VOD_PLAYLISTS.REFRESH' | translate }}
+                </button>
+            }
+        } @else if (state.parentalLock.active()) {
+            <p>{{ 'SAVED_VOD_PLAYLISTS.LOCKED_DESCRIPTION' | translate }}</p>
+            <button type="button" mat-flat-button (click)="unlock()">
+                {{ 'SAVED_VOD_PLAYLISTS.UNLOCK' | translate }}
+            </button>
+        } @else {
+            <p class="selection-count">
+                {{
+                    'SAVED_VOD_PLAYLISTS.SELECTED_COUNT'
+                        | translate: { count: data.candidates.length }
+                }}
+            </p>
+            <mat-radio-group
+                [value]="mode()"
+                (change)="mode.set($event.value)"
+                [disabled]="state.busy() || state.loading()"
+                [attr.aria-label]="'SAVED_VOD_PLAYLISTS.ADD_TITLE' | translate"
+            >
+                <mat-radio-button
+                    value="existing"
+                    [disabled]="!state.lists().length"
+                    >{{
+                        'SAVED_VOD_PLAYLISTS.EXISTING_LIST' | translate
+                    }}</mat-radio-button
+                >
+                <mat-radio-button value="new">{{
+                    'SAVED_VOD_PLAYLISTS.NEW' | translate
+                }}</mat-radio-button>
+            </mat-radio-group>
+            @if (mode() === 'existing') {
+                <mat-form-field>
+                    <mat-label>{{
+                        'SAVED_VOD_PLAYLISTS.SELECT_LIST' | translate
+                    }}</mat-label>
+                    <mat-select
+                        [value]="state.selectedId()"
+                        (selectionChange)="state.select($event.value)"
+                        [disabled]="state.busy() || state.loading()"
+                        data-test-id="saved-vod-add-target"
+                    >
+                        @for (list of state.lists(); track list.id) {
+                            <mat-option [value]="list.id">{{
+                                list.name
+                            }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+                @if (state.selected(); as selected) {
+                    <p>
+                        {{
+                            'SAVED_VOD_PLAYLISTS.ENTRY_COUNT'
+                                | translate: { count: selected.entries.length }
+                        }}
+                    </p>
+                    @if (selected.execution) {
+                        <p class="hint">
+                            {{
+                                'SAVED_VOD_PLAYLISTS.ACTIVE_RUN_NOTICE'
+                                    | translate
+                            }}
+                        </p>
+                    }
+                }
+            } @else {
+                <mat-form-field>
+                    <mat-label>{{
+                        'SAVED_VOD_PLAYLISTS.NAME' | translate
+                    }}</mat-label>
+                    <input
+                        matInput
+                        autocomplete="off"
+                        [formControl]="name"
+                        [readonly]="state.busy()"
+                        data-test-id="saved-vod-add-name"
+                    />
+                    <mat-hint align="end"
+                        >{{ name.value.trim().length }} /
+                        {{ maxNameLength }}</mat-hint
+                    >
+                    <mat-error>{{
+                        'SAVED_VOD_PLAYLISTS.NAME_ERROR'
+                            | translate: { max: maxNameLength }
+                    }}</mat-error>
+                </mat-form-field>
+            }
+            <mat-checkbox
+                [formControl]="duplicates"
+                data-test-id="saved-vod-add-duplicates"
+                >{{
+                    'SAVED_VOD_PLAYLISTS.ALLOW_DUPLICATES' | translate
+                }}</mat-checkbox
+            >
+            <p class="hint">
+                {{ 'SAVED_VOD_PLAYLISTS.DUPLICATES_HINT' | translate }}
+            </p>
+            @if (state.loading() || state.busy()) {
+                <p role="status" aria-live="polite">
+                    {{ 'LOADING' | translate }}
+                </p>
+            }
+            @if (state.notice(); as notice) {
+                <p role="alert">{{ notice | translate }}</p>
+                <button
+                    type="button"
+                    mat-button
+                    (click)="state.refresh()"
+                    [disabled]="state.loading() || state.busy()"
+                    data-test-id="saved-vod-add-refresh"
+                >
+                    {{ 'SAVED_VOD_PLAYLISTS.REFRESH' | translate }}
+                </button>
+            }
+        }
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+        <button type="button" mat-button (click)="cancel()">
+            {{ 'CANCEL' | translate }}
+        </button>
+        @if (state.canRead()) {
+            <button
+                type="submit"
+                mat-flat-button
+                data-test-id="saved-vod-add-save"
+                [disabled]="
+                    state.busy() ||
+                    state.loading() ||
+                    !data.candidates.length ||
+                    (mode() === 'new'
+                        ? name.invalid
+                        : !state.selected() || state.requiresRefresh())
+                "
+            >
+                {{ 'SAVED_VOD_PLAYLISTS.ADD' | translate }}
+            </button>
+        }
+    </mat-dialog-actions>
+</form>
