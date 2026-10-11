@@ -456,8 +456,12 @@ export class DashboardDataService {
         );
     });
 
-    /** Complete membership is independent of the dashboard display cap. */
-    readonly globalFavoriteMembership = computed(() =>
+    /**
+     * Known favorites for display and invalidation, before the rail's cap.
+     * Older native bridges return a capped snapshot: cover toggle knowledge
+     * comes from the independent strict favorites facade, never this list.
+     */
+    readonly globalFavoriteSnapshot = computed(() =>
         [
             ...this.xtreamGlobalFavorites(),
             ...this.m3uGlobalFavorites(),
@@ -465,7 +469,7 @@ export class DashboardDataService {
         ].sort((a, b) => toTimestamp(b.added_at) - toTimestamp(a.added_at))
     );
     readonly globalFavoriteItems = computed(() =>
-        this.globalFavoriteMembership().slice(0, 200)
+        this.globalFavoriteSnapshot().slice(0, 200)
     );
 
     private readonly recentPlaylistActivityTimestamps = computed(() => {
@@ -682,8 +686,9 @@ export class DashboardDataService {
         }
 
         try {
-            const favorites =
-                await this.dbService.getAllGlobalFavoriteMembership();
+            const favorites = this.runtime.supportsGlobalFavoriteMembership
+                ? await this.dbService.getAllGlobalFavoriteMembership()
+                : await this.dbService.getAllGlobalFavorites(true);
             const normalized = favorites.map((item) =>
                 mapDbFavoriteToItem(item)
             );
@@ -693,7 +698,7 @@ export class DashboardDataService {
                 '[DashboardData] Failed to reload global favorites',
                 err
             );
-            // A strict membership read failure is not evidence of removal.
+            // A storage read failure is not evidence of removal.
             // Keep the last successful snapshot until a later reload succeeds.
         }
     }

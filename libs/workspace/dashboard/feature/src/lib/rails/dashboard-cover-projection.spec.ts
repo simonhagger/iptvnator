@@ -106,7 +106,7 @@ describe('Dashboard cover projection', () => {
             recentPlaylists: signal([]),
             globalRecentVodItems: recent,
             globalFavoriteItems: favorites,
-            globalFavoriteMembership: membership,
+            globalFavoriteSnapshot: membership,
             xtreamRecentlyAddedItems: added,
             globalFavoriteLiveItems: signal([]),
             globalRecentLiveItems: signal([]),
@@ -322,6 +322,25 @@ describe('Dashboard cover projection', () => {
                 .xtreamRecentlyAddedCards()[0]
                 .actions?.find((action) => action.id === 'favorite')
         ).toMatchObject({ favoriteState: false });
+    });
+
+    it('keeps cover membership unknown when a legacy display snapshot omits an item', () => {
+        const { component, membership, known, coverFavorites } = setup();
+        known.set(false);
+        membership.set([]);
+        TestBed.tick();
+
+        expect(coverFavorites.load).toHaveBeenCalledWith({ scope: 'all' });
+        for (const card of [
+            component.continueWatchingCards()[0],
+            component.xtreamRecentlyAddedCards()[0],
+            component.favoriteMoviesAndSeriesCards()[0],
+        ]) {
+            expect(card.actions?.map((action) => action.id)).not.toContain(
+                'favorite'
+            );
+        }
+        expect(coverFavorites.toggleFavorite).not.toHaveBeenCalled();
     });
 
     it('routes a Recent heart through the existing controller with parent identity, not history storage', async () => {

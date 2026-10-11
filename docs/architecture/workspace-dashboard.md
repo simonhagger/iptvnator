@@ -215,6 +215,14 @@ and that pause holds the slide.
 ## Data Flow
 
 1. `WorkspaceDashboardRailsComponent` injects `DashboardDataService`.
+   Its `globalFavoriteSnapshot` supplies known favorites for display and cover
+   refresh invalidation, independently of the rail's 200-item cap. Native builds
+   use the complete-membership bridge when that capability is available. Older
+   bridges retain their capped display query; missing rows there never establish
+   unfavorited state. Cover toggles use the separate strict favorites facade,
+   which keeps membership unknown when a complete read is unavailable. Actual
+   read failures retain the last successful dashboard snapshot and do not switch
+   to a weaker fallback.
 2. It derives the dashboard surface via `computed()`:
     1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
        [Cinematic Hero](#cinematic-hero).

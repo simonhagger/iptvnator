@@ -353,7 +353,7 @@ export class WorkspaceDashboardRailsComponent {
                     .map((playlist) => playlist._id)
                     .sort(),
                 this.data
-                    .globalFavoriteMembership()
+                    .globalFavoriteSnapshot()
                     .map((item) => [dashboardCoverIdentity(item), item.id])
                     .sort(),
             ]);

@@ -211,6 +211,7 @@ describe('DashboardDataService', () => {
                 dbGetRecentlyViewed: jest.fn(),
                 dbClearRecentlyViewed: jest.fn(),
                 dbGetAllGlobalFavorites: jest.fn(),
+                dbGetAllGlobalFavoriteMembership: jest.fn(),
                 dbGetGlobalRecentlyAdded: jest.fn(),
                 dbAddFavorite: jest.fn(),
                 dbRemoveRecentItem: jest.fn(),
@@ -2283,7 +2284,7 @@ describe('DashboardDataService', () => {
         expect(
             service.globalFavoriteItems().some((item) => item.id === 0)
         ).toBe(false);
-        expect(service.globalFavoriteMembership()).toEqual(
+        expect(service.globalFavoriteSnapshot()).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
                     id: 0,
@@ -2310,18 +2311,52 @@ describe('DashboardDataService', () => {
             },
         ]);
         await service.reloadGlobalFavorites();
-        const previous = service.globalFavoriteMembership();
+        const previous = service.globalFavoriteSnapshot();
         dbServiceMock.getAllGlobalFavoriteMembership.mockRejectedValueOnce(
             new Error('bridge failed')
         );
+        dbServiceMock.getAllGlobalFavorites.mockClear();
         await service.reloadGlobalFavorites();
-        expect(service.globalFavoriteMembership()).toEqual(previous);
+        expect(dbServiceMock.getAllGlobalFavorites).not.toHaveBeenCalled();
+        expect(service.globalFavoriteSnapshot()).toEqual(previous);
         expect(service.globalFavoriteItems()).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({ id: 7, type: 'movie' }),
             ])
         );
         warn.mockRestore();
+    });
+
+    it('loads the dashboard display through an older bridge without complete membership', async () => {
+        Reflect.deleteProperty(
+            window.electron,
+            'dbGetAllGlobalFavoriteMembership'
+        );
+        dbServiceMock.getAllGlobalFavoriteMembership.mockResolvedValue([]);
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 7,
+                title: 'Legacy movie',
+                type: 'movie',
+                xtream_id: 7,
+                playlist_id: 'xtream-1',
+                category_id: 1,
+                added_at: '',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        expect(dbServiceMock.getAllGlobalFavorites).toHaveBeenCalledWith(true);
+        expect(
+            dbServiceMock.getAllGlobalFavoriteMembership
+        ).not.toHaveBeenCalled();
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ id: 7, title: 'Legacy movie' }),
+            ])
+        );
+        expect(service.globalFavoritesLoaded()).toBe(true);
     });
 
     it('removes PWA Xtream recently viewed through the active data source', async () => {
