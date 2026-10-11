@@ -873,6 +873,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         forcePlayer?: ExternalPlayerName,
         restart = false
     ) {
+        if (Number(episode.id) !== this.initialQueueEpisode)
+            this.clearInitialSeriesQueue();
         this.reportSeriesQueueLaunch('requested');
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
@@ -1042,7 +1044,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
-        this.initialSeriesQueue.set(null);
+        this.clearInitialSeriesQueue();
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1117,6 +1119,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     readonly initialSeriesQueue = signal<readonly number[] | null>(null);
     readonly seriesQueueLaunch = signal<SeriesQueueLaunchEvent | null>(null);
+    private initialQueueEpisode: number | null = null;
+
+    private clearInitialSeriesQueue(): void {
+        this.initialSeriesQueue.set(null);
+        this.initialQueueEpisode = null;
+    }
 
     private reportSeriesQueueLaunch(
         phase: SeriesQueueLaunchEvent['phase']
@@ -1128,7 +1136,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     startSeriesQueue(request: SeriesQueueStartRequest): void {
-        this.initialSeriesQueue.set(request.ids);
+        this.initialSeriesQueue.set([...request.ids]);
+        this.initialQueueEpisode = request.episode.id;
         this.playUpNextEpisode(request.episode);
     }
 
@@ -1288,6 +1297,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
+            this.clearInitialSeriesQueue();
             this.reportSeriesQueueLaunch('failed');
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
@@ -1344,6 +1354,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             toStalkerEpisodePlaybackStructuralIdentity(identity)
         );
         this.inlinePlayback.set(playback);
+        this.initialQueueEpisode = null;
         this.reportSeriesQueueLaunch('confirmed');
     }
 
