@@ -14,7 +14,7 @@
                 "{workspaceRoot}/electron-builder.personal.json",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
                 "{workspaceRoot}/.github/workflows/docker.yml",
-                "{workspaceRoot}/.github/workflows/deploy-website.yml",
+                "{workspaceRoot}/.github/workflows/**/*.{yml,yaml}",
                 "{workspaceRoot}/.github/workflows/cleanup-pr-draft.yml",
                 "{workspaceRoot}/.github/workflows/performance-ratchet.yml",
                 "{workspaceRoot}/.github/workflows/publish-snap.yaml",
