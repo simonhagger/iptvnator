@@ -94,6 +94,15 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/startup-preferences": [
+                "libs/workspace/shell/util/src/lib/workspace-startup-preferences.service.ts"
+            ],
+            "@iptvnator/workspace/shell/util/actions": [
+                "libs/workspace/shell/util/src/lib/workspace-shell-actions.ts"
+            ],
+            "@iptvnator/workspace/shell/util/context-drawer": [
+                "libs/workspace/shell/util/src/lib/workspace-shell-context-drawer.service.ts"
+            ],
             "@iptvnator/workspace/shell/util/settings-context": [
                 "libs/workspace/shell/util/src/lib/settings-context.service.ts"
             ],

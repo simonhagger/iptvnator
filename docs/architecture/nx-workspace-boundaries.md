@@ -297,6 +297,16 @@ barrel reachable. `renderer.initialBytes` in
 module is eager, build with `pnpm nx build web --stats-json` and follow the
 static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
 
+Workspace startup preferences follow the same boundary. The asynchronous entry
+redirect and dashboard guard load the app-local
+`workspace-startup-preferences.lazy.ts` shim, which imports
+`@iptvnator/workspace/shell/util/startup-preferences`. They capture Angular's
+injector before awaiting the chunk and resolve the existing root service from
+that injector. The eager app shell imports only the `actions` and
+`context-drawer` secondary entries, keeping startup preferences and workspace
+route canonicalization out of the bootstrap payload. Preserve the public barrel
+for lazy workspace consumers; do not statically import it from bootstrap code.
+
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency
 paths to `dist/` during `@nx/js:tsc` builds.

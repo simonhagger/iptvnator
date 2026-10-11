@@ -8,7 +8,7 @@ import {
     WorkspacePlaylistType,
     WorkspaceShellActions,
     WorkspaceStalkerAccountInfoData,
-} from '@iptvnator/workspace/shell/util';
+} from '@iptvnator/workspace/shell/util/actions';
 
 @Injectable({ providedIn: 'root' })
 export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
