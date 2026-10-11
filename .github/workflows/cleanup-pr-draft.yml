@@ -24,7 +24,7 @@ jobs:
         # Fork PRs never get a draft (the release job skips them) and their
         # GITHUB_TOKEN is read-only regardless of the permissions block, so
         # there is nothing to cancel or delete.
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        if: github.repository == '4gray/iptvnator' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         runs-on: ubuntu-latest
         permissions:
             actions: write
@@ -104,7 +104,7 @@ jobs:
 
     sweep-drafts:
         name: Sweep orphaned PR draft releases
-        if: github.event_name != 'pull_request'
+        if: github.repository == '4gray/iptvnator' && github.event_name != 'pull_request'
         runs-on: ubuntu-latest
         timeout-minutes: 15
         permissions:

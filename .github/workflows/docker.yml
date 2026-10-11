@@ -4,6 +4,8 @@ on:
     pull_request:
         paths:
             - '.github/workflows/docker.yml'
+            - 'tools/packaging/docker-build-metadata.mjs'
+            - 'tools/packaging/fork-workflow-policy.test.mjs'
             - 'apps/web/**'
             - 'apps/web-backend/**'
             - 'docker/**'
@@ -46,55 +48,10 @@ jobs:
 
             - name: Prepare Docker metadata
               id: docker-meta
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  version="$(node -p "require('./package.json').version")"
-                  short_sha="${GITHUB_SHA::12}"
-                  publish="false"
-                  platforms="linux/amd64"
-                  tags="4gray/iptvnator:pr-${{ github.event.pull_request.number || 'manual' }}"
-
-                  if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/master" ]]; then
-                    publish="true"
-                    platforms="linux/amd64,linux/arm64"
-                    tags=$(cat <<TAGS
-                  4gray/iptvnator:latest
-                  4gray/iptvnator:${version}-pwa
-                  4gray/iptvnator:${version}-pwa-${short_sha}
-                  4gray/iptvnator:sha-${short_sha}
-                  TAGS
-                  )
-                  elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
-                    publish="true"
-                    platforms="linux/amd64,linux/arm64"
-                    tag_version="${GITHUB_REF_NAME#v}"
-                    tags=$(cat <<TAGS
-                  4gray/iptvnator:${tag_version}
-                  4gray/iptvnator:v${tag_version}
-                  TAGS
-                  )
-                    if [[ "${tag_version}" != *-* ]]; then
-                      tags="${tags}"$'\n'"4gray/iptvnator:stable"
-                    fi
-                  elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.push }}" == "true" ]]; then
-                    publish="true"
-                    platforms="linux/amd64,linux/arm64"
-                    tags=$(cat <<TAGS
-                  4gray/iptvnator:manual-${short_sha}
-                  4gray/iptvnator:sha-${short_sha}
-                  TAGS
-                  )
-                  fi
-
-                  {
-                    echo "publish=${publish}"
-                    echo "platforms=${platforms}"
-                    echo "tags<<EOF"
-                    echo "${tags}"
-                    echo "EOF"
-                  } >> "${GITHUB_OUTPUT}"
+              env:
+                  PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number || '' }}
+                  PUSH_REQUESTED: ${{ inputs.push && 'true' || 'false' }}
+              run: node tools/packaging/docker-build-metadata.mjs
 
             - name: Login to Docker Hub
               if: steps.docker-meta.outputs.publish == 'true'

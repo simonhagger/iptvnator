@@ -287,6 +287,16 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 
 ## Local personal Windows alpha builds
 
+Fork CI retains frontend, backend and native compilation on Windows, macOS and
+Linux. Only Windows x64 produces a downloadable application on forks, using the
+personal maker below. macOS signing/notarization, Linux distribution assembly,
+upstream website builds/deployments, Docker publishing, release creation, Snap
+publishing, draft cleanup and upstream maintenance bots are upstream-only.
+Fork Docker runs build without login or push, even when dispatch requests push.
+Fork Windows artifacts retain the source version, isolated personal profile and
+disabled updates. Cross-platform personal distribution remains unimplemented;
+successful platform compilation does not imply tested packages for those systems.
+
 `electron-builder.personal.json` is an optional packaging overlay. It keeps the
 source package version and supplies a distinct application ID, executable and
 installer identity, no playlist file associations, and the package-owned
