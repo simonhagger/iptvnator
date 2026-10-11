@@ -148,10 +148,35 @@ test('fork Windows packaging preserves production output and verifies the person
     assert.equal(overlay.publish, null);
 });
 
-test('forks cannot enter release, deployment, cleanup or maintenance jobs', () => {
+test('the personal fork has no inherited GitHub Pages deployment workflow', () => {
+    const directory = path.join(root, '.github/workflows');
+    assert.equal(
+        fs.existsSync(path.join(directory, 'deploy-website.yml')),
+        false
+    );
+    for (const name of fs.readdirSync(directory)) {
+        if (!/\.ya?ml$/.test(name)) continue;
+        const content = fs.readFileSync(path.join(directory, name), 'utf8');
+        assert.doesNotMatch(
+            content,
+            /actions\/(?:deploy-pages|upload-pages-artifact|configure-pages)@/
+        );
+        const definition = parse(content);
+        assert.equal(definition.permissions?.pages, undefined, name);
+        for (const job of Object.values(definition.jobs ?? {})) {
+            const environment =
+                typeof job.environment === 'string'
+                    ? job.environment
+                    : job.environment?.name;
+            assert.notEqual(environment, 'github-pages', name);
+            assert.equal(job.permissions?.pages, undefined, name);
+        }
+    }
+});
+
+test('forks cannot enter release, cleanup or maintenance jobs', () => {
     const jobs = [
         build.jobs['create-release'],
-        ...Object.values(workflow('deploy-website.yml').jobs),
         ...Object.values(workflow('cleanup-pr-draft.yml').jobs),
         ...Object.values(workflow('publish-snap.yaml').jobs),
         ...Object.values(

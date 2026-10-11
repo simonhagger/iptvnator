@@ -290,8 +290,11 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 Fork CI retains frontend, backend and native compilation on Windows, macOS and
 Linux. Only Windows x64 produces a downloadable application on forks, using the
 personal maker below. macOS signing/notarization, Linux distribution assembly,
-upstream website builds/deployments, Docker publishing, release creation, Snap
+upstream website builds, Docker publishing, release creation, Snap
 publishing, draft cleanup and upstream maintenance bots are upstream-only.
+The personal fork removes the inherited GitHub Pages deployment workflow and
+does not configure a `github-pages` environment or publish a Pages site.
+The packaging policy tests guard against restoring Pages deployment jobs.
 Fork Docker runs build without login or push, even when dispatch requests push.
 Fork Windows artifacts retain the source version, isolated personal profile and
 disabled updates. Cross-platform personal distribution remains unimplemented;
