@@ -1,9 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import type { SavedVodPlaylist } from '@iptvnator/shared/interfaces';
 import {
     createSavedVodPlaylist,
     startSavedVodExecution,
 } from '@iptvnator/portal/shared/util';
-import { MAX_SAVED_VOD_ENTRIES } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import {
+    MAX_SAVED_VOD_ENTRIES,
+    normalizeSavedVodPlaylist,
+} from '@iptvnator/shared/interfaces/saved-vod-validation';
 import {
     SAVED_VOD_PLAYLIST_RUNTIME,
     SavedVodPlaylistsCommandsService,
@@ -37,6 +41,85 @@ const list = () =>
     createSavedVodPlaylist('list', 'Weekend', NOW, [
         { ...candidate, id: 'first' },
     ]);
+
+describe('saved VOD playlist default browser runtime', () => {
+    it('persists unique list and occurrence IDs without crypto.randomUUID', async () => {
+        const descriptor = Object.getOwnPropertyDescriptor(
+            crypto,
+            'randomUUID'
+        );
+        Object.defineProperty(crypto, 'randomUUID', {
+            configurable: true,
+            value: undefined,
+        });
+        try {
+            const persisted = new Map<string, SavedVodPlaylist>();
+            const storage = {
+                save: jest.fn(async (document: SavedVodPlaylist) => {
+                    const saved = normalizeSavedVodPlaylist({
+                        ...document,
+                        revision: document.revision + 1,
+                    });
+                    persisted.set(saved.id, saved);
+                    return { status: 'saved' as const, playlist: saved };
+                }),
+            };
+            TestBed.configureTestingModule({
+                providers: [
+                    {
+                        provide: SavedVodPlaylistsStorageService,
+                        useValue: storage,
+                    },
+                ],
+            });
+            // Leave the runtime token unprovided to exercise its real DI factory.
+            const commands = TestBed.inject(SavedVodPlaylistsCommandsService);
+            const created = await commands.create(
+                'Weekend',
+                [candidate, candidate],
+                true
+            );
+            if (created.status !== 'saved') throw new Error('Create failed');
+            const duplicated = await commands.duplicate(
+                created.playlist,
+                'Copy'
+            );
+            if (duplicated.status !== 'saved')
+                throw new Error('Duplicate failed');
+            const appended = await commands.append(
+                duplicated.playlist,
+                [candidate],
+                true
+            );
+            if (appended.status !== 'saved') throw new Error('Append failed');
+
+            expect(storage.save).toHaveBeenCalledTimes(3);
+            expect(persisted.get(created.playlist.id)).toEqual(
+                created.playlist
+            );
+            expect(persisted.get(duplicated.playlist.id)).toEqual(
+                appended.playlist
+            );
+            expect(created.playlist.entries).toHaveLength(2);
+            expect(appended.playlist.entries).toHaveLength(3);
+            const ids = [...persisted.values()].flatMap((playlist) => [
+                playlist.id,
+                ...playlist.entries.map((entry) => entry.id),
+            ]);
+            expect(new Set(ids).size).toBe(7);
+            for (const id of ids) {
+                expect(id).toMatch(
+                    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+                );
+            }
+        } finally {
+            if (descriptor)
+                Object.defineProperty(crypto, 'randomUUID', descriptor);
+            else Reflect.deleteProperty(crypto, 'randomUUID');
+            TestBed.resetTestingModule();
+        }
+    });
+});
 
 describe('saved VOD playlist persistence commands', () => {
     const storage = { save: jest.fn(), delete: jest.fn(), get: jest.fn() };

@@ -8,6 +8,7 @@ import {
     renameSavedVodPlaylist,
 } from '@iptvnator/portal/shared/util';
 import { normalizeSavedVodCandidates } from '@iptvnator/shared/interfaces/saved-vod-validation';
+import { createRandomId } from '@iptvnator/shared/interfaces';
 import type {
     SavedVodCandidate,
     SavedVodEntry,
@@ -26,7 +27,7 @@ export const SAVED_VOD_PLAYLIST_RUNTIME = new InjectionToken<{
 }>('Saved playlist IDs and clock', {
     providedIn: 'root',
     factory: () => ({
-        newId: () => crypto.randomUUID(),
+        newId: createRandomId,
         now: () => new Date().toISOString(),
     }),
 });
