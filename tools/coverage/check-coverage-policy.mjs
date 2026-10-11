@@ -22,9 +22,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { workspaceNxCommand } from './workspace-nx-command.mjs';
 
 const workspaceRoot = process.cwd();
-const policyPath = path.join(workspaceRoot, 'tools/coverage/coverage-policy.json');
+const policyPath = path.join(
+    workspaceRoot,
+    'tools/coverage/coverage-policy.json'
+);
 const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
 
 const tiers = {
@@ -34,11 +38,17 @@ const tiers = {
 };
 
 function showProjects(extraArgs = []) {
-    const output = execFileSync(
-        'pnpm',
-        ['nx', 'show', 'projects', '--json', ...extraArgs],
-        { cwd: workspaceRoot, encoding: 'utf8' }
-    );
+    const command = workspaceNxCommand(workspaceRoot, [
+        'show',
+        'projects',
+        '--json',
+        ...extraArgs,
+    ]);
+    const output = execFileSync(command.file, command.args, {
+        cwd: workspaceRoot,
+        encoding: 'utf8',
+        timeout: 120_000,
+    });
     const start = output.indexOf('[');
     if (start === -1) {
         throw new Error(
