@@ -1,0 +1,156 @@
+import { TestBed } from '@angular/core/testing';
+import { SeriesPlaybackQueueService } from './series-playback-queue.service';
+
+describe('series queue session', () => {
+    let queue: SeriesPlaybackQueueService;
+    beforeEach(() => {
+        jest.useFakeTimers();
+        TestBed.configureTestingModule({
+            providers: [SeriesPlaybackQueueService],
+        });
+        queue = TestBed.inject(SeriesPlaybackQueueService);
+        queue.sync('playlist:series', [1, 2, 3], 1);
+    });
+    afterEach(() => {
+        TestBed.resetTestingModule();
+        jest.useRealTimers();
+    });
+    it('waits five seconds and ignores duplicate ended events', () => {
+        const play = jest.fn();
+        queue.ended(play);
+        queue.ended(play);
+        jest.advanceTimersByTime(4000);
+        expect(play).not.toHaveBeenCalled();
+        expect(queue.countdown()).toBe(1);
+        jest.advanceTimersByTime(1000);
+        expect(play).toHaveBeenCalledTimes(1);
+        expect(play).toHaveBeenCalledWith(2);
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).toHaveBeenCalledTimes(1);
+    });
+    it.each(['cancel', 'clear'] as const)(
+        '%s stops pending advancement',
+        (action) => {
+            const play = jest.fn();
+            queue.ended(play);
+            queue[action]();
+            jest.advanceTimersByTime(5000);
+            expect(play).not.toHaveBeenCalled();
+        }
+    );
+    it('autoplay off prevents scheduling and cancels an existing countdown', () => {
+        const play = jest.fn();
+        queue.ended(play);
+        queue.setAutoplay(false);
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+    });
+    it('manual episode changes cancel the old timer', () => {
+        const play = jest.fn();
+        queue.ended(play);
+        queue.sync('playlist:series', [1, 2, 3], 3);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+    });
+
+    it('a manual request cancels continuation before asynchronous resolution finishes', () => {
+        const autoplay = jest.fn();
+        queue.ended(autoplay);
+        queue.handleLaunch({ revision: 1, phase: 'requested' }, 1);
+        jest.advanceTimersByTime(6000);
+        expect(autoplay).not.toHaveBeenCalled();
+        expect(queue.state().current).toBe(1);
+        queue.handleLaunch({ revision: 2, phase: 'confirmed' }, 3);
+        queue.sync('playlist:series', [1, 2, 3], 3);
+        expect(queue.state().current).toBe(3);
+    });
+    it('scope changes reset edits and timers', () => {
+        const play = jest.fn();
+        queue.clear();
+        queue.sync('other:series', [4, 5], 4);
+        expect(queue.next()).toBe(5);
+        queue.ended(play);
+        queue.sync('third:series', [6, 7], 6);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+    });
+    it('ignores old playback completion while a manual launch is resolving', () => {
+        const autoplay = jest.fn();
+        queue.handleLaunch({ revision: 1, phase: 'requested' }, 1);
+        queue.ended(autoplay);
+        jest.advanceTimersByTime(6000);
+        expect(autoplay).not.toHaveBeenCalled();
+        expect(queue.countdown()).toBeNull();
+        queue.handleLaunch({ revision: 2, phase: 'failed' }, 1);
+        queue.ended(autoplay);
+        jest.advanceTimersByTime(5000);
+        expect(autoplay).toHaveBeenCalledWith(2);
+    });
+    it('play now emits once and advances only after the host confirms a new episode', () => {
+        const play = jest.fn();
+        queue.playNow(play);
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2]]);
+        expect(queue.state().current).toBe(1);
+        queue.sync('playlist:series', [1, 2, 3], 2);
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2], [3]]);
+    });
+    it('play season preserves an explicit subset when the catalogue refreshes', () => {
+        queue.fromHere([1, 2], 1);
+        queue.sync('playlist:series', [1, 2, 3], 1);
+        expect(queue.state().upcoming).toEqual([2]);
+    });
+    it('replaying an episode cancels continuation and re-arms its next completion', () => {
+        const play = jest.fn();
+        queue.observePlayback(120, false);
+        queue.ended(play);
+        queue.observePlayback(20, true);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+        queue.observePlayback(120, false);
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).toHaveBeenCalledWith(2);
+    });
+    it('releases a superseded Next when the host confirms the same episode', () => {
+        const play = jest.fn();
+        queue.playNow(play);
+        queue.launchConfirmed(1);
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2], [2]]);
+    });
+
+    it('destroy cancels timers', () => {
+        const play = jest.fn();
+        queue.ended(play);
+        TestBed.resetTestingModule();
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+    });
+    it('allows retry after the host acknowledges a failed launch', () => {
+        const play = jest.fn();
+        queue.playNow(play);
+        queue.launchFailed();
+        queue.playNow(play);
+        expect(play.mock.calls).toEqual([[2], [2]]);
+    });
+    it('keeps a requested restart sequence pending through old-episode refreshes', () => {
+        queue.sync('playlist:series', [1, 2, 3, 4], 3);
+        queue.requestFromHere([1, 2, 3, 4], 1);
+        queue.sync('playlist:series', [1, 2, 3, 4], 3);
+        expect(queue.state().current).toBe(3);
+        queue.sync('playlist:series', [1, 2, 3, 4], 1);
+        expect(queue.state().upcoming).toEqual([2, 3, 4]);
+    });
+    it('a duplicate ended notification cannot undo Cancel', () => {
+        const play = jest.fn();
+        queue.ended(play);
+        queue.cancel();
+        queue.ended(play);
+        jest.advanceTimersByTime(5000);
+        expect(play).not.toHaveBeenCalled();
+    });
+});

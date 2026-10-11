@@ -7,6 +7,8 @@ import { createStalkerSeriesViewHarness } from './stalker-series-view.test-harne
 import {
     StubPortalInlinePlayerComponent,
     StubSeasonContainerComponent,
+    seriesFixtureLifecycle,
+    verifyManualQueueLaunch,
 } from './stalker-series-view.test-helpers';
 
 describe('StalkerSeriesViewComponent', () => {
@@ -26,17 +28,9 @@ describe('StalkerSeriesViewComponent', () => {
         createFixture,
     } = createStalkerSeriesViewHarness(() => jest.fn());
 
-    async function stabilize(): Promise<void> {
-        fixture.detectChanges();
-        await fixture.whenStable();
-    }
+    const { stabilize, settleStart } = seriesFixtureLifecycle(() => fixture);
 
     /** Lets a start's awaited continuations run, then renders their state. */
-    async function settleStart(): Promise<void> {
-        await stabilize();
-        await new Promise((resolve) => setTimeout(resolve));
-        fixture.detectChanges();
-    }
 
     beforeEach(async () => {
         fixture = await createFixture();
@@ -99,6 +93,14 @@ describe('StalkerSeriesViewComponent', () => {
         await settleStart();
         expect(button()?.disabled).toBe(false);
         expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a launch request while manual episode resolution is still pending', async () => {
+        await verifyManualQueueLaunch(fixture, {
+            isEmbeddedPlayer,
+            resolveVodPlayback,
+            openResolvedPlayback,
+        });
     });
 
     it('plays an episode chosen during a forced launch once that launch settles', async () => {

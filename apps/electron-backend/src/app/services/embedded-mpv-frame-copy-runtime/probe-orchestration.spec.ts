@@ -1,13 +1,21 @@
 import {
     accessSync,
-    chmodSync,
-    lstatSync,
     mkdirSync,
     readFileSync,
     readdirSync,
     writeFileSync,
 } from 'fs';
 import path from 'path';
+
+// These fixtures describe a Linux namespace, independent of the test host.
+jest.mock(
+    'path',
+    () => jest.requireActual<typeof import('path')>('path').posix
+);
+import {
+    chmodFixtureSync as chmodSync,
+    lstatFixtureSync as lstatSync,
+} from './posix-files.test-helpers';
 import {
     cloneManifest,
     createFixture,

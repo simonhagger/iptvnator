@@ -67,6 +67,8 @@ export function getRecentItemNavigation(
          * handoff in the navigation state (detail-only clicks, issue #1441).
          */
         resumeIdentityOnly?: boolean;
+        /** Resolved parent identity also works without episode resume coordinates. */
+        seriesParentId?: number;
     }
 ): WorkspaceNavigationTarget {
     if (item.type === 'live') {
@@ -82,16 +84,24 @@ export function getRecentItemNavigation(
 
     const collectionItem = buildDashboardCollectionDetailItem(item);
     if (collectionItem) {
+        const parentId =
+            options?.seriesParentId ?? seriesResume?.seriesXtreamId;
         const detailItem =
-            item.source === 'xtream' && item.type === 'series' && seriesResume
+            item.source === 'xtream' &&
+            item.type === 'series' &&
+            parentId != null &&
+            Number.isSafeInteger(parentId) &&
+            parentId >= 0
                 ? {
                       ...collectionItem,
                       uid: buildXtreamCollectionUid(
                           item.playlist_id,
                           'series',
-                          seriesResume.seriesXtreamId
+                          parentId
                       ),
-                      xtreamId: seriesResume.seriesXtreamId,
+                      xtreamId: parentId,
+                      // History storage IDs cannot identify the parent content row.
+                      contentId: undefined,
                   }
                 : collectionItem;
         // The caller builds `seriesResume` only for items whose progress is

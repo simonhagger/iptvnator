@@ -34,8 +34,10 @@ import {
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
-import { formatEpisodePositionText } from './episode-progress.util';
-import { buildEpisodeSubline } from './episode-subline.util';
+import {
+    formatEpisodePositionText,
+    formatEpisodeSubline,
+} from './episode-progress.util';
 import {
     type SeasonAutoSelectState,
     createSeasonAutoSelectState,
@@ -45,12 +47,21 @@ import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
 import {
+    SeasonEpisodeMenuComponent,
+    type SeasonEpisodeMenuSections,
+    type SeasonContainerEpisodeMenuSelection,
+} from './season-episode-menu.component';
+import {
     type SeasonContainerPlaybackToggleRequest,
     type SeasonContainerSeasonPlaybackToggleRequest,
     type SeasonContainerSeriesPlaybackToggleRequest,
     buildWatchedEpisodePosition,
     resolveEpisodeInfo,
 } from './season-watch-toggle.util';
+export type {
+    SeasonEpisodeMenuSections,
+    SeasonContainerEpisodeMenuSelection,
+} from './season-episode-menu.component';
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
@@ -70,6 +81,7 @@ export type EpisodeViewMode = 'grid' | 'list';
         MatProgressSpinnerModule,
         MatTooltipModule,
         SeasonTabsComponent,
+        SeasonEpisodeMenuComponent,
         TranslateModule,
     ],
 })
@@ -113,6 +125,11 @@ export class SeasonContainerComponent implements OnInit {
      * count from the series action label.
      */
     readonly hasUnloadedSeasons = input(false);
+    readonly episodeMenuSections = input<SeasonEpisodeMenuSections | null>(
+        null
+    );
+    readonly episodeMenuSelected =
+        output<SeasonContainerEpisodeMenuSelection>();
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     readonly playbackToggleRequested =
@@ -405,10 +422,10 @@ export class SeasonContainerComponent implements OnInit {
 
     /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
     getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
-        return buildEpisodeSubline(
+        return formatEpisodeSubline(
             this.getEpisodeInfo(episode),
             this.getEpisodePosition(episode),
-            this.translate
+            (key, params) => this.translate.instant(key, params)
         );
     }
 

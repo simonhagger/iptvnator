@@ -1,11 +1,10 @@
-import { inject } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import { Router, Routes } from '@angular/router';
 import {
     ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 import { settingsUnsavedChangesGuard } from './settings/settings-unsaved-changes.guard';
 
 // The workspace activates only once settings AND the parental lock state
@@ -20,12 +19,22 @@ const settingsReadyResolver = async () => {
     ]);
 };
 
+// Startup preferences and route canonicalization belong to the lazy workspace.
+// Capture the injector before loading: Angular's injection context is synchronous.
+const loadWorkspaceStartupPreferences = () => {
+    const injector = inject(Injector);
+    return import('./services/workspace-startup-preferences.lazy').then(
+        ({ WorkspaceStartupPreferencesService }) =>
+            injector.get(WorkspaceStartupPreferencesService)
+    );
+};
+
 const workspaceEntryRedirect = async () =>
-    inject(WorkspaceStartupPreferencesService).resolveInitialWorkspacePath();
+    (await loadWorkspaceStartupPreferences()).resolveInitialWorkspacePath();
 
 const dashboardAccessGuard = async () => {
-    const startupPreferences = inject(WorkspaceStartupPreferencesService);
     const router = inject(Router);
+    const startupPreferences = await loadWorkspaceStartupPreferences();
     const redirectPath = await startupPreferences.resolveDashboardPath();
 
     return redirectPath === '/workspace/dashboard'
@@ -106,6 +115,13 @@ export const routes: Routes = [
                 loadComponent: () =>
                     import('@iptvnator/workspace/shell/feature').then(
                         (c) => c.WorkspaceSourcesComponent
+                    ),
+            },
+            {
+                path: 'saved-playlists',
+                loadComponent: () =>
+                    import('@iptvnator/workspace/shell/feature').then(
+                        (c) => c.SavedVodPlaylistsPageComponent
                     ),
             },
             {

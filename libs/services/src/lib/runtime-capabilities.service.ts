@@ -290,6 +290,11 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    // The display bridge is capped on older builds; it cannot prove absence.
+    get supportsGlobalFavoriteMembership(): boolean {
+        return this.hasElectronMethod('dbGetAllGlobalFavoriteMembership');
+    }
+
     get supportsAppStateStorage(): boolean {
         return ['dbGetAppState', 'dbSetAppState'].every((methodName) =>
             this.hasElectronMethod(methodName)
@@ -314,6 +319,15 @@ export class RuntimeCapabilitiesService {
         return ['openInMpv', 'openInVlc'].every((methodName) =>
             this.hasElectronMethod(methodName)
         );
+    }
+
+    get supportsSavedVodPlaylistStorage(): boolean {
+        return [
+            'dbListSavedVodPlaylists',
+            'dbGetSavedVodPlaylist',
+            'dbSaveSavedVodPlaylist',
+            'dbDeleteSavedVodPlaylist',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsExternalPlayerPathSettings(): boolean {

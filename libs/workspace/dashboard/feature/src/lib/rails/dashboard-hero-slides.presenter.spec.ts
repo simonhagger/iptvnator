@@ -9,7 +9,10 @@ import type {
     PortalFavoriteItem,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
-import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
+import {
+    DashboardDataService,
+    GlobalRecentItem,
+} from '@iptvnator/workspace/dashboard/data-access';
 import {
     DashboardHeroTmdbService,
     type DashboardHeroTmdbExtras,
@@ -87,7 +90,7 @@ const onAir: DashboardLiveEpgDetails = {
 };
 
 describe('DashboardHeroSlidesPresenter', () => {
-    let recentItems: ReturnType<typeof signal<PortalRecentItem[]>>;
+    let recentItems: ReturnType<typeof signal<GlobalRecentItem[]>>;
     let favorites: ReturnType<typeof signal<PortalFavoriteItem[]>>;
     let addedItems: ReturnType<typeof signal<PortalAddedItem[]>>;
     let candidates: ReturnType<typeof signal<DashboardHeroLiveCandidate[]>>;
@@ -228,6 +231,55 @@ describe('DashboardHeroSlidesPresenter', () => {
         expect(slides.some((slide) => slide.title === 'Finished Film')).toBe(
             false
         );
+    });
+
+    it('withholds both hero recent paths for an unresolved explicit episode', () => {
+        recentItems.set([
+            {
+                ...favoriteFilm,
+                id: 901,
+                xtream_id: 909,
+                viewed_at: '',
+                historyContentType: 'episode',
+            },
+        ]);
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        expect(create().slides()).toEqual([]);
+    });
+
+    it('offers parent Details without a resume handoff when episode coordinates are missing', () => {
+        recentItems.set([
+            {
+                ...favoriteFilm,
+                id: 902,
+                xtream_id: 909,
+                viewed_at: '',
+                historyContentType: 'episode',
+            },
+        ]);
+        positions.set(902, {
+            playlistId: 'p2',
+            contentType: 'episode',
+            contentXtreamId: 909,
+            seriesXtreamId: 900,
+            positionSeconds: 40,
+            durationSeconds: 100,
+        });
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        try {
+            const [slide] = create().slides();
+            expect(slide.primaryAction).toMatchObject({
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_DETAILS',
+                state: { resume: false },
+            });
+            expect(slide.secondaryAction).toBeNull();
+        } finally {
+            positions.delete(902);
+        }
     });
 
     it('drops a season marker from a series title and leaves movies and live titles alone', () => {

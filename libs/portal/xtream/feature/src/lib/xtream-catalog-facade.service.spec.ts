@@ -6,6 +6,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCatalogFacadeService } from './xtream-catalog-facade.service';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 const PLAYLIST_ONE: XtreamPlaylistData = {
     id: 'playlist-1',
@@ -47,6 +48,7 @@ describe('XtreamCatalogFacadeService', () => {
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
 
     const xtreamStore = {
+        seriesPositions: signal(new Map<number, PlaybackPositionData[]>()),
         selectedContentType: contentType,
         getSelectedCategory: selectedCategory,
         selectedCategoryId,
@@ -80,6 +82,7 @@ describe('XtreamCatalogFacadeService', () => {
     };
 
     beforeEach(() => {
+        xtreamStore.seriesPositions.set(new Map());
         localStorage.removeItem('xtream-category-sort-mode');
         contentType.set('vod');
         selectedCategory.set({ id: 11, name: 'Movies' });
@@ -171,7 +174,7 @@ describe('XtreamCatalogFacadeService', () => {
         expect(service.appendError()).toBe(false);
     });
 
-    it('restores saved sort mode, sets the selected category, and loads positions once per playlist', () => {
+    it('restores saved sort mode, sets the selected category, and refreshes positions per arrival', () => {
         localStorage.setItem('xtream-category-sort-mode', 'name-asc');
 
         service.initialize('42');
@@ -179,16 +182,42 @@ describe('XtreamCatalogFacadeService', () => {
 
         expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith('name-asc');
         expect(xtreamStore.setSelectedCategory).toHaveBeenLastCalledWith(77);
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
         expect(xtreamStore.loadAllPositions).toHaveBeenCalledWith('playlist-1');
 
         currentPlaylist.set(PLAYLIST_TWO);
         service.initialize('88');
 
-        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(3);
         expect(xtreamStore.loadAllPositions).toHaveBeenLastCalledWith(
             'playlist-2'
         );
+    });
+
+    it('rereads persisted movie watch changes after leaving and returning to the same catalogue', async () => {
+        let savedPercent = 40;
+        xtreamStore.loadAllPositions.mockImplementation(async () => {
+            xtreamStore.getProgressPercent.mockReturnValue(savedPercent);
+        });
+        try {
+            for (const percent of [40, 100, 0]) {
+                savedPercent = percent;
+                service.initialize('42');
+                await Promise.resolve();
+                expect(service.getItemProgress({ xtream_id: 1 })).toEqual({
+                    progress: percent,
+                    watchState:
+                        percent === 100
+                            ? 'watched'
+                            : percent === 40
+                              ? 'in-progress'
+                              : 'unwatched',
+                });
+            }
+            expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(3);
+        } finally {
+            xtreamStore.loadAllPositions.mockResolvedValue(undefined);
+        }
     });
 
     it('persists sort mode changes and delegates them to the store', () => {
@@ -294,6 +323,39 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.hasSeriesProgress.mockReturnValue(false);
         expect(service.getItemProgress({ series_id: 7 })).toEqual({
             watchState: 'unwatched',
+        });
+    });
+
+    it('shows latest completed episode progress as started, never whole-series watched', () => {
+        contentType.set('series');
+        xtreamStore.hasSeriesProgress.mockReturnValue(true);
+        const earlier: PlaybackPositionData = {
+            contentType: 'episode',
+            contentXtreamId: 11,
+            seriesXtreamId: 7,
+            positionSeconds: 30,
+            durationSeconds: 100,
+            updatedAt: '2026-10-01T12:00:00Z',
+        };
+        xtreamStore.seriesPositions.set(
+            new Map([
+                [
+                    7,
+                    [
+                        earlier,
+                        {
+                            ...earlier,
+                            contentXtreamId: 12,
+                            positionSeconds: 100,
+                            updatedAt: '2026-10-02T12:00:00Z',
+                        },
+                    ],
+                ],
+            ])
+        );
+        expect(service.getItemProgress({ series_id: 7 })).toEqual({
+            progress: 100,
+            watchState: 'in-progress',
         });
     });
 });

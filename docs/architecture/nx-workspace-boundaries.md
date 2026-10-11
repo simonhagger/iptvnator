@@ -250,6 +250,15 @@ context panel use, out of that barrel for the same reason, and
 22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
 barrel.
 
+Saved VOD document validation uses
+`@iptvnator/shared/interfaces/saved-vod-validation`. Its pure validators and
+limits stay out of the eagerly reached interfaces barrel; saved-list types
+remain type-only exports there. Saved-list storage, editing and dialog consumers
+value-import the configured sub-entrypoint so validation loads with their lazy
+features rather than the renderer's initial payload.
+The Electron worker builder's explicit esbuild alias map includes the same
+entry point so worker bundling resolves it independently of the broader barrel.
+
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
 whole library: esbuild keeps every Angular component module a barrel
@@ -287,6 +296,16 @@ barrel reachable. `renderer.initialBytes` in
 [performance journeys](performance-journeys.md) guards the result; to see why a
 module is eager, build with `pnpm nx build web --stats-json` and follow the
 static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
+
+Workspace startup preferences follow the same boundary. The asynchronous entry
+redirect and dashboard guard load the app-local
+`workspace-startup-preferences.lazy.ts` shim, which imports
+`@iptvnator/workspace/shell/util/startup-preferences`. They capture Angular's
+injector before awaiting the chunk and resolve the existing root service from
+that injector. The eager app shell imports only the `actions` and
+`context-drawer` secondary entries, keeping startup preferences and workspace
+route canonicalization out of the bootstrap payload. Preserve the public barrel
+for lazy workspace consumers; do not statically import it from bootstrap code.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

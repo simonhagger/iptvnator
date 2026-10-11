@@ -7,7 +7,12 @@ import { MatIcon } from '@angular/material/icon';
     imports: [MatIcon],
     template: `
         @if (isWatched()) {
-            <div class="watched-badge">
+            <div
+                class="watched-badge"
+                [class.watched-badge--inline]="inline()"
+                [attr.role]="label() ? 'img' : null"
+                [attr.aria-label]="label()"
+            >
                 <mat-icon>{{ icon() }}</mat-icon>
             </div>
         }
@@ -35,6 +40,15 @@ import { MatIcon } from '@angular/material/icon';
                     height: 16px;
                     color: white;
                 }
+                &--inline {
+                    position: static;
+                    background: var(--app-widget-bg);
+                    border: 1px solid var(--app-widget-border);
+                    box-sizing: border-box;
+                    mat-icon {
+                        color: var(--app-on-surface);
+                    }
+                }
             }
         `,
     ],
@@ -42,4 +56,6 @@ import { MatIcon } from '@angular/material/icon';
 export class WatchedBadgeComponent {
     readonly isWatched = input.required<boolean>();
     readonly icon = input<string>('check_circle');
+    readonly inline = input(false);
+    readonly label = input<string | null>(null);
 }

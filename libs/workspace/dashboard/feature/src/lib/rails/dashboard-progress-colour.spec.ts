@@ -17,11 +17,17 @@ function ruleBody(source: string, selector: RegExp): string {
 }
 
 describe('dashboard watch-progress colour', () => {
-    it('fills the rail card artwork bar with the watch-progress token', () => {
-        const rail = styles('dashboard-rail.component.scss');
-        const bar = rail.slice(rail.indexOf('.rail__art-progress {'));
-
-        expect(ruleBody(bar, /\bi/)).toMatch(
+    it('uses the shared cover capsule and its watch-progress token for rail artwork', () => {
+        const rail = styles('dashboard-rail.component.html');
+        const indicators = styles(
+            '../../../../../../portal/shared/ui/src/lib/components/content-cover/content-cover-indicators.component.ts'
+        );
+        const capsule = styles(
+            '../../../../../../ui/components/src/lib/progress-capsule/progress-capsule.component.ts'
+        );
+        expect(rail).toContain('<app-content-cover-indicators');
+        expect(indicators).toContain('<app-progress-capsule');
+        expect(ruleBody(capsule, /&__fill/)).toMatch(
             /background:\s*var\(--app-progress-color\);/
         );
     });

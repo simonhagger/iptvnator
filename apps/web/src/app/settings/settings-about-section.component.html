@@ -197,7 +197,7 @@
                             mat-stroked-button
                             type="button"
                             (click)="checkForAppUpdate.emit()"
-                            [disabled]="isAppUpdateBusy()"
+                            [disabled]="isAppUpdateBusy() || !updatesEnabled()"
                             data-test-id="app-update-check"
                         >
                             <mat-icon>sync</mat-icon>

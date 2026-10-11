@@ -1,5 +1,11 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
+import type {
+    SavedVodDeleteResult,
+    SavedVodPlaylist,
+    SavedVodPlaylistSummary,
+    SavedVodWriteResult,
+} from './saved-vod-playlist.interface';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type { ZoomLevelAction } from './zoom-level.util';
 import type {
@@ -258,6 +264,8 @@ export interface ElectronBridgeAppUpdateProgress {
 }
 
 export interface ElectronBridgeAppUpdateStatus {
+    /** False for a private distribution with no update feed or manual install. */
+    updatesEnabled?: boolean;
     status: ElectronBridgeAppUpdateStatusValue;
     currentVersion: string;
     latestVersion?: string;
@@ -702,6 +710,16 @@ export interface ElectronRecordingItem {
 }
 
 export interface ElectronBridgeApi {
+    dbListSavedVodPlaylists?: () => Promise<SavedVodPlaylistSummary[]>;
+    dbGetSavedVodPlaylist?: (id: string) => Promise<SavedVodPlaylist | null>;
+    dbSaveSavedVodPlaylist?: (
+        playlist: SavedVodPlaylist,
+        expectedRevision: number | null
+    ) => Promise<SavedVodWriteResult>;
+    dbDeleteSavedVodPlaylist?: (
+        id: string,
+        expectedRevision: number
+    ) => Promise<SavedVodDeleteResult>;
     onPortalDebugEvent?: (
         callback: (data: PortalDebugEvent) => void
     ) => () => void;
@@ -821,7 +839,8 @@ export interface ElectronBridgeApi {
         userAgent?: string | null,
         referer?: string | null,
         scopeUrl?: string | null,
-        credentials?: ElectronBridgeStreamCredentials | null
+        credentials?: ElectronBridgeStreamCredentials | null,
+        operation?: 'apply' | 'release'
     ) => Promise<boolean>;
     openInMpv: (
         url: string,
@@ -1102,6 +1121,9 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeXtreamContent[]>;
     dbGetGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
     dbGetAllGlobalFavorites: () => Promise<ElectronBridgeGlobalFavoriteItem[]>;
+    dbGetAllGlobalFavoriteMembership: () => Promise<
+        ElectronBridgeGlobalFavoriteItem[]
+    >;
     dbReorderGlobalFavorites: (
         updates: ElectronBridgeFavoriteReorderUpdate[]
     ) => Promise<ElectronBridgeResult>;

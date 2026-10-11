@@ -24,6 +24,7 @@ import {
 import * as schema from './schema';
 import { getIptvnatorDatabasePath } from './path-utils';
 import { notifyDatabaseConnectionOpened } from './connection-observer';
+import { SAVED_VOD_PLAYLISTS_TABLE_SQL } from './saved-vod-playlists.schema';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
@@ -133,6 +134,7 @@ const RECORDINGS_INDEX_STATEMENTS = [
 ];
 
 const CREATE_TABLE_STATEMENTS = [
+    SAVED_VOD_PLAYLISTS_TABLE_SQL,
     `CREATE TABLE IF NOT EXISTS playlists (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

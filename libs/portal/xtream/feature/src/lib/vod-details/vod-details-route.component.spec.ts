@@ -20,6 +20,8 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { OverlayContainer } from '@angular/cdk/overlay';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 describe('VodDetailsRouteComponent', () => {
@@ -51,6 +53,7 @@ describe('VodDetailsRouteComponent', () => {
     const addRecentItem = jest.fn();
     const downloads = signal([]);
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
+    const openSavedDialog = jest.fn();
 
     beforeEach(async () => {
         const consoleDebug = console.debug.bind(console);
@@ -97,6 +100,7 @@ describe('VodDetailsRouteComponent', () => {
         constructVodStreamUrl.mockClear();
         addRecentItem.mockClear();
         getPlaybackPosition.mockClear();
+        openSavedDialog.mockReset();
 
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -205,7 +209,21 @@ describe('VodDetailsRouteComponent', () => {
                     },
                 },
             ],
-        }).compileComponents();
+        })
+            .overrideComponent(VodDetailsRouteComponent, {
+                add: {
+                    providers: [
+                        {
+                            provide: SavedVodAddDialogLauncherService,
+                            useValue: {
+                                bindOwner: jest.fn(),
+                                open: openSavedDialog,
+                            },
+                        },
+                    ],
+                },
+            })
+            .compileComponents();
 
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
     });
@@ -260,8 +278,12 @@ describe('VodDetailsRouteComponent', () => {
                 ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.STATUS');
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-download-start"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-download-start"]')
+        ).toBeNull();
     });
 
     it('keeps the fallback visible for a minimal info object', () => {
@@ -301,7 +323,9 @@ describe('VodDetailsRouteComponent', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         expect(host.querySelector('button.play-btn')).toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).toBeNull();
 
         selectedItem.set({
             info: [],
@@ -311,7 +335,48 @@ describe('VodDetailsRouteComponent', () => {
         fixture.detectChanges();
 
         expect(host.querySelector('button.play-btn')).not.toBeNull();
-        expect(host.querySelector('[data-testid="vod-favorite-toggle"]')).not.toBeNull();
+        expect(
+            host.querySelector('[data-testid="vod-favorite-toggle"]')
+        ).not.toBeNull();
+    });
+    it('keeps Add reachable in the overflow menu when a known movie has no playable source', async () => {
+        currentPlaylist.set({ id: 'source-1' });
+        await fixture.whenStable();
+        selectedItem.set({
+            info: [],
+            stream_id: 650020,
+            name: 'Sparse movie',
+            container_extension: null,
+        } as unknown as XtreamVodDetails);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playableVodItem()).toBeNull();
+        const trigger = fixture.nativeElement.querySelector(
+            '[data-testid="vod-more-menu"]'
+        ) as HTMLButtonElement | null;
+        expect(trigger).not.toBeNull();
+        expect(trigger?.disabled).toBe(false);
+        trigger?.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const add = TestBed.inject(OverlayContainer)
+            .getContainerElement()
+            .querySelector<HTMLButtonElement>(
+                '[data-test-id="vod-menu-add-saved-playlist"]'
+            );
+        expect(add).not.toBeNull();
+        add?.click();
+        expect(openSavedDialog).toHaveBeenCalledWith([
+            {
+                title: 'Sparse movie',
+                reference: {
+                    provider: 'xtream',
+                    sourceId: 'source-1',
+                    kind: 'movie',
+                    contentId: '650020',
+                },
+            },
+        ]);
     });
 
     it('keeps the full Xtream detail view when usable metadata exists', () => {

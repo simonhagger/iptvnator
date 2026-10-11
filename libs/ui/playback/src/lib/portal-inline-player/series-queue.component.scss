@@ -1,0 +1,39 @@
+:host {
+    display: block;
+}
+.series-queue {
+    padding: 8px 12px;
+    color: var(--app-on-surface);
+    background: var(--app-widget-bg);
+    border-top: 1px solid var(--app-widget-border);
+    &__toolbar,
+    &__countdown {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    &__list {
+        margin: 8px 0;
+        padding-left: 24px;
+        max-height: 280px;
+        overflow-y: auto;
+    }
+    &__row {
+        display: flex;
+        align-items: center;
+    }
+    &__episode {
+        flex: 1;
+        min-width: 0;
+        justify-content: flex-start;
+        overflow: hidden;
+    }
+    mat-form-field {
+        flex: 1;
+        min-width: 180px;
+    }
+    button {
+        app-region: no-drag;
+    }
+}

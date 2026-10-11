@@ -1,9 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService, SettingsStore } from '@iptvnator/services';
-import {
-    StartupBehavior,
-} from '@iptvnator/shared/interfaces';
+import { StartupBehavior } from '@iptvnator/shared/interfaces';
 import { parseWorkspaceShellRoute } from './navigation/workspace-shell-route.utils';
 
 const LAST_RESTORABLE_ROUTE_STORAGE_KEY = 'workspace-last-restorable-route-v1';
@@ -17,7 +15,8 @@ export class WorkspaceStartupPreferencesService {
         await this.settingsStore.loadSettings();
 
         const showDashboard = this.showDashboard();
-        const firstViewPath = this.getFirstAvailableWorkspacePath(showDashboard);
+        const firstViewPath =
+            this.getFirstAvailableWorkspacePath(showDashboard);
 
         if (this.startupBehavior() !== StartupBehavior.RestoreLastView) {
             return firstViewPath;
@@ -37,7 +36,9 @@ export class WorkspaceStartupPreferencesService {
             : '/workspace/sources';
     }
 
-    getFirstAvailableWorkspacePath(showDashboard = this.showDashboard()): string {
+    getFirstAvailableWorkspacePath(
+        showDashboard = this.showDashboard()
+    ): string {
         return showDashboard ? '/workspace/dashboard' : '/workspace/sources';
     }
 
@@ -47,8 +48,7 @@ export class WorkspaceStartupPreferencesService {
 
     startupBehavior(): StartupBehavior {
         return (
-            this.settingsStore.startupBehavior?.() ??
-            StartupBehavior.FirstView
+            this.settingsStore.startupBehavior?.() ?? StartupBehavior.FirstView
         );
     }
 
@@ -87,6 +87,8 @@ export class WorkspaceStartupPreferencesService {
                 return '/workspace/global-recent';
             case 'sources':
                 return '/workspace/sources';
+            case 'saved-playlists':
+                return '/workspace/saved-playlists';
             case 'portal':
                 if (!route.context || !route.section) {
                     return null;

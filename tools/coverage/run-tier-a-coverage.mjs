@@ -5,6 +5,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import { workspaceNxCommand } from './workspace-nx-command.mjs';
 
 import {
     createCoverageOutputScanner,
@@ -127,7 +128,6 @@ function buildNxArgs(project) {
 
     if (testTarget.executor === '@nx/jest:jest') {
         return [
-            'nx',
             'run',
             `${project.name}:test`,
             '--configuration=ci',
@@ -142,7 +142,6 @@ function buildNxArgs(project) {
         const jestRootMode = jestRootModeFor(project);
 
         return [
-            'nx',
             'run',
             `${project.name}:test`,
             '--output-style=static',
@@ -167,7 +166,8 @@ function buildNxArgs(project) {
  */
 function spawnCoverage(args, scanner, output) {
     return new Promise((resolve, reject) => {
-        const child = spawn('pnpm', args, {
+        const command = workspaceNxCommand(workspaceRoot, args);
+        const child = spawn(command.file, command.args, {
             cwd: workspaceRoot,
             env: {
                 ...process.env,
@@ -198,13 +198,13 @@ async function collectProjectCoverage(project, specCount) {
     // The start line goes out immediately so a stalled project is visible in
     // the log before the job times out; its full output follows on completion.
     console.log(
-        `==> Started ${project.name} (${specCount} spec files): pnpm ${args.join(' ')}`
+        `==> Started ${project.name} (${specCount} spec files): nx ${args.join(' ')}`
     );
-    const lines = [`\n==> Coverage for ${project.name}`, `pnpm ${args.join(' ')}`];
+    const lines = [`\n==> Coverage for ${project.name}`, `nx ${args.join(' ')}`];
 
     const scanner = createCoverageOutputScanner();
     const result = await spawnCoverage(args, scanner, output);
-    let failed = result.code !== 0 || result.signal !== null;
+    const failed = result.code !== 0 || result.signal !== null;
 
     const flush = () => {
         process.stdout.write(`${lines.join('\n')}\n`);

@@ -1,11 +1,5 @@
-import {
-    mkdtemp,
-    writeFile,
-    readFile,
-    lstat,
-    rename,
-    rm,
-} from 'node:fs/promises';
+import { readArchiveStats } from './download-catchup-stats';
+import { mkdtemp, writeFile, readFile, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
@@ -1079,7 +1073,9 @@ describe('catch-up submissions restarting terminal rows', () => {
             const filePath = join(directory, 'show.ts');
             try {
                 await writeFile(filePath + '.part', 'owned bytes');
-                const partialIdentity = await lstat(filePath + '.part');
+                const partialIdentity = await readArchiveStats(
+                    filePath + '.part'
+                );
                 await rename(filePath + '.part', join(directory, 'original'));
                 await writeFile(filePath + '.part', 'unrelated replacement');
                 const catchup = {
@@ -1169,7 +1165,7 @@ it.each([
         const filePath = join(directory, 'show.ts');
         try {
             await writeFile(filePath, 'complete archive');
-            const identity = await lstat(filePath);
+            const identity = await readArchiveStats(filePath);
             const catchup = {
                 channelName: 'News',
                 startTimestamp: 100,

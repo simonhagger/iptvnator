@@ -1,7 +1,9 @@
 import {
+    DestroyRef,
     type Signal,
     computed,
     effect,
+    inject,
     signal,
     untracked,
 } from '@angular/core';
@@ -24,12 +26,19 @@ export function createVodSimilarInPortals(
     crossPortalSimilar: CrossPortalSimilarService
 ): Signal<CrossPortalSimilarItem[]> {
     const matched = signal<CrossPortalSimilarItem[]>([]);
+    let alive = true;
+    let generation = 0;
+    inject(DestroyRef).onDestroy(() => {
+        alive = false;
+        generation++;
+    });
     /** Filtered on read: a relock hides matches cached while unlocked. */
     const visible = computed(() => crossPortalSimilar.visible(matched()));
 
     effect(() => {
         const meta = normalizedMeta();
         const recommendations = meta.tmdbRecommendations;
+        const request = ++generation;
         untracked(() => {
             matched.set([]);
             if (!recommendations?.length || !crossPortalSimilar.isAvailable) {
@@ -38,9 +47,7 @@ export function createVodSimilarInPortals(
             void crossPortalSimilar
                 .matchRecommendations(recommendations, 'movie')
                 .then((items) => {
-                    if (
-                        normalizedMeta().tmdbRecommendations === recommendations
-                    ) {
+                    if (alive && request === generation) {
                         matched.set(items);
                     }
                 });

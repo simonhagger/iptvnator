@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
-import { chmodSync, mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
+import { chmodFixtureSync as chmodSync } from './posix-files.test-helpers';
 import path from 'path';
 import type { createEmbeddedMpvFrameCopyRuntimeProbe } from '../embedded-mpv-frame-copy-runtime';
 import {

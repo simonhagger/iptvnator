@@ -7,7 +7,7 @@
         [kindLabel]="hero.kindLabel()"
         [description]="info.plot"
         [posterUrl]="info.cover"
-        [backdropUrl]="getBackdropUrl(info)"
+        [backdropUrl]="info.backdrop_path?.[0]"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
         [contentKey]="
             'xtream-series:' + currentPlaylistId() + ':' + item.series_id
@@ -116,6 +116,15 @@
                     (pressed)="playQuickStartEpisode()"
                 />
             }
+            @if (quickStartAction()?.kind === 'resume') {
+                <app-detail-action-button
+                    variant="secondary"
+                    icon="replay"
+                    [label]="'XTREAM.RESTART' | translate"
+                    testId="series-restart"
+                    (pressed)="restartQuickStartEpisode()"
+                />
+            }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
                     variant="secondary"
@@ -153,6 +162,8 @@
                 detail-player
                 [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
+                [initialSeriesQueue]="initialSeriesQueue()"
+                [seriesQueueLaunch]="seriesQueueLaunch()"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
@@ -174,6 +185,13 @@
             />
         }
 
+        @if (!inlinePlayback() && canStartSeriesQueue()) {
+            <app-series-queue-start
+                detail-episodes
+                [seasons]="item.episodes"
+                (requested)="startSeriesQueue($event)"
+            />
+        }
         <app-season-container
             #seasonContainer
             detail-episodes
@@ -184,6 +202,8 @@
             [playbackPositions]="episodePlaybackPositions()"
             [downloadAdapter]="episodeDownloadAdapter()"
             [downloadsEnabled]="!providerOnly()"
+            [episodeMenuSections]="savedEpisodes.sections"
+            (episodeMenuSelected)="savedEpisodes.select($event)"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"
             [playingEpisodeId]="

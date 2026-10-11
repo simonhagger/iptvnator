@@ -7,6 +7,8 @@
     --cover-rail-width: 172px;
     --cover-gap: 16px;
     --season-cover-width: 120px;
+    --cover-action-size: 32px;
+    --cover-action-icon-size: 24px;
 }
 
 :root[data-cover-size='small'] {
@@ -14,14 +16,16 @@
     --cover-rail-width: 140px;
     --cover-gap: 12px;
     --season-cover-width: 96px;
+    --cover-action-size: 24px;
+    --cover-action-icon-size: 18px;
+    --cover-actions-reserve: 66px;
+    --cover-rating-icon-size: 14px;
+    --cover-rating-padding: 4px;
+    --cover-rating-gap: 2px;
 }
 
-:root[data-cover-size='medium'] {
-    --cover-grid-min-width: 148px;
-    --cover-rail-width: 172px;
-    --cover-gap: 16px;
-    --season-cover-width: 120px;
-}
+// Medium uses the root defaults. The indicator component owns the default
+// action reserve; small covers override it with their compact button sizes.
 
 :root[data-cover-size='large'] {
     --cover-grid-min-width: 200px;

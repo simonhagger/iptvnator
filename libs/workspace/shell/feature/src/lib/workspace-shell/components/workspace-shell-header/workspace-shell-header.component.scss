@@ -20,6 +20,11 @@
     app-region: no-drag;
 }
 
+.workspace-header > .command-trigger {
+    margin-inline-start: auto;
+    app-region: no-drag;
+}
+
 // Pulled toward the edge so the arrow glyph, not the button's padding, sits
 // on the header's inset.
 .header-back {

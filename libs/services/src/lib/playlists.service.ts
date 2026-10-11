@@ -28,6 +28,7 @@ import {
     Channel,
     DbStores,
     extractStalkerItemId,
+    extractStalkerItemType,
     isFullStalkerPortalUrl,
     isM3uRecentlyViewedItem,
     M3uFavoriteChannel,
@@ -1469,7 +1470,8 @@ export class PlaylistsService {
 
     removeFromPlaylistRecentlyViewed(
         playlistId: string,
-        identity: string | number
+        identity: string | number,
+        contentType?: ReturnType<typeof extractStalkerItemType>
     ) {
         if (!playlistId) {
             throw new Error('Playlist ID is required');
@@ -1486,7 +1488,12 @@ export class PlaylistsService {
                     playlist.recentlyViewed as PlaylistRecentlyViewedItem[]
                 )?.filter(
                     (item) =>
-                        !this.matchesPlaylistRecentIdentity(item, identity)
+                        !(
+                            this.matchesPlaylistRecentIdentity(item, identity) &&
+                            (contentType === undefined ||
+                                (!isM3uRecentlyViewedItem(item) &&
+                                    extractStalkerItemType(item) === contentType))
+                        )
                 ),
             });
         });
@@ -1562,8 +1569,12 @@ export class PlaylistsService {
         return this.addPlaylistRecentlyViewed(playlistId, item);
     }
 
-    removeFromPortalRecentlyViewed(portalId: string, id: string | number) {
-        return this.removeFromPlaylistRecentlyViewed(portalId, id);
+    removeFromPortalRecentlyViewed(
+        portalId: string,
+        id: string | number,
+        contentType?: ReturnType<typeof extractStalkerItemType>
+    ) {
+        return this.removeFromPlaylistRecentlyViewed(portalId, id, contentType);
     }
 
     removeFromM3uRecentlyViewed(playlistId: string, channelUrl: string) {

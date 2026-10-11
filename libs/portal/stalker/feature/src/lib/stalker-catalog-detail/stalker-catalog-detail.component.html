@@ -21,6 +21,8 @@
             [watchedToggleBusy]="watchedToggle.busy()"
             [watchedToggleReady]="positionLoaded()"
             [playbackStartPending]="playbackStartPending()"
+            [savedPlaylistAvailable]="savedMovie.available()"
+            (savedPlaylistAddRequested)="savedMovie.add($event)"
             (playClicked)="onVodPlay($event)"
             (resumeClicked)="onVodPlay($event.item, $event.positionSeconds)"
             (favoriteToggled)="onVodFavoriteToggled($event)"

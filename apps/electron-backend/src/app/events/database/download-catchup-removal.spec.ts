@@ -1,3 +1,4 @@
+import { readArchiveStatsSync } from './download-catchup-stats';
 import { openCatchupOutput } from './download-catchup-output';
 import {
     verifiedArchiveSize,
@@ -5,7 +6,6 @@ import {
 } from './download-catchup-journal';
 import {
     mkdtempSync,
-    lstatSync,
     readFileSync,
     renameSync,
     rmSync,
@@ -43,7 +43,7 @@ beforeEach(() => {
         version: 1,
         phase: 'transfer',
         filePath,
-        partialIdentity: lstatSync(filePath + '.part'),
+        partialIdentity: readArchiveStatsSync(filePath + '.part'),
     };
     jest.mocked(renameSync).mockReset().mockImplementation(actual.renameSync);
     jest.mocked(unlinkSync).mockReset().mockImplementation(actual.unlinkSync);
@@ -55,7 +55,7 @@ function recordCapture(path: string) {
 }
 it('removes only the journaled partial', () => {
     removeJournaledCatchupPartial(filePath, proof, recordCapture);
-    expect(() => lstatSync(filePath + '.part')).toThrow();
+    expect(() => readArchiveStatsSync(filePath + '.part')).toThrow();
 });
 it('preserves entries without proof', () => {
     removeJournaledCatchupPartial(filePath, undefined, recordCapture);
@@ -132,7 +132,7 @@ it('retains a replacement capture until explicit recovery-copy cleanup', () => {
     expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
     actual.unlinkSync(capture); // explicit recovery-copy cleanup by the user
     removeJournaledCatchupPartial(filePath, proof, recordCapture);
-    expect(() => lstatSync(capture)).toThrow();
+    expect(() => readArchiveStatsSync(capture)).toThrow();
 });
 
 it('retries a durable capture after an I/O error without needing hardlinks', () => {
@@ -145,11 +145,11 @@ it('retries a durable capture after an I/O error without needing hardlinks', () 
     expect(() =>
         removeJournaledCatchupPartial(filePath, proof, recordCapture)
     ).toThrow('locked');
-    expect(() => lstatSync(filePath + '.part')).toThrow();
+    expect(() => readArchiveStatsSync(filePath + '.part')).toThrow();
     expect(proof.partialCleanupPath).toBeDefined();
     expect(readFileSync(proof.partialCleanupPath!, 'utf8')).toBe('owned bytes');
     removeJournaledCatchupPartial(filePath, proof, recordCapture);
-    expect(() => lstatSync(proof.partialCleanupPath!)).toThrow();
+    expect(() => readArchiveStatsSync(proof.partialCleanupPath!)).toThrow();
     expect(linkSync).not.toHaveBeenCalled();
 });
 it('does not capture the entry when write-ahead persistence fails', () => {
@@ -158,7 +158,7 @@ it('does not capture the entry when write-ahead persistence fails', () => {
             expect(readFileSync(filePath + '.part', 'utf8')).toBe(
                 'owned bytes'
             );
-            expect(() => lstatSync(capture)).toThrow();
+            expect(() => readArchiveStatsSync(capture)).toThrow();
             throw new Error('SQLITE_BUSY');
         })
     ).toThrow('SQLITE_BUSY');
@@ -172,7 +172,7 @@ it('journals a failed final-file capture without confusing it with the source', 
         version: 1,
         filePath,
         partialIdentity: proof.partialIdentity,
-        finalIdentity: lstatSync(filePath),
+        finalIdentity: readArchiveStatsSync(filePath),
         size: 100,
     };
     const db = {
@@ -213,7 +213,7 @@ it('journals a failed final-file capture without confusing it with the source', 
     await expect(
         cleanupStoredCatchupFinal(db as never, 1, filePath)
     ).resolves.toBe(true);
-    expect(() => lstatSync(journal.finalCleanupPath!)).toThrow();
+    expect(() => readArchiveStatsSync(journal.finalCleanupPath!)).toThrow();
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
 });
 
@@ -225,7 +225,7 @@ it.each([false, true])(
             ...proof,
             phase: 'finalization',
             size: 100,
-            finalIdentity: lstatSync(filePath),
+            finalIdentity: readArchiveStatsSync(filePath),
         };
         const record = (path: string, kind = 'partial') => {
             journal = {
@@ -249,10 +249,12 @@ it.each([false, true])(
             );
         }
         removeJournaledCatchupPartial(filePath, journal, record, removeFinal);
-        expect(() => lstatSync(filePath + '.part')).toThrow();
+        expect(() => readArchiveStatsSync(filePath + '.part')).toThrow();
         if (removeFinal) {
-            expect(() => lstatSync(filePath)).toThrow();
-            expect(() => lstatSync(journal.finalCleanupPath!)).toThrow();
+            expect(() => readArchiveStatsSync(filePath)).toThrow();
+            expect(() =>
+                readArchiveStatsSync(journal.finalCleanupPath!)
+            ).toThrow();
         } else expect(readFileSync(filePath, 'utf8')).toBe('unfinished copy');
     }
 );
@@ -265,7 +267,7 @@ it.each([false, true])(
             ...proof,
             phase: 'finalization',
             size: complete ? 7 : 100,
-            finalIdentity: lstatSync(filePath),
+            finalIdentity: readArchiveStatsSync(filePath),
         };
         const db = {
             select: () => ({
@@ -289,9 +291,9 @@ it.each([false, true])(
         await expect(
             cleanupStoredCatchupPartial(db as never, 1, filePath, 'incomplete')
         ).resolves.toBe(true);
-        expect(() => lstatSync(filePath + '.part')).toThrow();
+        expect(() => readArchiveStatsSync(filePath + '.part')).toThrow();
         if (complete) expect(readFileSync(filePath, 'utf8')).toBe('archive');
-        else expect(() => lstatSync(filePath)).toThrow();
+        else expect(() => readArchiveStatsSync(filePath)).toThrow();
     }
 );
 
@@ -320,7 +322,7 @@ it('rejects a reused inode before truncating or replacing the journal proof', as
 
 it('does not recover a same-size final from a reused inode or a legacy proof without creation time', () => {
     writeFileSync(filePath, 'foreign archive');
-    const final = lstatSync(filePath);
+    const final = readArchiveStatsSync(filePath);
     const journal: ArchiveFinalizationProof = {
         ...proof,
         phase: 'finalization',
@@ -351,7 +353,7 @@ it.each([false, true])(
     'does not relocate an unproved fallback target (replaced=%s)',
     async (replaced) => {
         writeFileSync(filePath, '');
-        const createdIdentity = lstatSync(filePath);
+        const createdIdentity = readArchiveStatsSync(filePath);
         if (replaced) {
             renameSync(filePath, join(directory, 'empty-original'));
             writeFileSync(filePath, 'foreign final');

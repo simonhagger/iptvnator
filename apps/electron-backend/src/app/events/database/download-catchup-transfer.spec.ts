@@ -1,3 +1,4 @@
+import { readArchiveStats } from './download-catchup-stats';
 import { recordArchivePartial } from './download-catchup-journal';
 import {
     mkdtemp,
@@ -25,7 +26,6 @@ import {
     assertArchiveCopyHeadroom,
     getArchiveByteLimit,
 } from './download-catchup-limits';
-import { stat } from 'node:fs/promises';
 
 jest.mock('./download-catchup-journal', () => ({
     ...jest.requireActual('./download-catchup-journal'),
@@ -123,13 +123,17 @@ describe('TS archive transfer', () => {
         };
         try {
             await writeFile(path + '.part', 'old data');
-            task.catchupExpectedPartialIdentity = await stat(path + '.part');
+            task.catchupExpectedPartialIdentity = await readArchiveStats(
+                path + '.part'
+            );
             jest.mocked(recordArchivePartial).mockImplementationOnce(
                 async (_db, id, filePath, identity) => {
                     expect(filePath).toBe(path);
                     expect(identity).toEqual(
                         expect.objectContaining({
-                            ino: String((await stat(path + '.part')).ino),
+                            ino: String(
+                                (await readArchiveStats(path + '.part')).ino
+                            ),
                         })
                     );
                     expect(id).toBe(task.id);
@@ -143,7 +147,9 @@ describe('TS archive transfer', () => {
             >('./download-catchup-limits').getArchiveByteLimit;
             jest.mocked(getArchiveByteLimit).mockImplementationOnce(
                 async (...args) => {
-                    expect((await stat(path + '.part')).size).toBe(0);
+                    expect((await readArchiveStats(path + '.part')).size).toBe(
+                        0
+                    );
                     return actualLimit(...args);
                 }
             );
@@ -256,7 +262,7 @@ it.each(['symlink', 'hardlink', 'regular file'])(
             } as never);
             const task: DownloadTask = {
                 id: 3,
-                catchupExpectedPartialIdentity: await stat(target),
+                catchupExpectedPartialIdentity: await readArchiveStats(target),
                 url: 'https://host/archive.ts',
                 fileName: 'archive.ts',
                 directory,
@@ -303,7 +309,7 @@ it('requires both finalization proof and unchanged identity to recover completio
         expect(await getExistingCompletedFileProgress(task)).toBeNull();
         task.catchupFinalized = {
             filePath,
-            identity: await stat(filePath),
+            identity: await readArchiveStats(filePath),
             size: packets.length,
         };
         expect(await getExistingCompletedFileProgress(task)).toEqual({

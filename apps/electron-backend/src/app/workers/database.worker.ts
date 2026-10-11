@@ -1,5 +1,11 @@
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import {
+    listSavedVodPlaylists,
+    getSavedVodPlaylist,
+    saveSavedVodPlaylist,
+    deleteSavedVodPlaylist,
+} from '../database/operations/saved-vod-playlists.operations';
+import {
     closeWorkerDatabase,
     flushWorkerSqlStatementCount,
     getWorkerDatabase,
@@ -33,6 +39,7 @@ import { setParentalLockActive } from '../database/parental-lock-state';
 import {
     addFavorite,
     getAllGlobalFavorites,
+    getAllGlobalFavoriteMembership,
     getFavorites,
     getGlobalFavorites,
     isFavorite,
@@ -418,6 +425,35 @@ async function executeRequest(
     const db = await getWorkerDatabase();
 
     switch (message.operation) {
+        case 'DB_LIST_SAVED_VOD_PLAYLISTS':
+            return listSavedVodPlaylists(db);
+        case 'DB_GET_SAVED_VOD_PLAYLIST':
+            return getSavedVodPlaylist(
+                db,
+                (message.payload as { id: string }).id
+            );
+        case 'DB_SAVE_SAVED_VOD_PLAYLIST': {
+            const payload = message.payload as {
+                playlist: unknown;
+                expectedRevision: number | null;
+            };
+            return saveSavedVodPlaylist(
+                db,
+                payload.playlist,
+                payload.expectedRevision
+            );
+        }
+        case 'DB_DELETE_SAVED_VOD_PLAYLIST': {
+            const payload = message.payload as {
+                id: string;
+                expectedRevision: number;
+            };
+            return deleteSavedVodPlaylist(
+                db,
+                payload.id,
+                payload.expectedRevision
+            );
+        }
         case 'DB_HAS_CATEGORIES': {
             const payload = message.payload as {
                 playlistId: string;
@@ -1082,6 +1118,8 @@ async function executeRequest(
 
         case 'DB_GET_ALL_GLOBAL_FAVORITES':
             return getAllGlobalFavorites(db);
+        case 'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP':
+            return getAllGlobalFavoriteMembership(db);
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {

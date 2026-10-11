@@ -49,6 +49,8 @@ export interface MapVodSeriesEpisodesOptions {
 
 export interface StalkerMappedEpisode extends XtreamSerieEpisode {
     legacyTrackingId?: number;
+    /** Raw provider season identity, independent of display numbering or tracking IDs. */
+    providerSeasonId?: string;
     /** Allows pre-correction legacy progress to match the same episode. */
     providerSeasonNumber?: number;
     originalId?: string;
@@ -131,7 +133,7 @@ export function mapVodSeriesSeasonsToVm(
     rawTitle?: string | null
 ): VodSeriesSeasonVm[] {
     const mapped = (seasons ?? []).map((season) => ({
-        id: String(season.id),
+        id: String(season.id ?? ''),
         video_id: String(season.video_id),
         name: toNonEmptyString(
             season.name,
@@ -168,7 +170,7 @@ export function mapRegularSeriesSeasons(
     if (vodWithSeries?.series && vodWithSeries.series.length > 0) {
         return [
             {
-                id: String(vodWithSeries.id),
+                id: String(vodWithSeries.id ?? ''),
                 name: vodWithSeries.info?.name || 'Episodes',
                 cmd: vodWithSeries.cmd,
                 series: toSeriesNumbers(vodWithSeries.series),
@@ -177,7 +179,7 @@ export function mapRegularSeriesSeasons(
     }
 
     return (serialSeasons ?? []).map((season) => ({
-        id: String(season.id),
+        id: String(season.id ?? ''),
         name: season.name,
         cmd: season.cmd,
         series: toSeriesNumbers(season.series),
@@ -250,6 +252,7 @@ export function mapVodSeriesEpisodes(
                     }
                 ),
                 legacyTrackingId,
+                providerSeasonId: season.id,
                 ...(season.providerSeasonNumber !== undefined
                     ? { providerSeasonNumber: season.providerSeasonNumber }
                     : {}),
@@ -295,6 +298,7 @@ export function mapRegularSeriesEpisodes(
                     }
                 ),
                 originalCmd: season.cmd,
+                providerSeasonId: season.id,
             } as StalkerMappedEpisode;
         });
     });

@@ -40,8 +40,11 @@ import {
     playlistOpenRequests,
 } from './app/services/playlist-open-request';
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
+import { getDistributionProfile } from './app/services/distribution-profile';
 
-app.setName('iptvnator');
+app.setName(
+    getDistributionProfile() === 'personal' ? 'iptvnator-personal' : 'iptvnator'
+);
 
 traceStartupPhase('compile-cache', () => readCompileCacheOutcome());
 // Before anything can open the shared database connection.

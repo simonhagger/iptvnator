@@ -79,16 +79,18 @@ const flush = () => new Promise((resolve) => setTimeout(resolve));
 describe('openEpisodeExternally', () => {
     function host(active: ExternalPlayerSession | null) {
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
+        const openResolvedPlayback = jest.fn().mockResolvedValue(undefined);
         const closeSession = jest.fn().mockResolvedValue(undefined);
         const launchOwner = jest.fn().mockReturnValue('xtream-1:103');
         const pageToken = jest.fn().mockReturnValue('xtream-1:103#1');
         return {
             openExternalPlayback,
+            openResolvedPlayback,
             closeSession,
             launchOwner,
             pageToken,
             host: {
-                portalPlayer: { openExternalPlayback },
+                portalPlayer: { openExternalPlayback, openResolvedPlayback },
                 externalPlayback: {
                     activeSession: signal(active),
                     closeSession,
@@ -109,6 +111,22 @@ describe('openEpisodeExternally', () => {
             t.openExternalPlayback.mock.invocationCallOrder[0]
         );
         expect(t.openExternalPlayback).toHaveBeenCalledWith(PLAYBACK, 'vlc');
+    });
+
+    it('replaces the running episode before starting with the configured external player', async () => {
+        const running = session();
+        const t = host(running);
+        await openEpisodeExternally(t.host, { ...PLAYBACK, startTime: 0 });
+
+        expect(t.closeSession).toHaveBeenCalledWith(running);
+        expect(t.closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            t.openResolvedPlayback.mock.invocationCallOrder[0]
+        );
+        expect(t.openResolvedPlayback).toHaveBeenCalledWith(
+            { ...PLAYBACK, startTime: 0 },
+            true
+        );
+        expect(t.openExternalPlayback).not.toHaveBeenCalled();
     });
 
     it('leaves another title alone and launches beside it', async () => {

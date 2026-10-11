@@ -13,7 +13,7 @@ import {
     signal,
 } from '@angular/core';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatIconButton } from '@angular/material/button';
+import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBar } from '@angular/material/progress-bar';
@@ -38,6 +38,7 @@ import {
 import {
     CollectionLoadRequest,
     CollectionMode,
+    ContentCoverDataService,
     UnifiedCollectionDataService,
 } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -70,13 +71,14 @@ import { UnifiedCollectionDetailDirective } from './unified-collection-detail.di
     templateUrl: './unified-collection-page.component.html',
     styleUrl: './unified-collection-page.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    providers: [UnifiedCollectionDataService],
+    providers: [UnifiedCollectionDataService, ContentCoverDataService],
     imports: [
         ChannelListSkeletonComponent,
         EmptyStateComponent,
         NgTemplateOutlet,
         MatButtonToggleModule,
         MatIconButton,
+        MatButton,
         MatIconModule,
         MatMenuModule,
         MatProgressBar,
@@ -124,6 +126,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     private readonly viewStateHistory = new CollectionViewStateHistory();
 
     readonly isLoading = this.data.isLoading;
+    readonly pendingFavoriteKeys = this.data.pendingFavoriteKeys;
+    readonly watchReadFailed = this.data.watchReadFailed;
+    readonly coverReadFailed = this.data.coverReadFailed;
     readonly isReloading = this.data.isReloading;
     readonly showReloadIndicator = this.data.showReloadIndicator;
     readonly allItems = this.data.allItems;
@@ -233,7 +238,16 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         portalType: this.portalType,
         detailTemplate: this.detailTemplate,
         onOpen: (contentType) => this.selectedContentType.set(contentType),
-        onClear: () => this.autoSelectContentType(),
+        onClear: () => {
+            if (this.destroyRef.destroyed) return;
+            this.autoSelectContentType();
+            void this.loadData({
+                mode: this.mode(),
+                portalType: this.portalType(),
+                playlistId: this.playlistId(),
+                scope: this.effectiveScope(),
+            });
+        },
     });
     readonly selectedDetailItem = this.detailState.item;
     readonly selectedDetailSeriesResume = this.detailState.seriesResume;
@@ -311,17 +325,21 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     }
 
     onGridItemSelected(item: UnifiedCollectionItem): void {
+        if (item.coverDetailTarget === null) return;
+        // Details resolves the parent identity; only an explicit Resume may
+        // consume the saved episode handoff and start playback (issue #1441).
+        const detailItem = item.coverDetailTarget?.item ?? item;
         this.viewStateSync.commitCurrent();
 
-        if (this.detailState.canOpen(item)) {
-            pushOpenCollectionDetailState(item);
-            this.detailState.open(item);
+        if (this.detailState.canOpen(detailItem)) {
+            pushOpenCollectionDetailState(detailItem);
+            this.detailState.open(detailItem);
             return;
         }
 
         const navigation =
-            buildCollectionDetailNavigation(this.mode(), item) ??
-            buildCollectionPortalNavigation(item, this.router.url);
+            buildCollectionDetailNavigation(this.mode(), detailItem) ??
+            buildCollectionPortalNavigation(detailItem, this.router.url);
         if (!navigation) {
             return;
         }
@@ -341,6 +359,10 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         }
 
         await this.data.toggleFavorite(item);
+    }
+
+    retryFavorites(): Promise<void> {
+        return this.data.retryFavorites();
     }
 
     clearAllCurrent(): void {

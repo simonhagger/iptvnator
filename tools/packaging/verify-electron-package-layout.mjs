@@ -2,7 +2,7 @@ import fs from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 
-import { buildElectronBuilderMetadata } from './generate-electron-builder-metadata.mjs';
+import { resolvePackageVerificationConfig } from './package-verification-config.mjs';
 import {
     collectEmbeddedMpvNativeArchiveEntries,
     inspectPackagedDependencyClosure,
@@ -24,25 +24,26 @@ const {
 } = require('./flatpak-launcher-validation.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
-const [platform, arch = ''] = normalizedArgs;
+const [platform, arch = '', overlayPath, outputPath] = normalizedArgs;
 
 if (!platform) {
     console.error(
-        'Usage: node tools/packaging/verify-electron-package-layout.mjs <macos|linux|windows> [arch]'
+        'Usage: node tools/packaging/verify-electron-package-layout.mjs <macos|linux|windows> [arch] [builder-overlay] [package-output]'
     );
     process.exit(1);
 }
 
 const workspaceRoot = process.cwd();
-const packageOutputRoots = [
-    path.join(workspaceRoot, 'dist', 'executables'),
-    path.join(workspaceRoot, 'dist', 'packages'),
-];
-const packageJsonPath = path.join(workspaceRoot, 'package.json');
-const electronBuilderConfigPath = path.join(
+const electronBuilderConfigPath = path.resolve(
     workspaceRoot,
-    'electron-builder.json'
+    overlayPath || 'electron-builder.json'
 );
+const {
+    packageOutputRoots,
+    packageMetadata,
+    electronBuilderConfig,
+    packagedPackageMetadata,
+} = resolvePackageVerificationConfig(workspaceRoot, overlayPath, outputPath);
 const builderEffectiveConfigPaths = packageOutputRoots.map((outputRoot) =>
     path.join(outputRoot, 'builder-effective-config.yaml')
 );
@@ -52,10 +53,6 @@ const flatpakMetainfoPath = path.join(
     'electron-backend',
     'linux',
     'com.fourgray.iptvnator.metainfo.xml'
-);
-const packageMetadata = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-const electronBuilderConfig = JSON.parse(
-    fs.readFileSync(electronBuilderConfigPath, 'utf8')
 );
 const flatpakFinishArgs = electronBuilderConfig.flatpak?.finishArgs ?? [];
 const linuxExecutableArgs = electronBuilderConfig.linux?.executableArgs ?? [];
@@ -72,10 +69,6 @@ const workerRelativeDir = path.join(
     'workers'
 );
 const workerFiles = ['epg-parser.worker.js', 'database.worker.js'];
-const packagedPackageMetadata = buildElectronBuilderMetadata(
-    packageMetadata,
-    electronBuilderConfig
-).extraMetadata;
 const nativeModuleRelativeDirs = [
     path.join('app.asar.unpacked', 'node_modules'),
     path.join('app.asar.unpacked', 'electron-backend', 'node_modules'),
@@ -465,7 +458,7 @@ function verifyPackagedPackageMetadata(resourceDir, errors) {
     if (mismatches.length > 0) {
         errors.push(
             [
-                `Packaged app package.json metadata does not match root package identity in ${asarPath}.`,
+                `Packaged app package.json metadata does not match configured package identity in ${asarPath}.`,
                 ...mismatches,
             ].join('\n')
         );

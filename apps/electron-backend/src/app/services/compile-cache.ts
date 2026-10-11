@@ -75,7 +75,8 @@ export function resolveCompileCacheDirectory(
     // Mirrors getElectronUserDataPath() in @iptvnator/shared/database, which
     // profile bootstrap applies later. The entry cannot import that library
     // without loading the database stack ahead of the cache.
-    const e2eDataDir = env.IPTVNATOR_E2E_DATA_DIR?.trim();
+    const e2eDataDir =
+        env.IPTVNATOR_E2E_DATA_DIR?.trim() || env.IPTVNATOR_DATA_DIR?.trim();
     const userData = e2eDataDir
         ? join(e2eDataDir, 'user-data')
         : userDataPath();

@@ -78,8 +78,9 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
 const VERIFY_JOB_ID = 'verify-snap';
 const PUBLISH_JOB_ID = 'publish-snap';
 const VERIFY_JOB_CONDITION =
-    "${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') }}";
-const PUBLISH_JOB_CONDITION = "${{ needs.verify-snap.result == 'success' }}";
+    "${{ github.repository == '4gray/iptvnator' && ((github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')) }}";
+const PUBLISH_JOB_CONDITION =
+    "${{ github.repository == '4gray/iptvnator' && needs.verify-snap.result == 'success' }}";
 const VERIFIED_RELEASE_ARTIFACT_NAME = 'verified-snap-release-assets';
 const PUBLISH_STEP_NAME = 'Publish all public-release snaps to edge';
 const PUBLISH_CHECKOUT_STEP_NAME = 'Checkout released tooling';

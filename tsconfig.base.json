@@ -26,6 +26,9 @@
             "@iptvnator/portal/shared/ui": [
                 "libs/portal/shared/ui/src/index.ts"
             ],
+            "@iptvnator/portal/shared/ui/content-cover": [
+                "libs/portal/shared/ui/src/lib/components/content-cover/index.ts"
+            ],
             "@iptvnator/portal/shared/data-access": [
                 "libs/portal/shared/data-access/src/index.ts"
             ],
@@ -91,6 +94,15 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/startup-preferences": [
+                "libs/workspace/shell/util/src/lib/workspace-startup-preferences.service.ts"
+            ],
+            "@iptvnator/workspace/shell/util/actions": [
+                "libs/workspace/shell/util/src/lib/workspace-shell-actions.ts"
+            ],
+            "@iptvnator/workspace/shell/util/context-drawer": [
+                "libs/workspace/shell/util/src/lib/workspace-shell-context-drawer.service.ts"
+            ],
             "@iptvnator/workspace/shell/util/settings-context": [
                 "libs/workspace/shell/util/src/lib/settings-context.service.ts"
             ],
@@ -129,6 +141,9 @@
             ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
+            ],
+            "@iptvnator/shared/interfaces/saved-vod-validation": [
+                "libs/shared/interfaces/src/lib/saved-vod-playlist.validation.ts"
             ],
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"

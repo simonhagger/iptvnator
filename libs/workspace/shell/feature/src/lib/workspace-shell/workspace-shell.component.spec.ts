@@ -63,6 +63,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly isRefreshingPlaylist = input(false);
     readonly isElectron = input(false);
     readonly hasNoPlaylists = input(false);
+    readonly isSavedPlaylistsRoute = input(false);
     readonly isDownloadsView = input(false);
     readonly activeDownloadsCount = input(0);
     readonly isSettingsRoute = input(false);
@@ -159,6 +160,7 @@ class MockWorkspaceShellFacade {
     readonly currentSection = signal<string | null>(null);
     readonly railProviderClass = signal('rail-context-region');
     readonly isSettingsRoute = signal(false);
+    readonly isSavedPlaylistsRoute = signal(false);
     readonly playlistTitle = signal('Playlist A');
     readonly playlistSubtitle = signal('Subtitle');
     readonly canOpenPlaylistInfo = signal(true);

@@ -39,13 +39,14 @@ import {
     buildUpNextRailItems,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
     TmdbEnrichedCastMember,
     XtreamSerieDetails,
     XtreamSerieEpisode,
-    XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { injectXtreamDetailNavigation } from '../xtream-detail-navigation';
 import {
@@ -60,6 +61,8 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
 import { SerialDetailsHeroPresenter } from './serial-details-hero.presenter';
 import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsDownloadAdapterService } from './serial-details-download-adapter.service';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { SerialDetailsSavedEpisodePresenter } from './serial-details-saved-episode.presenter';
 
 @Component({
     selector: 'app-serial-details',
@@ -86,6 +89,8 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         SerialDetailsHeroPresenter,
         SerialDetailsMenuService,
         SerialDetailsDownloadAdapterService,
+        SavedVodAddDialogLauncherService,
+        SerialDetailsSavedEpisodePresenter,
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
@@ -99,6 +104,7 @@ import { SerialDetailsDownloadAdapterService } from './serial-details-download-a
         MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         SeasonContainerComponent,
         SimilarRailComponent,
         TranslatePipe,
@@ -118,6 +124,7 @@ export class SerialDetailsComponent implements OnDestroy {
 
     readonly heroPresenter = inject(SerialDetailsHeroPresenter);
     readonly menu = inject(SerialDetailsMenuService);
+    readonly savedEpisodes = inject(SerialDetailsSavedEpisodePresenter);
     readonly seasonContainer =
         viewChild<SeasonContainerComponent>('seasonContainer');
 
@@ -143,6 +150,12 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly seasonWatchBatchRunning = this.playback.seasonWatchBatchRunning;
     readonly activeEpisodeId = this.playback.activeEpisodeId;
     readonly quickStartAction = this.playback.quickStartAction;
+    readonly initialSeriesQueue = this.playback.initialSeriesQueue;
+    readonly seriesQueueLaunch = this.playback.seriesQueueLaunch;
+    readonly canStartSeriesQueue = this.playback.canStartSeriesQueue;
+
+    readonly startSeriesQueue = (request: SeriesQueueStartRequest) =>
+        this.playback.startSeriesQueue(request);
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
     readonly playbackSessionKey = computed(() =>
@@ -179,6 +192,7 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly discover = this.navigation.discover;
 
     constructor() {
+        this.savedEpisodes.bind(this.selectedItem, this.routeParams);
         this.playback.bind({ selectedItem: this.selectedItem });
         this.similar.bind({ selectedItem: this.selectedItem });
         this.seasons.bind({ selectedItem: this.selectedItem });
@@ -276,25 +290,25 @@ export class SerialDetailsComponent implements OnDestroy {
         this.playback.playEpisode(episode);
     }
 
-    playQuickStartEpisode(): void {
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction();
+        if (action && !action.disabled)
+            this.playback.playEpisode(action.episode, undefined, 0);
+    }
+
+    readonly playQuickStartEpisode = () =>
         this.playback.playQuickStartEpisode();
-    }
 
-    playPreviousEpisode(): void {
-        this.playback.playPreviousEpisode();
-    }
+    readonly playPreviousEpisode = () => this.playback.playPreviousEpisode();
 
-    playNextEpisode(): void {
-        this.playback.playNextEpisode();
-    }
+    readonly playNextEpisode = () => this.playback.playNextEpisode();
 
     playUpNextEpisode(item: UpNextRailItem): void {
         this.playback.playEpisode(item.episode as XtreamSerieEpisode);
     }
 
-    handleInlinePlaybackEnded(): void {
+    readonly handleInlinePlaybackEnded = () =>
         this.playback.handleInlinePlaybackEnded();
-    }
 
     closeInlinePlayer(): void {
         this.playback.closeInlinePlayer();
@@ -330,21 +344,7 @@ export class SerialDetailsComponent implements OnDestroy {
     }
 
     toggleFavorite(): void {
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return;
-        }
-
-        this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params['serialId'],
-            playlist.id,
-            'series',
-            this.selectedItem()?.info?.backdrop_path?.[0]
-        );
-    }
-
-    getBackdropUrl(info: XtreamSerieInfo): string | undefined {
-        return info.backdrop_path?.[0];
+        this.menu.toggleFavorite(this.route.snapshot.params['serialId']);
     }
 
     goBack(): void {

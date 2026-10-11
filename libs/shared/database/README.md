@@ -35,6 +35,12 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 
 The SQLite database is stored at: `~/.iptvnator/databases/iptvnator.db`
 
+An explicit production `IPTVNATOR_DATA_DIR` places SQLite under `databases/`,
+Electron Chromium storage under `user-data/` and settings under `config/` in
+that root. `IPTVNATOR_E2E_DATA_DIR` takes precedence for disposable tests.
+Personal desktop packages select `~/.iptvnator-personal` before startup cache,
+settings or database workers load. They do not adopt or recover upstream profiles.
+
 ## Upgrade Compatibility And Migrations
 
 Users may skip releases. The application must apply every required migration in

@@ -13,10 +13,8 @@ import {
     EpgRuntimeBridgeService,
     EpgService,
 } from '@iptvnator/epg/data-access';
-import {
-    WorkspaceShellContextDrawerService,
-    WORKSPACE_SHELL_ACTIONS,
-} from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util/context-drawer';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util/actions';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
 import {

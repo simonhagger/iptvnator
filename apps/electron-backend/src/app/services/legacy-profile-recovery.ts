@@ -88,6 +88,8 @@ export function recoverLegacyProfile(): Promise<void> {
 }
 
 async function recover(): Promise<void> {
+    // An explicit production profile must never import the upstream profile.
+    if (process.env.IPTVNATOR_DATA_DIR?.trim()) return;
     const root =
         process.env.IPTVNATOR_E2E_DATA_DIR?.trim() || app.getPath('appData');
     const legacy = join(root, 'electron-backend');

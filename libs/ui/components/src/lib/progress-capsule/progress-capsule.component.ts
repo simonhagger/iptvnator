@@ -53,5 +53,9 @@ import {
 })
 export class ProgressCapsuleComponent {
     readonly progress = input.required<number>();
-    readonly isWatched = computed(() => this.progress() >= 90);
+    /** Explicit ownership overrides percent-based styling, e.g. one series episode. */
+    readonly watched = input<boolean | null>(null);
+    readonly isWatched = computed(
+        () => this.watched() ?? this.progress() >= 90
+    );
 }

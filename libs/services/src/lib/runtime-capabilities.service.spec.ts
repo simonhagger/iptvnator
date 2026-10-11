@@ -30,6 +30,18 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsParentalLockSqliteFilter).toBe(false);
     });
 
+    it('distinguishes complete favorite membership from the legacy display bridge', () => {
+        const service = new RuntimeCapabilitiesService();
+        testWindow.electron = { dbGetAllGlobalFavorites: jest.fn() };
+        expect(service.supportsGlobalFavoriteMembership).toBe(false);
+        testWindow.electron['dbGetAllGlobalFavoriteMembership'] = true;
+        expect(service.supportsGlobalFavoriteMembership).toBe(false);
+        testWindow.electron['dbGetAllGlobalFavoriteMembership'] = jest.fn();
+        expect(service.supportsGlobalFavoriteMembership).toBe(true);
+        testWindow.electron = undefined;
+        expect(service.supportsGlobalFavoriteMembership).toBe(false);
+    });
+
     it('reports browser PWA capabilities when the Electron bridge is absent', () => {
         testWindow.electron = undefined;
 

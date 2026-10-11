@@ -8,9 +8,11 @@
  * the script being compiled, so a call inside the bundle would leave the
  * bundle itself uncached; only this small file pays the uncached compile.
  * Keep it free of imports beyond `electron`, Node built-ins and the guard
- * helper: anything imported here is compiled before the cache is on.
+ * helpers for distribution/profile and cache: anything imported here is
+ * compiled before the cache is on. Neither guard imports the database stack.
  */
 import { app } from 'electron';
+import './app/services/distribution-bootstrap';
 import * as nodeModule from 'node:module';
 import {
     enableStartupCompileCache,

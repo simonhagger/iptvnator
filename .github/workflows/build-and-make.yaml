@@ -449,7 +449,7 @@ jobs:
                       xvfb
 
             - name: Configure Flatpak build runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               run: |
                   set -euo pipefail
 
@@ -718,11 +718,11 @@ jobs:
               run: appstreamcli validate --pedantic --no-net apps/electron-backend/linux/com.fourgray.iptvnator.metainfo.xml
 
             - name: Build website
-              if: matrix.os == 'linux'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux'
               run: pnpm nx build website --skip-nx-cache
 
             - name: Verify AppStream website assets
-              if: matrix.os == 'linux'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux'
               shell: bash
               run: |
                   set -euo pipefail
@@ -766,7 +766,7 @@ jobs:
                   "
 
             - name: Validate macOS signing configuration
-              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              if: matrix.os == 'macos' && github.event_name != 'pull_request' && github.repository == '4gray/iptvnator'
               shell: bash
               env:
                   CSC_NAME: ${{ vars.CSC_NAME }}
@@ -813,7 +813,7 @@ jobs:
                   fi
 
             - name: Prepare macOS notarization credentials
-              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              if: matrix.os == 'macos' && github.event_name != 'pull_request' && github.repository == '4gray/iptvnator'
               shell: bash
               env:
                   APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY }}
@@ -846,7 +846,7 @@ jobs:
                   fi
 
             - name: Make Electron app (macOS)
-              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              if: matrix.os == 'macos' && github.event_name != 'pull_request' && github.repository == '4gray/iptvnator'
               env:
                   CSC_NAME: ${{ vars.CSC_NAME }}
                   CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -860,7 +860,7 @@ jobs:
               run: pnpm run make:app -- --publishPolicy=never
 
             - name: Verify signed macOS app
-              if: matrix.os == 'macos' && github.event_name != 'pull_request'
+              if: matrix.os == 'macos' && github.event_name != 'pull_request' && github.repository == '4gray/iptvnator'
               shell: bash
               run: |
                   set -euo pipefail
@@ -909,7 +909,7 @@ jobs:
                   xcrun stapler validate "${APP_PATH}"
 
             - name: Make Electron app
-              if: matrix.os != 'macos' || github.event_name == 'pull_request'
+              if: github.repository == '4gray/iptvnator' && (matrix.os != 'macos' || github.event_name == 'pull_request')
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: ${{ matrix.embedded_mpv_platform || '' }}
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
@@ -919,7 +919,27 @@ jobs:
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && github.event_name == 'pull_request')) && '1' || '0' }}
               run: pnpm run make:app -- --publishPolicy=never
 
+            - name: Generate personal Windows fork metadata
+              if: github.repository != '4gray/iptvnator' && matrix.os == 'windows'
+              run: pnpm nx run electron-backend:generate-builder-metadata --excludeTaskDependencies --skip-nx-cache
+
+            - name: Make personal Windows fork app
+              if: github.repository != '4gray/iptvnator' && matrix.os == 'windows'
+              env:
+                  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+                  IPTVNATOR_EMBEDDED_MPV_PLATFORM: win32
+                  IPTVNATOR_EMBEDDED_MPV_ARCH: x64
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
+              run: pnpm nx run electron-backend:make-personal --excludeTaskDependencies --outputPath=dist/executables
+
+            - name: Verify personal Windows fork app
+              if: github.repository != '4gray/iptvnator' && matrix.os == 'windows'
+              env:
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
+              run: node tools/packaging/verify-electron-package-layout.mjs windows x64 electron-builder.personal.json dist/executables
+
             - name: Verify packaged worker layout
+              if: github.repository == '4gray/iptvnator'
               shell: bash
               env:
                   PACKAGE_OS: ${{ matrix.os }}
@@ -931,7 +951,7 @@ jobs:
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
 
             - name: Make marker-only foreign-architecture DEB packages
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'system'
               shell: bash
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: linux
@@ -969,7 +989,7 @@ jobs:
                   done
 
             - name: Verify DEB payloads and x64 system runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'system'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1008,7 +1028,7 @@ jobs:
                   test "${found}" = true
 
             - name: Verify RPM payload and x64 system runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'system'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1031,7 +1051,7 @@ jobs:
                       '
 
             - name: Verify Pacman payload and x64 system runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'system'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1053,7 +1073,7 @@ jobs:
                       '
 
             - name: Verify AppImage payloads and bundled runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1069,7 +1089,7 @@ jobs:
                   test "${found}" = true
 
             - name: Verify Snap payloads and strict-confinement runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1175,7 +1195,7 @@ jobs:
                   fi
 
             - name: Run packaged x64 frame-copy and fallback smoke
-              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               env:
                   IPTVNATOR_E2E_REQUIRE_PACKAGED_FRAME_COPY: '1'
                   IPTVNATOR_E2E_PACKAGED_EXECUTABLE: ${{ github.workspace }}/dist/executables/linux-unpacked/iptvnator
@@ -1186,7 +1206,7 @@ jobs:
                       --skip-nx-cache
 
             - name: Upload packaged frame-copy smoke diagnostics
-              if: always() && matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: always() && github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: packaged-frame-copy-smoke
@@ -1196,7 +1216,7 @@ jobs:
                   retention-days: 7
 
             - name: Diagnose packaged x64 frame-copy hardware path
-              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               continue-on-error: true
               env:
                   IPTVNATOR_E2E_REQUIRE_PACKAGED_FRAME_COPY: '1'
@@ -1226,7 +1246,7 @@ jobs:
                   key: ${{ steps.embedded-mpv-runtime-cache-key.outputs.key }}
 
             - name: Verify Flatpak payload, launcher, and sandboxed runtime
-              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               shell: bash
               run: |
                   set -euo pipefail
@@ -1307,7 +1327,7 @@ jobs:
                   fi
 
             - name: Upload artifacts (macOS)
-              if: matrix.os == 'macos'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'macos'
               uses: actions/upload-artifact@v7
               with:
                   name: macos-${{ matrix.arch }}-artifacts
@@ -1320,7 +1340,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload system-runtime Linux artifacts
-              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'system'
               uses: actions/upload-artifact@v7
               with:
                   name: linux-system-artifacts
@@ -1332,7 +1352,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload portable-runtime Linux artifacts
-              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'portable'
               uses: actions/upload-artifact@v7
               with:
                   name: linux-portable-artifacts
@@ -1345,7 +1365,7 @@ jobs:
                   retention-days: 7
 
             - name: Upload Flatpak-runtime Linux artifacts
-              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
+              if: github.repository == '4gray/iptvnator' && matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               uses: actions/upload-artifact@v7
               with:
                   name: linux-flatpak-artifacts
@@ -1411,7 +1431,7 @@ jobs:
             - nightly-version
             - build-cross-platform
             - build-linux
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ github.repository == '4gray/iptvnator' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         runs-on: ubuntu-latest
         concurrency:
             group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}

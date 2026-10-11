@@ -28,6 +28,7 @@ import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerCatalogDetailComponent } from './stalker-catalog-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -58,6 +59,8 @@ class StubVodDetailsComponent {
     readonly watchedToggleBusy = input(false);
     readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
+    readonly savedPlaylistAvailable = input(false);
+    readonly savedPlaylistAddRequested = output<unknown>();
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
@@ -98,6 +101,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const routerMock = { events: EMPTY, navigateByUrl: jest.fn() };
     const locationMock = { back: jest.fn() };
+    const openSavedDialog = jest.fn();
     const originalHistoryState = window.history.state;
     const selectedItem = signal<unknown>({
         id: '42',
@@ -121,6 +125,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
         locationMock.back.mockReset();
+        openSavedDialog.mockReset();
 
         await TestBed.configureTestingModule({
             imports: [StalkerCatalogDetailComponent],
@@ -183,6 +188,15 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
                 },
                 add: {
+                    providers: [
+                        {
+                            provide: SavedVodAddDialogLauncherService,
+                            useValue: {
+                                bindOwner: jest.fn(),
+                                open: openSavedDialog,
+                            },
+                        },
+                    ],
                     imports: [
                         StubStalkerSeriesViewComponent,
                         StubVodDetailsComponent,
@@ -214,6 +228,41 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                 contentId: '42',
             })
         );
+    });
+    it('offers the current catalog movie and rejects stale events after source/detail changes', async () => {
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        const requested = child.item();
+        expect(child.savedPlaylistAvailable()).toBe(true);
+        child.savedPlaylistAddRequested.emit(requested);
+        expect(openSavedDialog).toHaveBeenCalledWith([
+            {
+                title: 'Portal movie',
+                reference: {
+                    provider: 'stalker',
+                    sourceId: 'stalker-1',
+                    kind: 'movie',
+                    contentId: '42',
+                },
+            },
+        ]);
+        catalogPlaylist.set({ id: 'another-source' });
+        fixture.detectChanges();
+        expect(child.savedPlaylistAvailable()).toBe(false);
+        catalogPlaylist.set({ id: 'stalker-1' });
+        selectedItem.set({
+            id: '43',
+            cmd: '/media/43',
+            info: { name: 'Next movie' },
+        });
+        fixture.detectChanges();
+        child.savedPlaylistAddRequested.emit(requested);
+        expect(openSavedDialog).toHaveBeenCalledTimes(1);
+        catalogPlaylist.set({ id: '' });
+        fixture.detectChanges();
+        expect(child.savedPlaylistAvailable()).toBe(false);
     });
 
     it('marks the open movie watched from the child toggle and refreshes catalog badges', async () => {

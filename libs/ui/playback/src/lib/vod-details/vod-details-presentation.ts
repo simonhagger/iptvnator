@@ -15,6 +15,7 @@ import type {
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import {
     castMembersFromNames,
+    SAVED_VOD_ADD_MENU_ITEM,
     splitPeopleNames,
     type DetailActionButtonState,
     type SimilarRailItem,
@@ -174,6 +175,7 @@ export function formatPlaybackClock(
 }
 
 export function buildVodMenuSections(input: {
+    savedPlaylistAvailable?: boolean;
     externalPlayerAvailable: boolean;
     externalPlayerHint: 'MPV' | 'VLC';
     hasPlaybackPosition: boolean;
@@ -195,6 +197,12 @@ export function buildVodMenuSections(input: {
         });
     }
     const stateRows: VodMoreMenuSection['items'][number][] = [];
+    if (input.savedPlaylistAvailable) {
+        stateRows.push({
+            ...SAVED_VOD_ADD_MENU_ITEM,
+            testId: 'vod-menu-add-saved-playlist',
+        });
+    }
     if (input.hasPlaybackPosition) {
         stateRows.push({
             id: VOD_DETAILS_MENU_ACTION.StartOver,

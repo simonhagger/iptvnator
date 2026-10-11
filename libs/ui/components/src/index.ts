@@ -48,5 +48,6 @@ export * from './lib/detail-ui/trailer-dialog.service';
 export * from './lib/detail-ui/trailer-dialog-state';
 export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
+export * from './lib/detail-ui/saved-vod-add-menu-item';
 export * from './lib/detail-ui/series-hero.state';
 export * from './lib/detail-ui/hero-trailer-backdrop.component';

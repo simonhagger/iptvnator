@@ -20,12 +20,15 @@ import {
 describe('path-utils', () => {
     let tempRoot: string;
     let originalEnvValue: string | undefined;
+    let originalDataRoot: string | undefined;
 
     beforeEach(() => {
         tempRoot = mkdtempSync(join(tmpdir(), 'iptvnator-path-utils-'));
         homedirMock.mockReturnValue(join(tempRoot, 'home'));
         originalEnvValue = process.env[IPTVNATOR_E2E_DATA_DIR_ENV];
+        originalDataRoot = process.env['IPTVNATOR_DATA_DIR'];
         delete process.env[IPTVNATOR_E2E_DATA_DIR_ENV];
+        delete process.env['IPTVNATOR_DATA_DIR'];
     });
 
     afterEach(() => {
@@ -35,6 +38,9 @@ describe('path-utils', () => {
             process.env[IPTVNATOR_E2E_DATA_DIR_ENV] = originalEnvValue;
         }
         rmSync(tempRoot, { force: true, recursive: true });
+        if (originalDataRoot === undefined)
+            delete process.env['IPTVNATOR_DATA_DIR'];
+        else process.env['IPTVNATOR_DATA_DIR'] = originalDataRoot;
     });
 
     it('uses and creates the E2E data dir override when the env variable is set', () => {
@@ -43,6 +49,27 @@ describe('path-utils', () => {
 
         expect(getIptvnatorDataRoot()).toBe(e2eDataDir);
         expect(existsSync(e2eDataDir)).toBe(true);
+    });
+
+    it('isolates production database, Chromium and config under an explicit data root', () => {
+        const root = join(tempRoot, 'personal');
+        process.env['IPTVNATOR_DATA_DIR'] = root;
+        expect(getIptvnatorDatabasePath()).toBe(
+            join(root, 'databases', 'iptvnator.db')
+        );
+        expect(getElectronUserDataPath()).toBe(join(root, 'user-data'));
+        expect(getElectronConfigDirectory()).toBe(join(root, 'config'));
+        expect(existsSync(join(tempRoot, 'home', '.iptvnator'))).toBe(false);
+    });
+
+    it('keeps disposable E2E isolation above a production profile override', () => {
+        process.env['IPTVNATOR_DATA_DIR'] = join(tempRoot, 'personal');
+        process.env[IPTVNATOR_E2E_DATA_DIR_ENV] = join(tempRoot, 'test');
+        expect(getIptvnatorDataRoot()).toBe(join(tempRoot, 'test'));
+        expect(getElectronUserDataPath()).toBe(
+            join(tempRoot, 'test', 'user-data')
+        );
+        expect(existsSync(join(tempRoot, 'personal'))).toBe(false);
     });
 
     it('falls back to ~/.iptvnator when the env override is blank', () => {

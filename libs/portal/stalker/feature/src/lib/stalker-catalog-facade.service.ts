@@ -25,8 +25,13 @@ import {
     getPortalPlaybackProgressPercent,
     resolvePortalSeriesWatchState,
     resolvePortalWatchState,
+    findLatestSeriesEpisodePosition,
+    playbackProgressPercent,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    isStalkerSeriesItem,
+} from '@iptvnator/shared/interfaces';
 import { StalkerWorkspaceRouteSession } from './stalker-workspace-route-session.service';
 
 @Injectable()
@@ -48,6 +53,10 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         Map<number, PlaybackPositionData[]>
     >(new Map());
     private loadedPositionsForPlaylistId: string | null = null;
+    private catalogPositionsLoad: {
+        playlistId: string;
+        promise: Promise<void>;
+    } | null = null;
     // Latest-load-wins: a positions fetch superseded while in flight must
     // not patch the maps with another playlist's rows.
     private positionsLoadGeneration = 0;
@@ -131,12 +140,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
                 return;
             }
 
-            this.loadedPositionsForPlaylistId = playlistId;
-            void this.loadStalkerPositions(playlistId).catch(() => {
-                // Allow a retry on the next playlist activation; the read
-                // now rejects instead of masquerading as an empty list.
-                this.loadedPositionsForPlaylistId = null;
-            });
+            void this.loadCatalogPositions(playlistId);
         });
 
         const unsubscribe =
@@ -169,14 +173,19 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         }
     }
 
-    initialize(categoryId?: string | null): void {
+    initialize(categoryId?: string | null): Promise<void> {
+        const playlistId = this.playlist()?.id;
+        const positions = playlistId
+            ? this.loadCatalogPositions(playlistId)
+            : Promise.resolve();
         this.clearSelectedItem();
         if (categoryId) {
             this.stalkerStore.setSelectedCategory(categoryId);
-            return;
+            return positions;
         }
 
         this.stalkerStore.setSelectedCategory('*');
+        return positions;
     }
 
     clearSelectedItem(): void {
@@ -271,11 +280,16 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             this.stalkerSeriesPositions().get(numericId)?.length
         );
         const isSeries =
-            this.contentType() === 'series' ||
-            isStalkerSeriesFlag(item.is_series);
+            this.contentType() === 'series' || isStalkerSeriesItem(item);
 
         if (hasSeriesProgress || isSeries) {
+            const latest = findLatestSeriesEpisodePosition(
+                this.stalkerSeriesPositions().get(numericId) ?? [],
+                numericId
+            );
+            const progress = playbackProgressPercent(latest);
             return {
+                ...(progress !== null ? { progress } : {}),
                 watchState: resolvePortalSeriesWatchState(hasSeriesProgress),
             };
         }
@@ -352,11 +366,33 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         await this.loadStalkerPositions(playlistId);
     }
 
+    /** Coalesce only overlapping initial effect/arrival reads, never cached arrivals. */
+    private loadCatalogPositions(playlistId: string): Promise<void> {
+        if (this.catalogPositionsLoad?.playlistId === playlistId)
+            return this.catalogPositionsLoad.promise;
+        this.loadedPositionsForPlaylistId = playlistId;
+        const promise = this.loadStalkerPositions(playlistId)
+            .catch(() => {
+                if (this.loadedPositionsForPlaylistId === playlistId)
+                    this.loadedPositionsForPlaylistId = null;
+            })
+            .finally(() => {
+                if (this.catalogPositionsLoad?.promise === promise)
+                    this.catalogPositionsLoad = null;
+            });
+        this.catalogPositionsLoad = { playlistId, promise };
+        return promise;
+    }
+
     private async loadStalkerPositions(playlistId: string): Promise<void> {
         const generation = ++this.positionsLoadGeneration;
         const positions =
             await this.playbackPositions.getAllPlaybackPositions(playlistId);
-        if (generation !== this.positionsLoadGeneration) {
+        if (
+            generation !== this.positionsLoadGeneration ||
+            this.destroyRef.destroyed ||
+            this.playlist()?.id !== playlistId
+        ) {
             return;
         }
 
@@ -392,11 +428,19 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
         }
 
         const updated = new Map(this.stalkerSeriesPositions());
+        // MPV/VLC events may omit storage timestamps. Stamp at this effect
+        // boundary; the recency selector remains deterministic and clock-free.
+        const incoming = {
+            ...position,
+            updatedAt: Number.isFinite(Date.parse(position.updatedAt ?? ''))
+                ? position.updatedAt
+                : new Date().toISOString(),
+        };
         const positionsForSeries = [
             ...(updated.get(position.seriesXtreamId) ?? []).filter(
                 (item) => item.contentXtreamId !== position.contentXtreamId
             ),
-            position,
+            incoming,
         ];
         updated.set(position.seriesXtreamId, positionsForSeries);
         this.stalkerSeriesPositions.set(updated);

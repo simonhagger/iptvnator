@@ -60,6 +60,15 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     let resolveItvPlayback: jest.Mock;
     let resolveRadioPlayback: jest.Mock;
 
+    const expectRadioHeadersReleased = () =>
+        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
+            undefined,
+            undefined,
+            'http://portal.example/radio_2.mpg',
+            undefined,
+            'release'
+        );
+
     const playlist = signal({
         _id: 'playlist-1',
         title: 'Demo Stalker',
@@ -1362,11 +1371,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         resolveApply?.();
         await playPromise;
 
-        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
-            undefined,
-            undefined,
-            'http://portal.example/radio_2.mpg'
-        );
+        expectRadioHeadersReleased();
         expect(component.activePlayback()).toBeNull();
     });
 
@@ -1392,11 +1397,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         await component.playChannel(itvChannels()[0]);
         await fixture.whenStable();
 
-        expect(window.electron?.setUserAgent).toHaveBeenLastCalledWith(
-            undefined,
-            undefined,
-            'http://portal.example/radio_2.mpg'
-        );
+        expectRadioHeadersReleased();
     });
 });
 

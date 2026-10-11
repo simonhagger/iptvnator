@@ -1,6 +1,12 @@
 import type { Stats } from 'fs';
 import path from 'path';
 
+// These fixtures describe a Linux namespace, independent of the test host.
+jest.mock(
+    'path',
+    () => jest.requireActual<typeof import('path')>('path').posix
+);
+
 // The adapter reaches `electron` through the platform util for packaged
 // paths only; mocking it keeps this suite independent of the Electron binary
 // being present (a CI runner can restore node_modules without it).

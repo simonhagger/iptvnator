@@ -89,6 +89,7 @@ jobs:
 
     tighten:
         name: Tighten baselines
+        if: github.repository == '4gray/iptvnator'
         needs: measure
         runs-on: ubuntu-latest
         timeout-minutes: 15

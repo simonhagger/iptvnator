@@ -263,6 +263,8 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({ id: '1001' })
@@ -320,12 +322,13 @@ describe('SerialDetailsComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
 
-        expect(quickStartButton?.textContent).toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.RESUME');
         expect(quickStartButton?.textContent).toContain('S01E01');
+        expect(quickStartButton?.textContent).toContain('00:42');
 
         quickStartButton?.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(openResolvedPlayback).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -336,6 +339,16 @@ describe('SerialDetailsComponent', () => {
             }),
             true
         );
+        const restart: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '[data-testid="series-restart"]'
+        );
+        restart.click();
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(openResolvedPlayback.mock.calls.at(-1)?.[0]).toMatchObject({
+            startTime: 0,
+            contentInfo: { contentXtreamId: 1001 },
+        });
     });
 
     it('records the selected episode after a successful external-player launch', async () => {
@@ -416,6 +429,7 @@ describe('SerialDetailsComponent', () => {
         fixture.detectChanges();
 
         expect(constructEpisodeStreamUrl).toHaveBeenCalledTimes(1);
+        await new Promise((resolve) => setTimeout(resolve));
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({
                 id: '2001',
@@ -485,9 +499,7 @@ describe('SerialDetailsComponent', () => {
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton()?.textContent).not.toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton()?.textContent).not.toContain('XTREAM.RESUME');
 
         positionUpdateCallback({
             playlistId: 'xtream-1',
@@ -501,9 +513,7 @@ describe('SerialDetailsComponent', () => {
         } as PlaybackPositionData);
         fixture.detectChanges();
 
-        expect(quickStartButton()?.textContent).toContain(
-            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
-        );
+        expect(quickStartButton()?.textContent).toContain('XTREAM.RESUME');
         expect(quickStartButton()?.textContent).toContain('S01E01');
     });
 

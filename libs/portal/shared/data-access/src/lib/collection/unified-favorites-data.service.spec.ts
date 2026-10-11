@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom, from, of } from 'rxjs';
+import { firstValueFrom, from, of, throwError } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
@@ -32,6 +32,7 @@ describe('UnifiedFavoritesDataService', () => {
         dbRemoveRecentItemsBatch: jest.Mock;
     };
     let databaseService: {
+        getAllGlobalFavoriteMembership: jest.Mock;
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
@@ -160,6 +161,7 @@ describe('UnifiedFavoritesDataService', () => {
             ),
         };
         databaseService = {
+            getAllGlobalFavoriteMembership: jest.fn().mockResolvedValue([]),
             getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
@@ -296,6 +298,107 @@ describe('UnifiedFavoritesDataService', () => {
                 }),
             ])
         );
+    });
+
+    it.each([
+        ['electron', 'playlist'],
+        ['electron', 'all'],
+        ['pwa', 'playlist'],
+        ['pwa', 'all'],
+    ] as const)(
+        'propagates failed %s %s Xtream reads to strict covers while preserving legacy empty fallback',
+        async (runtime, scope) => {
+            if (runtime === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            store.select.mockReturnValue(
+                of([
+                    {
+                        _id: 'xtream-1',
+                        title: 'Portal',
+                        serverUrl: 'https://example.com',
+                    } satisfies Partial<PlaylistMeta>,
+                ])
+            );
+            const read =
+                runtime === 'pwa'
+                    ? xtreamDataSource.getFavorites
+                    : scope === 'all'
+                      ? databaseService.getAllGlobalFavoriteMembership
+                      : databaseService.getFavorites;
+            read.mockRejectedValue(new Error('storage failed'));
+            if (runtime === 'electron' && scope === 'all')
+                databaseService.getAllGlobalFavorites.mockRejectedValue(
+                    new Error('storage failed')
+                );
+            await expect(
+                service.getFavoritesStrict(
+                    scope,
+                    scope === 'playlist' ? 'xtream-1' : undefined,
+                    'xtream'
+                )
+            ).rejects.toThrow('storage failed');
+            await expect(
+                service.getFavorites(
+                    scope,
+                    scope === 'playlist' ? 'xtream-1' : undefined,
+                    'xtream'
+                )
+            ).resolves.toEqual([]);
+            read.mockResolvedValue([
+                {
+                    id: 202,
+                    category_id: 20,
+                    title: 'Film',
+                    type: 'movie',
+                    xtream_id: 7,
+                    playlist_id: 'xtream-1',
+                },
+            ]);
+            await expect(
+                service.getFavoritesStrict(
+                    scope,
+                    scope === 'playlist' ? 'xtream-1' : undefined,
+                    'xtream'
+                )
+            ).resolves.toEqual([
+                expect.objectContaining({ xtreamId: 7, contentType: 'movie' }),
+            ]);
+        }
+    );
+
+    it('keeps failed Stalker strict reads unknown and retries persisted favourites even when cached metadata is empty', async () => {
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'stalker-1',
+                    macAddress: '00:11:22:33:44:55',
+                    favorites: [],
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            throwError(() => new Error('storage failed'))
+        );
+        await expect(
+            service.getFavoritesStrict('playlist', 'stalker-1', 'stalker')
+        ).rejects.toThrow('storage failed');
+        await expect(
+            service.getFavorites('playlist', 'stalker-1', 'stalker')
+        ).resolves.toEqual([]);
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                favorites: [{ id: '7', category_id: 'vod', title: 'Film' }],
+            })
+        );
+        await expect(
+            service.getFavoritesStrict('playlist', 'stalker-1', 'stalker')
+        ).resolves.toEqual([
+            expect.objectContaining({ stalkerId: '7', contentType: 'movie' }),
+        ]);
     });
 
     it('loads Xtream playlist favorites through the active data source in PWA', async () => {
@@ -600,6 +703,51 @@ describe('UnifiedFavoritesDataService', () => {
         ]);
     });
 
+    it.each(
+        (['electron', 'pwa'] as const).flatMap((runtime) =>
+            (['movie', 'series'] as const).flatMap((contentType) =>
+                (['posterUrl', 'logo'] as const).map((artwork) => ({
+                    runtime,
+                    contentType,
+                    artwork,
+                }))
+            )
+        )
+    )(
+        'does not forward portrait artwork as backdrop in $runtime for $contentType with $artwork',
+        async ({ runtime, contentType, artwork }) => {
+            if (runtime === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            const item: UnifiedCollectionItem = {
+                uid: `xtream::xtream-1::${contentType}:101`,
+                name: 'Cover title',
+                contentType,
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                contentId: 42,
+                xtreamId: 101,
+                [artwork]: 'https://example.com/portrait.jpg',
+            };
+            await service.addFavorite(item);
+            const expected =
+                runtime === 'electron'
+                    ? electronApi.dbAddFavorite
+                    : xtreamDataSource.addFavorite;
+            const unused =
+                runtime === 'electron'
+                    ? xtreamDataSource.addFavorite
+                    : electronApi.dbAddFavorite;
+            expect(expected).toHaveBeenCalledTimes(1);
+            expect(expected).toHaveBeenCalledWith(42, 'xtream-1');
+            expect(unused).not.toHaveBeenCalled();
+            expect(item[artwork]).toBe('https://example.com/portrait.jpg');
+        }
+    );
+
     it('adds Xtream favorites after resolving the content id', async () => {
         databaseService.getContentByXtreamId.mockResolvedValue({
             id: 42,
@@ -621,11 +769,7 @@ describe('UnifiedFavoritesDataService', () => {
             'xtream-1',
             'live'
         );
-        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(
-            42,
-            'xtream-1',
-            'live.png'
-        );
+        expect(electronApi.dbAddFavorite).toHaveBeenCalledWith(42, 'xtream-1');
     });
 
     it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {
@@ -653,8 +797,7 @@ describe('UnifiedFavoritesDataService', () => {
         );
         expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
             101,
-            'xtream-1',
-            'movie.png'
+            'xtream-1'
         );
         expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
     });
@@ -684,7 +827,229 @@ describe('UnifiedFavoritesDataService', () => {
         expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
     });
 
-    it('adds Stalker favorites through portal favorites', async () => {
+    it.each(['electron', 'pwa'])(
+        'synchronizes persisted Stalker metadata after first favourite in %s',
+        async (runtime) => {
+            if (runtime === 'pwa')
+                Object.defineProperty(window, 'electron', {
+                    value: undefined,
+                    configurable: true,
+                });
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({ _id: 'stalker-1', favorites: [] })
+            );
+            await service.addFavorite({
+                uid: 'stalker::stalker-1::7',
+                name: 'Film',
+                sourceType: 'stalker',
+                contentType: 'movie',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '7',
+                categoryId: 'vod',
+            });
+            expect(store.dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    persist: false,
+                    playlist: {
+                        _id: 'stalker-1',
+                        favorites: [
+                            expect.objectContaining({
+                                id: '7',
+                                title: 'Film',
+                                category_id: 'vod',
+                            }),
+                        ],
+                    },
+                })
+            );
+        }
+    );
+
+    it('removes only the selected Stalker kind when movie, series and live IDs collide', async () => {
+        const movie = { id: '7', category_id: 'vod', title: 'Film' };
+        const series = { id: '7', category_id: 'series', title: 'Show' };
+        const live = { id: '7', category_id: 'itv', title: 'Channel' };
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({ _id: 'stalker-1', favorites: [movie, series, live, 'legacy'] })
+        );
+        await service.removeFavorite({
+            uid: 'stalker::stalker-1::7',
+            name: 'Film',
+            sourceType: 'stalker',
+            contentType: 'movie',
+            playlistId: 'stalker-1',
+            playlistName: 'Portal',
+            stalkerId: '7',
+        });
+        expect(store.dispatch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                persist: false,
+                playlist: {
+                    _id: 'stalker-1',
+                    favorites: [series, live, 'legacy'],
+                },
+            })
+        );
+    });
+
+    it.each([0, 2])(
+        'removes a legacy no-ID Stalker row using its stored index %s',
+        async (index) => {
+            const legacyMovie = { title: 'Legacy Film', category_id: 'vod' };
+            const fallbackId = `stalker-1-${index}`;
+            const collidingSeries = {
+                id: fallbackId,
+                title: 'Other Show',
+                category_id: 'series',
+            };
+            const retainedMovie = {
+                title: 'Another Legacy Film',
+                category_id: 'vod',
+            };
+            const prefix = index
+                ? ['legacy-string', { id: '8', category_id: 'itv' }]
+                : [];
+            const persisted = [
+                ...prefix,
+                legacyMovie,
+                collidingSeries,
+                retainedMovie,
+            ];
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({ _id: 'stalker-1', favorites: persisted })
+            );
+            const mapped = await service.getFavoritesStrict(
+                'playlist',
+                'stalker-1',
+                'stalker'
+            );
+            const target = mapped.find(
+                (item) => item.name === legacyMovie.title
+            );
+            expect(target?.stalkerId).toBe(fallbackId);
+            if (!target) throw new Error('Legacy fixture was not mapped');
+            await service.removeFavorite(target);
+            expect(store.dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    persist: false,
+                    playlist: {
+                        _id: 'stalker-1',
+                        favorites: [...prefix, collidingSeries, retainedMovie],
+                    },
+                })
+            );
+            expect(persisted).toEqual([
+                ...prefix,
+                legacyMovie,
+                collidingSeries,
+                retainedMovie,
+            ]);
+        }
+    );
+
+    it.each(['clear', 'reorder'] as const)(
+        'preserves colliding Stalker kinds and legacy entries during %s',
+        async (operation) => {
+            const movie = { id: '7', category_id: 'vod', title: 'Film' };
+            const series = { id: '7', category_id: 'series', title: 'Show' };
+            const live = { id: '7', category_id: 'itv', title: 'Channel' };
+            playlistsService.getPlaylistById.mockReturnValue(
+                of({
+                    _id: 'stalker-1',
+                    favorites: [movie, series, live, 'legacy'],
+                })
+            );
+            const item: UnifiedCollectionItem = {
+                uid: 'stalker::stalker-1::7',
+                name: 'Show',
+                sourceType: 'stalker',
+                contentType: 'series',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '7',
+            };
+            if (operation === 'clear') await service.clearFavorites([item]);
+            else
+                await service.reorder([item], {
+                    scope: 'playlist',
+                    playlistId: 'stalker-1',
+                    portalType: 'stalker',
+                });
+            expect(store.dispatch).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    playlist: {
+                        _id: 'stalker-1',
+                        favorites:
+                            operation === 'clear'
+                                ? [movie, live, 'legacy']
+                                : [series, movie, live, 'legacy'],
+                    },
+                })
+            );
+        }
+    );
+
+    it.each(['add', 'remove'])(
+        'does not publish Stalker metadata after a failed %s write',
+        async (operation) => {
+            const failed = throwError(() => new Error('storage failed'));
+            playlistsService.addPortalFavorite.mockReturnValue(failed);
+            playlistsService.transformPlaylistFavorites.mockReturnValue(failed);
+            const item: UnifiedCollectionItem = {
+                uid: 'stalker::stalker-1::7',
+                name: 'Film',
+                sourceType: 'stalker',
+                contentType: 'movie',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '7',
+                categoryId: 'vod',
+            };
+            await expect(
+                operation === 'add'
+                    ? service.addFavorite(item)
+                    : service.removeFavorite(item)
+            ).rejects.toThrow('storage failed');
+            expect(store.dispatch).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps repeated same-kind Stalker adds idempotent without replacing stored enrichment', async () => {
+        const series = {
+            id: '7',
+            category_id: 'series',
+            title: 'Show',
+            added_at: '2026-01-01',
+        };
+        let current: unknown[] = [series];
+        playlistsService.transformPlaylistFavorites.mockImplementation(
+            (_id: string, transform: (rows: unknown[]) => unknown[]) => {
+                current = transform(current);
+                return of({ _id: 'stalker-1', favorites: current });
+            }
+        );
+        const item: UnifiedCollectionItem = {
+            uid: 'stalker::stalker-1::7',
+            name: 'Film',
+            sourceType: 'stalker',
+            contentType: 'movie',
+            playlistId: 'stalker-1',
+            playlistName: 'Portal',
+            stalkerId: '7',
+        };
+        await service.addFavorite(item);
+        const stored = current[1];
+        await service.addFavorite({
+            ...item,
+            name: 'Different temporary title',
+        });
+        expect(current).toHaveLength(2);
+        expect(current[0]).toBe(series);
+        expect(current[1]).toBe(stored);
+    });
+
+    it('adds Stalker favorites through an atomic kind-aware transform', async () => {
         await service.addFavorite({
             uid: 'stalker::stalker-1::101',
             name: 'Stalker One',
@@ -698,16 +1063,25 @@ describe('UnifiedFavoritesDataService', () => {
             categoryId: 'itv',
         } satisfies UnifiedCollectionItem);
 
-        expect(playlistsService.addPortalFavorite).toHaveBeenCalledWith(
-            'stalker-1',
+        expect(
+            playlistsService.transformPlaylistFavorites
+        ).toHaveBeenCalledWith('stalker-1', expect.any(Function));
+        expect(store.dispatch).toHaveBeenCalledWith(
             expect.objectContaining({
-                id: '101',
-                title: 'Stalker One',
-                name: 'Stalker One',
-                o_name: 'Stalker One',
-                category_id: 'itv',
-                cmd: 'ffmpeg http://stalker/101',
-                logo: 'one.png',
+                playlist: {
+                    _id: 'stalker-1',
+                    favorites: [
+                        expect.objectContaining({
+                            id: '101',
+                            title: 'Stalker One',
+                            name: 'Stalker One',
+                            o_name: 'Stalker One',
+                            category_id: 'itv',
+                            cmd: 'ffmpeg http://stalker/101',
+                            logo: 'one.png',
+                        }),
+                    ],
+                },
             })
         );
     });

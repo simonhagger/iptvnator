@@ -99,7 +99,7 @@ export class ElectronStreamHeadersService {
         this.syncSequence += 1;
         this.currentScopeUrl = null;
         void window.electron
-            .setUserAgent(undefined, undefined, streamUrl)
+            .setUserAgent(undefined, undefined, streamUrl, undefined, 'release')
             .catch(() => undefined);
     }
 }

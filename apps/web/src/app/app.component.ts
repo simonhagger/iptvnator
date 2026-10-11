@@ -16,10 +16,8 @@ import {
     EpgRuntimeBridgeService,
     EpgService,
 } from '@iptvnator/epg/data-access';
-import {
-    WorkspaceShellContextDrawerService,
-    WORKSPACE_SHELL_ACTIONS,
-} from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util/context-drawer';
+import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util/actions';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 // File-level entry: the @iptvnator/ui/components barrel would put the whole
 // library (channel lists, EPG, forms, date-fns) on the initial path.

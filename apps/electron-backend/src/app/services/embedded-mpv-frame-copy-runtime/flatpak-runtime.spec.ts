@@ -1,5 +1,12 @@
-import { accessSync, lstatSync, readFileSync, readdirSync } from 'fs';
+import { accessSync, readFileSync, readdirSync } from 'fs';
+import { lstatFixtureSync as lstatSync } from './posix-files.test-helpers';
 import path from 'path';
+
+// These fixtures describe a Linux namespace, independent of the test host.
+jest.mock(
+    'path',
+    () => jest.requireActual<typeof import('path')>('path').posix
+);
 import { createLinuxFrameCopyHelperEnvironment } from '../embedded-mpv-frame-copy-runtime';
 import { createFixture } from './runtime-fixtures.test-helpers';
 import {

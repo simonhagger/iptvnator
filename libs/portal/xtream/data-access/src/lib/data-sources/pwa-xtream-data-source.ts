@@ -21,6 +21,12 @@ import {
 import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
+    normalizePwaStoredId,
+    parsePwaCollectionItems,
+    parsePwaFavorites,
+    PwaStorageValidator,
+} from './pwa-collection-storage';
+import {
     DbCategoryType,
     IXtreamDataSource,
     ProgressCallback,
@@ -681,14 +687,23 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // Favorites Operations (localStorage)
     // =========================================================================
 
-    async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
-        const allFavorites = this.getFavoritesFromStorage();
+    async getFavorites(
+        playlistId: string,
+        strict = false
+    ): Promise<XtreamContentItem[]> {
+        const validation = strict
+            ? await import('./pwa-collection-validation')
+            : undefined;
+        const allFavorites = this.getFavoritesFromStorage(
+            validation?.assertPwaFavoriteStorage
+        );
         const playlistFavorites = allFavorites[playlistId] || [];
         const contentById = await this.getCollectionItemsWithHydration(
             playlistId,
-            playlistFavorites
+            playlistFavorites,
+            validation?.assertPwaCollectionStorage
         );
-
+        validation?.assertPwaFavoriteItems(playlistFavorites, contentById);
         return Array.from(contentById.values());
     }
 
@@ -697,12 +712,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         backdropUrl?: string
     ): Promise<void> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         if (normalizedContentId == null) {
             return;
         }
 
-        const allFavorites = this.getFavoritesFromStorage();
+        const validation = await import('./pwa-collection-validation');
+        const allFavorites = this.getFavoritesFromStorage(
+            validation.assertPwaFavoriteStorage
+        );
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
         }
@@ -718,12 +736,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     }
 
     async removeFavorite(contentId: number, playlistId: string): Promise<void> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         if (normalizedContentId == null) {
             return;
         }
 
-        const allFavorites = this.getFavoritesFromStorage();
+        const validation = await import('./pwa-collection-validation');
+        const allFavorites = this.getFavoritesFromStorage(
+            validation.assertPwaFavoriteStorage
+        );
         if (allFavorites[playlistId]) {
             allFavorites[playlistId] = allFavorites[playlistId].filter(
                 (id: number) => id !== normalizedContentId
@@ -733,7 +754,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     }
 
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         if (normalizedContentId == null) {
             return false;
         }
@@ -742,11 +763,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return (allFavorites[playlistId] || []).includes(normalizedContentId);
     }
 
-    private getFavoritesFromStorage(): Record<string, number[]> {
+    private getFavoritesFromStorage(
+        validate?: PwaStorageValidator
+    ): Record<string, number[]> {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.FAVORITES);
-            return this.normalizeFavoriteStorage(data ? JSON.parse(data) : {});
-        } catch {
+            return parsePwaFavorites(data, validate);
+        } catch (error) {
+            if (validate) throw error;
             return {};
         }
     }
@@ -985,7 +1009,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         _backdropUrl?: string
     ): Promise<void> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         if (normalizedContentId == null) {
             return;
         }
@@ -1025,7 +1049,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentId: number,
         playlistId: string
     ): Promise<void> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         if (normalizedContentId == null) {
             return;
         }
@@ -1067,33 +1091,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.saveRecentItemsToStorage(allRecent);
     }
 
-    private normalizeStoredId(value: unknown): number | null {
-        const numericValue = Number(value);
-        return Number.isFinite(numericValue) && numericValue > 0
-            ? numericValue
-            : null;
-    }
-
-    private normalizeFavoriteStorage(value: unknown): Record<string, number[]> {
-        if (!value || typeof value !== 'object') {
-            return {};
-        }
-
-        const normalized: Record<string, number[]> = {};
-        Object.entries(value as Record<string, unknown>).forEach(
-            ([playlistId, ids]) => {
-                if (!Array.isArray(ids)) {
-                    return;
-                }
-
-                normalized[playlistId] = ids
-                    .map((id) => this.normalizeStoredId(id))
-                    .filter((id): id is number => id !== null);
-            }
-        );
-        return normalized;
-    }
-
     private normalizeRecentStorage(
         value: unknown
     ): Record<string, StoredRecentItem[]> {
@@ -1116,7 +1113,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                             readonly backdropUrl?: unknown;
                             readonly backdrop_url?: unknown;
                         };
-                        const id = this.normalizeStoredId(rawItem.id);
+                        const id = normalizePwaStoredId(rawItem.id);
                         if (
                             id == null ||
                             typeof rawItem.viewedAt !== 'string'
@@ -1149,18 +1146,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return backdropUrl ? { backdropUrl } : {};
     }
 
-    private getCollectionItemsFromStorage(): Record<
-        string,
-        Record<string, XtreamContentItem>
-    > {
+    private getCollectionItemsFromStorage(
+        validate?: PwaStorageValidator
+    ): Record<string, Record<string, XtreamContentItem>> {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.COLLECTION_ITEMS);
-            const parsed = data ? JSON.parse(data) : {};
-            if (!parsed || typeof parsed !== 'object') {
-                return {};
-            }
-            return parsed as Record<string, Record<string, XtreamContentItem>>;
-        } catch {
+            return parsePwaCollectionItems(data, validate);
+        } catch (error) {
+            if (validate) throw error;
             return {};
         }
     }
@@ -1231,7 +1224,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     private getCollectionItemsById(
         playlistId: string,
-        ids: readonly number[]
+        ids: readonly number[],
+        validate?: PwaStorageValidator
     ): Map<number, XtreamContentItem> {
         const idSet = new Set(ids);
         const results = new Map<number, XtreamContentItem>();
@@ -1248,7 +1242,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             }
         }
 
-        const storedItems = this.getCollectionItemsFromStorage()[playlistId];
+        if (validate && ids.every((id) => results.has(id))) return results;
+        const storedItems =
+            this.getCollectionItemsFromStorage(validate)[playlistId];
         if (!storedItems) {
             return results;
         }
@@ -1264,16 +1260,21 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     private async getCollectionItemsWithHydration(
         playlistId: string,
-        ids: readonly number[]
+        ids: readonly number[],
+        validate?: PwaStorageValidator
     ): Promise<Map<number, XtreamContentItem>> {
-        const contentById = this.getCollectionItemsById(playlistId, ids);
+        const contentById = this.getCollectionItemsById(
+            playlistId,
+            ids,
+            validate
+        );
         const missingIds = ids.filter((id) => !contentById.has(id));
         if (missingIds.length === 0) {
             return contentById;
         }
 
         await this.hydrateStoredCollectionContent(playlistId, missingIds);
-        return this.getCollectionItemsById(playlistId, ids);
+        return this.getCollectionItemsById(playlistId, ids, validate);
     }
 
     private findCachedContentItemById(
@@ -1371,7 +1372,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         patch: ContentMetadataPatch
     ): Promise<void> {
-        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedContentId = normalizePwaStoredId(contentId);
         const normalizedBackdropUrl = patch.backdropUrl?.trim();
         if (normalizedContentId == null || !normalizedBackdropUrl) {
             return;

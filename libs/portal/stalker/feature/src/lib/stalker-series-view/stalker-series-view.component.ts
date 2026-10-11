@@ -58,6 +58,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
     createLogger,
+    type SeriesQueueLaunchEvent,
     consumeStalkerReturnMarker,
     createDiscoverFacetNavigation,
     resolveStalkerBackNavigation,
@@ -86,6 +87,8 @@ import {
     getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    SeriesQueueStartComponent,
+    type SeriesQueueStartRequest,
     type SeriesPlaybackEpisodeState,
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
@@ -120,6 +123,8 @@ import {
     type StalkerEpisodePlaybackSessionIdentity,
     type StalkerEpisodePlaybackStructuralIdentity,
 } from './stalker-episode-playback-session-key';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { StalkerSeriesSavedEpisodePresenter } from './stalker-series-saved-episode.presenter';
 
 interface StalkerSeriesPlaybackRequestContext {
     readonly generation: number;
@@ -152,6 +157,7 @@ interface StalkerSeriesPlaybackRequestContext {
         ViewInPortalActionComponent,
         VodMoreMenuComponent,
         PortalInlinePlayerComponent,
+        SeriesQueueStartComponent,
         TranslatePipe,
         SeasonContainerComponent,
     ],
@@ -160,6 +166,8 @@ interface StalkerSeriesPlaybackRequestContext {
         StalkerSeriesTmdbSeasonsService,
         StalkerSeriesHeroPresenter,
         StalkerSeriesMenuService,
+        SavedVodAddDialogLauncherService,
+        StalkerSeriesSavedEpisodePresenter,
         StalkerSeriesPositionsService,
         StalkerSeriesWatchToggleService,
     ],
@@ -168,11 +176,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
     readonly menu = inject(StalkerSeriesMenuService);
+    readonly savedEpisodes = inject(StalkerSeriesSavedEpisodePresenter);
     private readonly seasonContainerRef =
         viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly positions = inject(StalkerSeriesPositionsService);
     private readonly watchToggle = inject(StalkerSeriesWatchToggleService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    readonly canStartSeriesQueue = () => this.portalPlayer.isEmbeddedPlayer();
     private readonly router = inject(Router);
     private readonly location = inject(Location);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -315,6 +325,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        this.savedEpisodes.bind({
+            seriesId: computed(() => this.displayItem()?.id),
+            seriesMode: computed(() =>
+                this.seriesMode() ===
+                STALKER_SERIES_DOWNLOAD_MODES.RegularSeries
+                    ? 'series'
+                    : 'vod-series'
+            ),
+            episodes: this.mappedSeasons,
+        });
         this.heroPresenter.bind({
             displayItem: this.displayItem,
             quickStart: this.quickStartButton,
@@ -850,13 +870,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     onEpisodeClicked(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        restart = false
     ) {
+        if (Number(episode.id) !== this.initialQueueEpisode)
+            this.clearInitialSeriesQueue();
+        this.reportSeriesQueueLaunch('requested');
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
             this.watchToggle.holdChoice(() =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+                this.onEpisodeClicked(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    restart
+                )
             );
             return;
         }
@@ -865,17 +894,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // The launch cannot be cancelled: the choice replaces its player
             // once it settled.
             this.launchQueue.hold(seriesKey, () =>
-                this.startEpisode(episode, startTimeOverride, forcePlayer)
+                this.startEpisode(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    restart
+                )
             );
             return;
         }
-        this.startEpisode(episode, startTimeOverride, forcePlayer);
+        this.startEpisode(episode, startTimeOverride, forcePlayer, restart);
     }
 
     private startEpisode(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        restart = false
     ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
@@ -894,9 +929,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
-        const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
-            startTimeOverride;
+        const startTime = restart
+            ? 0
+            : (this.episodePlaybackPositions().get(trackingId)
+                  ?.positionSeconds ?? startTimeOverride);
 
         void this.startPlayback(
             command,
@@ -906,6 +942,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             startTime,
             forcePlayer
         );
+    }
+
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction()?.action;
+        if (action && !action.disabled)
+            this.onEpisodeClicked(action.episode, undefined, undefined, true);
     }
 
     async playQuickStartEpisode(): Promise<void> {
@@ -1002,6 +1044,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     }
 
     closeInlinePlayer(): void {
+        this.clearInitialSeriesQueue();
         this.seriesPlaybackRequestGeneration += 1;
         this.inlinePlayback.set(null);
         this.inlinePlaybackEpisodeIdentity.set(null);
@@ -1074,6 +1117,30 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.onEpisodeClicked(item.episode as XtreamSerieEpisode);
     }
 
+    readonly initialSeriesQueue = signal<readonly number[] | null>(null);
+    readonly seriesQueueLaunch = signal<SeriesQueueLaunchEvent | null>(null);
+    private initialQueueEpisode: number | null = null;
+
+    private clearInitialSeriesQueue(): void {
+        this.initialSeriesQueue.set(null);
+        this.initialQueueEpisode = null;
+    }
+
+    private reportSeriesQueueLaunch(
+        phase: SeriesQueueLaunchEvent['phase']
+    ): void {
+        this.seriesQueueLaunch.update((event) => ({
+            revision: (event?.revision ?? 0) + 1,
+            phase,
+        }));
+    }
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.initialSeriesQueue.set([...request.ids]);
+        this.initialQueueEpisode = request.episode.id;
+        this.playUpNextEpisode(request.episode);
+    }
+
     handleInlinePlaybackEnded(): void {
         const navigation = this.inlineSeriesNavigation();
         if (!navigation?.autoplayEnabled || !navigation.canNext) {
@@ -1089,7 +1156,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     private async openEpisodeExternally(
         playback: ResolvedPortalPlayback,
-        player: ExternalPlayerName,
+        player: ExternalPlayerName | undefined,
         request: StalkerSeriesPlaybackRequestContext
     ): Promise<void> {
         // `closeInlinePlayer()` just retired `request`'s generation; a fresh
@@ -1106,10 +1173,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
         let session: ExternalPlayerSession | void;
         try {
-            session = await this.portalPlayer.openExternalPlayback(
-                playback,
-                player
-            );
+            session = player
+                ? await this.portalPlayer.openExternalPlayback(playback, player)
+                : await this.portalPlayer.openResolvedPlayback(playback, true);
         } catch (error) {
             // The caller's catch would read the retired generation and stay
             // silent; the user chose this launch and gets its failure.
@@ -1210,35 +1276,29 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            if (forcePlayer) {
-                // Awaited so the start stays pending through the close of the
-                // previous player and the launch itself.
-                await this.launchQueue.run(
-                    pendingSeriesId,
-                    () =>
-                        this.openEpisodeExternally(
-                            resolvedPlayback,
-                            forcePlayer,
-                            request
+            // Keep all external starts pending through replacement and launch.
+            await this.launchQueue.run(
+                pendingSeriesId,
+                () =>
+                    this.openEpisodeExternally(
+                        resolvedPlayback,
+                        forcePlayer,
+                        request
+                    ),
+                {
+                    stillShown: () =>
+                        this.currentSeriesKey() === pendingSeriesId,
+                    replacePlayer: () =>
+                        this.replaceOwnExternalSession(
+                            resolvedPlayback.contentInfo
                         ),
-                    {
-                        stillShown: () =>
-                            this.currentSeriesKey() === pendingSeriesId,
-                        replacePlayer: () =>
-                            this.replaceOwnExternalSession(
-                                resolvedPlayback.contentInfo
-                            ),
-                    }
-                );
-            } else {
-                void this.portalPlayer.openResolvedPlayback(
-                    resolvedPlayback,
-                    true
-                );
-            }
+                }
+            );
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
+            this.clearInitialSeriesQueue();
+            this.reportSeriesQueueLaunch('failed');
             const errorMessage =
                 error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
@@ -1294,6 +1354,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             toStalkerEpisodePlaybackStructuralIdentity(identity)
         );
         this.inlinePlayback.set(playback);
+        this.initialQueueEpisode = null;
+        this.reportSeriesQueueLaunch('confirmed');
     }
 
     private syncSeriesPlaybackOwner(ownerKey: string): void {

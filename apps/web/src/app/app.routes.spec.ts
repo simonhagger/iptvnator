@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 
 type AppRoutesModule = typeof import('./app.routes');
@@ -11,10 +12,12 @@ describe('app routes', () => {
         loadChildren?: unknown;
         loadComponent?: unknown;
         path?: string;
+        pathMatch?: string;
         redirectTo?: unknown;
     }> = [];
     let resolveElectronOnlyGlobalSearchRoute: AppRoutesModule['resolveElectronOnlyGlobalSearchRoute'];
     let resolveRecordingsCapabilityRoute: AppRoutesModule['resolveRecordingsCapabilityRoute'];
+    let startupPreferencesToken: (typeof import('./services/workspace-startup-preferences.lazy'))['WorkspaceStartupPreferencesService'];
 
     beforeAll(async () => {
         jest.unstable_mockModule(
@@ -57,11 +60,83 @@ describe('app routes', () => {
             appRoutes.resolveElectronOnlyGlobalSearchRoute;
         resolveRecordingsCapabilityRoute =
             appRoutes.resolveRecordingsCapabilityRoute;
+        startupPreferencesToken = (
+            await import('./services/workspace-startup-preferences.lazy')
+        ).WorkspaceStartupPreferencesService;
     });
 
     afterEach(() => {
         TestBed.resetTestingModule();
     });
+
+    it('resolves the lazy workspace entry with the existing injected preferences', async () => {
+        let release!: (path: string) => void;
+        const pending = new Promise<string>((resolve) => {
+            release = resolve;
+        });
+        let started!: () => void;
+        const invoked = new Promise<void>((resolve) => {
+            started = resolve;
+        });
+        const resolveInitialWorkspacePath = jest.fn(() => {
+            started();
+            return pending;
+        });
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: startupPreferencesToken,
+                    useValue: { resolveInitialWorkspacePath },
+                },
+            ],
+        });
+        const redirect = workspaceChildren.find(
+            (route) => route.path === '' && route.pathMatch === 'full'
+        )?.redirectTo as () => Promise<string>;
+        const resolution = TestBed.runInInjectionContext(redirect);
+        let resolved = false;
+        void resolution.then(() => {
+            resolved = true;
+        });
+
+        await invoked;
+        expect(resolveInitialWorkspacePath).toHaveBeenCalledTimes(1);
+        expect(resolved).toBe(false);
+
+        release('/workspace/saved-playlists');
+        await expect(resolution).resolves.toBe('/workspace/saved-playlists');
+    });
+
+    it.each(['/workspace/dashboard', '/workspace/sources'])(
+        'keeps the lazy dashboard guard decision for %s',
+        async (path) => {
+            const urlTree = { redirectedTo: path };
+            const parseUrl = jest.fn(() => urlTree);
+            const resolveDashboardPath = jest.fn().mockResolvedValue(path);
+            TestBed.configureTestingModule({
+                providers: [
+                    { provide: Router, useValue: { parseUrl } },
+                    {
+                        provide: startupPreferencesToken,
+                        useValue: { resolveDashboardPath },
+                    },
+                ],
+            });
+            const guard = workspaceChildren.find(
+                (route) => route.path === 'dashboard'
+            )?.canActivate?.[0] as () => Promise<unknown>;
+
+            await expect(TestBed.runInInjectionContext(guard)).resolves.toBe(
+                path === '/workspace/dashboard' ? true : urlTree
+            );
+            expect(resolveDashboardPath).toHaveBeenCalledTimes(1);
+            if (path === '/workspace/dashboard') {
+                expect(parseUrl).not.toHaveBeenCalled();
+            } else {
+                expect(parseUrl).toHaveBeenCalledWith(path);
+            }
+        }
+    );
 
     it('waits for the parental lock state before activating workspace children', async () => {
         let releaseLock!: () => void;
@@ -161,6 +236,24 @@ describe('app routes', () => {
 
         await expect(resolution).resolves.toBeUndefined();
         expect(resolved).toBe(true);
+    });
+
+    it('routes saved lists before provider fallbacks under the initialized workspace', () => {
+        const savedIndex = workspaceChildren.findIndex(
+            (route) => route.path === 'saved-playlists'
+        );
+        const providerIndex = workspaceChildren.findIndex(
+            (route) => route.path === '' && route.loadChildren
+        );
+        expect(savedIndex).toBeGreaterThan(-1);
+        expect(savedIndex).toBeLessThan(providerIndex);
+        expect(typeof workspaceChildren[savedIndex].loadComponent).toBe(
+            'function'
+        );
+        expect(workspaceRoute?.data?.['layout']).toBe('workspace');
+        expect(typeof workspaceRoute?.resolve?.['settingsReady']).toBe(
+            'function'
+        );
     });
 
     it('lazy-loads M3U workspace routes through the feature boundary', async () => {

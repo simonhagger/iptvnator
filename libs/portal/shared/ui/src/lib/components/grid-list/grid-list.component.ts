@@ -18,7 +18,17 @@ import {
     PortalWatchState,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
+    ContentCoverAction,
+    ContentCoverIndicators,
+    normalizeContentCoverRating,
+    resolveProviderCoverRating,
+    resolveContentCoverFavoriteAction,
 } from '@iptvnator/portal/shared/util';
+import {
+    ContentCoverActionsComponent,
+    ContentCoverIndicatorsComponent,
+    createContentCoverDescriptionId,
+} from '../content-cover';
 import { SettingsStore } from '@iptvnator/services';
 import {
     ProgressCapsuleComponent,
@@ -27,7 +37,7 @@ import {
 import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 
-interface GridListItem {
+export interface GridListItem {
     id?: number | string;
     is_series?: number | string | boolean;
     xtream_id?: number | string;
@@ -42,6 +52,7 @@ interface GridListItem {
     name?: string;
     rating?: string | number;
     rating_imdb?: string | number;
+    rating_kinopoisk?: string | number;
     progress?: number;
     watchState?: PortalWatchState;
     tv_archive?: number | string | null;
@@ -50,27 +61,13 @@ interface GridListItem {
 }
 
 export function formatGridRating(value: unknown): string | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return value.toFixed(1);
-    }
-
-    if (typeof value !== 'string') {
-        return undefined;
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return undefined;
-    }
-
-    const numericRating = Number.parseFloat(trimmed);
-    return Number.isFinite(numericRating) ? numericRating.toFixed(1) : trimmed;
+    return normalizeContentCoverRating(value, 'provider')?.value.toFixed(1);
 }
 
 export function resolveGridRating(
-    item: Pick<GridListItem, 'rating' | 'rating_imdb'>
+    item: Pick<GridListItem, 'rating' | 'rating_imdb' | 'rating_kinopoisk'>
 ): string | undefined {
-    return formatGridRating(item.rating_imdb) ?? formatGridRating(item.rating);
+    return resolveProviderCoverRating(item)?.value.toFixed(1);
 }
 
 const BLANK_ARTWORK_URL_PATTERN =
@@ -88,187 +85,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
 
 @Component({
     selector: 'app-grid-list',
-    template: `<div class="grid-list__grid">
-            @if (isLoading()) {
-                @for (row of skeletonRows(); track row) {
-                    <div class="grid-skeleton-card" aria-hidden="true">
-                        <div class="grid-skeleton-thumb">
-                            <span class="grid-skeleton-badge"></span>
-                        </div>
-                        <div class="grid-skeleton-title">
-                            <span
-                                class="grid-skeleton-line grid-skeleton-line--primary"
-                            ></span>
-                            <span
-                                class="grid-skeleton-line grid-skeleton-line--secondary"
-                            ></span>
-                        </div>
-                    </div>
-                }
-            } @else {
-                @for (item of items(); track $index) {
-                    @let i = $any(item);
-                    @let title = channelTitle(i);
-                    <mat-card
-                        [class.grid-card--logo]="variant() === 'logo'"
-                        role="button"
-                        tabindex="0"
-                        [attr.aria-label]="title"
-                        (click)="itemClicked.emit(item)"
-                        (keydown.enter)="itemClicked.emit(item)"
-                        (keydown.space)="onSpaceKey($event, item)"
-                    >
-                        @let poster = resolvePoster(i);
-                        @let artworkMissing = !poster || hasArtworkFailed(poster);
-                        <div class="card-thumbnail-container">
-                            @if (!artworkMissing) {
-                                <img
-                                    class="stream-icon"
-                                    [src]="poster"
-                                    (error)="onImageError($event, poster)"
-                                    loading="lazy"
-                                    [alt]="title"
-                                />
-                            } @else if (
-                                shouldRenderArtworkPlaceholder(poster)
-                            ) {
-                                <div
-                                    class="stream-icon-placeholder"
-                                    aria-hidden="true"
-                                >
-                                    <mat-icon>{{
-                                        getPlaceholderIcon()
-                                    }}</mat-icon>
-                                </div>
-                            } @else {
-                                <img
-                                    class="stream-icon"
-                                    src="./assets/images/default-poster.png"
-                                    loading="lazy"
-                                    [alt]="title"
-                                />
-                            }
-                            @if (postersOnly()) {
-                                <!-- Hover/focus caption for the posters-only
-                                     wall; pinned open when the cover cannot
-                                     identify the item on its own. -->
-                                <div
-                                    class="cover-title-overlay"
-                                    [class.cover-title-overlay--pinned]="
-                                        artworkMissing
-                                    "
-                                    aria-hidden="true"
-                                >
-                                    <span class="cover-title-overlay__text">{{
-                                        title
-                                    }}</span>
-                                </div>
-                            }
-                            @if (i.progress && i.progress > 0) {
-                                <app-progress-capsule [progress]="i.progress" />
-                            }
-                            @if (showCatchupBadge(i)) {
-                                <div
-                                    class="catchup-badge"
-                                    data-test-id="grid-catchup-badge"
-                                    [matTooltip]="
-                                        catchupLabelKey(i)
-                                            | translate
-                                                : { days: catchupDays(i) }
-                                    "
-                                >
-                                    <mat-icon>history</mat-icon>
-                                    <!-- mat-icon is aria-hidden; expose the
-                                         status as text for AT users -->
-                                    <span class="visually-hidden">{{
-                                        catchupLabelKey(i)
-                                            | translate
-                                                : { days: catchupDays(i) }
-                                    }}</span>
-                                </div>
-                            }
-                            @if (i.watchState === 'watched') {
-                                <app-watched-badge
-                                    [isWatched]="true"
-                                    icon="check_circle"
-                                />
-                            } @else if (
-                                i.watchState === 'in-progress' && !i.progress
-                            ) {
-                                <!-- Started with no percent to draw (a series):
-                                     the eye says "touched", the capsule above
-                                     already says it for a movie. -->
-                                <app-watched-badge
-                                    [isWatched]="true"
-                                    icon="remove_red_eye"
-                                />
-                            }
-                        </div>
-                        @let rating = resolveRating(i);
-                        @if (rating) {
-                            <div
-                                class="rating"
-                                [matTooltip]="'XTREAM.IMDB_RATING' | translate"
-                            >
-                                <mat-icon>star</mat-icon>{{ rating }}
-                            </div>
-                        }
-                        @if (!postersOnly()) {
-                            <mat-card-actions>
-                                <div class="title">{{ title }}</div>
-                            </mat-card-actions>
-                        }
-                    </mat-card>
-                } @empty {
-                    <div class="grid-empty-state">
-                        @if (hasActiveSearch()) {
-                            <app-playlist-error-view
-                                [title]="
-                                    'PORTALS.SEARCH_VIEW.NO_RESULTS_FOR'
-                                        | translate: { term: searchTerm() }
-                                "
-                                [description]="
-                                    'PORTALS.EMPTY_LIST_VIEW.NO_SEARCH_RESULTS'
-                                        | translate
-                                "
-                                [showActionButtons]="false"
-                                [viewType]="'NO_SEARCH_RESULTS'"
-                            />
-                        } @else {
-                            <app-playlist-error-view
-                                [title]="
-                                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.TITLE'
-                                        | translate
-                                "
-                                [description]="
-                                    'PORTALS.ERROR_VIEW.EMPTY_CATEGORY.DESCRIPTION'
-                                        | translate
-                                "
-                                [showActionButtons]="false"
-                                [viewType]="'EMPTY_CATEGORY'"
-                            />
-                        }
-                    </div>
-                }
-            }
-        </div>
-        @if (isAppending()) {
-            <div class="grid-list__tail" aria-live="polite">
-                <mat-spinner diameter="28" />
-                <span>{{ 'PORTALS.GRID.LOADING_MORE' | translate }}</span>
-            </div>
-        } @else if (appendError()) {
-            <div class="grid-list__tail grid-list__tail--error" role="alert">
-                <span>{{ 'PORTALS.GRID.LOAD_MORE_FAILED' | translate }}</span>
-                <button
-                    type="button"
-                    mat-stroked-button
-                    (click)="retryLoadMore.emit()"
-                >
-                    {{ 'PORTALS.GRID.RETRY' | translate }}
-                </button>
-            </div>
-        }`,
+    templateUrl: './grid-list.component.html',
     styleUrl: './grid-list.component.scss',
     imports: [
         TranslatePipe,
@@ -280,11 +97,23 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
         MatTooltip,
         ProgressCapsuleComponent,
         WatchedBadgeComponent,
+        ContentCoverIndicatorsComponent,
+        ContentCoverActionsComponent,
     ],
     host: { '[class.grid-list--posters-only]': 'postersOnly()' },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    protected readonly favoriteActionFor = resolveContentCoverFavoriteAction;
+    private readonly descriptions = new WeakMap<GridListItem, string>();
+    protected coverDescriptionId(item: GridListItem): string {
+        let id = this.descriptions.get(item);
+        if (!id) {
+            id = createContentCoverDescriptionId();
+            this.descriptions.set(item, id);
+        }
+        return id;
+    }
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
     private readonly settingsStore = inject(SettingsStore);
     private readonly coverTitles = inject(CoverTitlesService);
@@ -298,6 +127,22 @@ export class GridListComponent {
     readonly searchTerm = input<string>('');
     readonly itemClicked = output<GridListItem>();
     readonly retryLoadMore = output<void>();
+    readonly actionsForItem = input<
+        ((item: GridListItem) => readonly ContentCoverAction[]) | undefined
+    >();
+    readonly indicatorsForItem = input<
+        ((item: GridListItem) => ContentCoverIndicators) | undefined
+    >();
+    readonly actionSelected = output<{
+        item: GridListItem;
+        action: ContentCoverAction;
+    }>();
+    readonly identityForItem = input<
+        ((item: GridListItem) => string | number | GridListItem) | undefined
+    >();
+    protected itemIdentity(item: GridListItem): string | number | GridListItem {
+        return this.identityForItem()?.(item) ?? item;
+    }
 
     readonly variant = input<'poster' | 'logo'>('poster');
     readonly type = input<'vod' | 'series' | 'live' | string>('');
@@ -315,6 +160,35 @@ export class GridListComponent {
     private readonly isLiveGrid = computed(() =>
         ['live', 'itv', 'radio'].includes(this.type())
     );
+    protected readonly isVodGrid = computed(
+        () => !this.isLiveGrid() && this.variant() === 'poster'
+    );
+    protected coverIndicators(item: GridListItem): ContentCoverIndicators {
+        return (
+            this.indicatorsForItem()?.(item) ?? {
+                progress: item.progress,
+                watchState: item.watchState,
+                progressScope: this.type() === 'series' ? 'episode' : 'title',
+                rating: resolveProviderCoverRating(item),
+            }
+        );
+    }
+    protected coverActions(item: GridListItem): readonly ContentCoverAction[] {
+        return (
+            this.actionsForItem()?.(item) ?? [
+                { id: 'details', labelKey: 'COVER.DETAILS', icon: 'info' },
+            ]
+        );
+    }
+    protected onCoverAction(
+        item: GridListItem,
+        action: ContentCoverAction
+    ): void {
+        if (action.id === 'details') {
+            this.itemClicked.emit(item);
+        }
+        this.actionSelected.emit({ item, action });
+    }
     /**
      * Posters-only wall (`Settings.showCoverTitles === false`) applies to
      * VOD/series covers only: channel logos are too often missing or

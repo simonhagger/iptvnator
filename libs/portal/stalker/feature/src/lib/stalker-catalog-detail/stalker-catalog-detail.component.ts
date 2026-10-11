@@ -16,20 +16,14 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
-    consumeStalkerReturnMarker,
     createInlinePlaybackPositionWriter,
     createLogger,
     createPendingPlaybackStart,
-    resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
-    createPortalFavoritesResource,
-    createRefreshTrigger,
     isStalkerSeriesFlag,
-    isSelectedStalkerVodFavorite,
     normalizeStalkerEntityId,
     StalkerSelectedVodItem,
-    toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import {
@@ -55,10 +49,15 @@ import {
     beginTrackedExternalLaunch,
 } from '../stalker-vod-detail-actions';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { SavedVodAddDialogLauncherService } from '@iptvnator/portal/shared/ui';
+import { createStalkerSavedMovieState } from '../stalker-saved-movie.state';
+import { leaveStalkerVodDetail } from '../stalker-vod-back-navigation';
+import { createStalkerVodFavoritesState } from '../stalker-vod-favorites.state';
 
 @Component({
     selector: 'app-stalker-catalog-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
+    providers: [SavedVodAddDialogLauncherService],
     templateUrl: './stalker-catalog-detail.component.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
@@ -86,7 +85,6 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly playlistService = inject(PlaylistsService);
     private readonly downloadsService = inject(DownloadsService);
     private readonly logger = createLogger('StalkerCatalogDetail');
-    private readonly favoritesRefresh = createRefreshTrigger();
     playbackRequestId = 0;
     private currentPlaybackOwnerKey = '';
 
@@ -148,6 +146,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             this.catalog.playlist()?.id ?? ''
         );
     });
+    readonly savedMovie = createStalkerSavedMovieState(
+        this.vodDetailsItem,
+        () => !this.selectedItem()?.series?.length,
+        inject(SavedVodAddDialogLauncherService),
+        () => this.catalog.playlist()?.id,
+        this.selectedItem
+    );
 
     readonly selectedVodPlaybackDuration = computed<number | null>(
         () => this.vodPosition.position()?.durationSeconds ?? null
@@ -186,18 +191,19 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         onPersisted: (playlistId) => this.catalog.refreshPositions(playlistId),
     });
 
-    readonly portalFavorites = createPortalFavoritesResource(
-        this.playlistService,
-        () => this.catalog.playlist()?.id,
-        () => this.favoritesRefresh.refreshVersion()
-    );
-
-    readonly isSelectedVodFavorite = computed<boolean>(() =>
-        isSelectedStalkerVodFavorite(
-            this.vodDetailsItem(),
-            this.portalFavorites.value() ?? []
-        )
-    );
+    private readonly favorites = createStalkerVodFavoritesState({
+        playlists: this.playlistService,
+        playlistId: () => this.catalog.playlist()?.id,
+        item: this.vodDetailsItem,
+        actions: {
+            addToFavorites: (item, done) =>
+                this.catalog.addToFavorites(item, done),
+            removeFromFavorites: (id, done) =>
+                this.catalog.removeFromFavorites(id, done),
+        },
+    });
+    readonly portalFavorites = this.favorites.resource;
+    readonly isSelectedVodFavorite = this.favorites.selected;
 
     constructor() {
         this.vodPosition.connect();
@@ -228,15 +234,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         item: VodDetailsItem;
         isFavorite: boolean;
     }): void {
-        toggleStalkerVodFavorite(event, {
-            addToFavorites: (item, onDone) =>
-                this.catalog.addToFavorites(item, onDone),
-            removeFromFavorites: (favoriteId, onDone) =>
-                this.catalog.removeFromFavorites(favoriteId, onDone),
-            onComplete: () => {
-                this.favoritesRefresh.refresh();
-            },
-        });
+        this.favorites.toggle(event);
     }
 
     onVodWatchedToggled(event: { item: VodDetailsItem }): void {
@@ -284,24 +282,15 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     });
 
     onVodBack(): void {
-        const back = resolveStalkerBackNavigation(
-            window.history.state,
-            this.selectedItem()
-        );
-        // Closing the detail is unconditional: a `none` decision (no return
-        // target, or a marker left by an earlier handoff) still returns the
-        // user to the category list — it only suppresses the navigation.
-        this.closeInlinePlayer();
-        this.catalog.clearSelectedItem();
-
-        if (back.kind === 'history-back') {
-            // One-shot: retire the contract so a browser Forward onto this
-            // entry cannot replay it for a freshly opened title.
-            consumeStalkerReturnMarker();
-            this.location.back();
-        } else if (back.kind === 'navigate') {
-            void this.router.navigateByUrl(back.url);
-        }
+        leaveStalkerVodDetail({
+            item: this.selectedItem(),
+            close: () => {
+                this.closeInlinePlayer();
+                this.catalog.clearSelectedItem();
+            },
+            location: this.location,
+            router: this.router,
+        });
     }
 
     private readonly positionWriter = createInlinePlaybackPositionWriter({

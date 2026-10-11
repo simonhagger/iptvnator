@@ -1,12 +1,5 @@
 import { spawnSync } from 'child_process';
-import {
-    accessSync,
-    lstatSync,
-    mkdtempSync,
-    readFileSync,
-    readdirSync,
-    rmSync,
-} from 'fs';
+import { accessSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import {
@@ -14,6 +7,10 @@ import {
     type EmbeddedMpvFrameCopyRuntimeDependencies,
 } from '../embedded-mpv-frame-copy-runtime';
 import { SUCCESS_OUTPUT } from './runtime.spec-data';
+import {
+    clearPosixFixtureMetadata,
+    lstatFixtureSync,
+} from './posix-files.test-helpers';
 
 export interface RuntimeTestContext {
     rootDir: string;
@@ -39,7 +36,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
         accessSync: jest.fn((filePath: string, mode: number) =>
             accessSync(filePath, mode)
         ),
-        lstatSync: jest.fn((filePath: string) => lstatSync(filePath)),
+        lstatSync: jest.fn((filePath: string) => lstatFixtureSync(filePath)),
         readFileSync: jest.fn((filePath: string) => readFileSync(filePath)),
         readdirSync: jest.fn((filePath: string) => readdirSync(filePath)),
     };
@@ -67,6 +64,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
             });
         },
         dispose() {
+            clearPosixFixtureMetadata(context.rootDir);
             rmSync(context.rootDir, { recursive: true, force: true });
         },
     };

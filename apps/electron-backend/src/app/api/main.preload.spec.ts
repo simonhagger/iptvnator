@@ -196,6 +196,7 @@ describe('main preload DB IPC contract', () => {
             'ChannelAgent/1.0',
             'https://portal.example/referrer',
             'https://stream.example/live.m3u8',
+            undefined,
             undefined
         );
     });
@@ -221,7 +222,22 @@ describe('main preload DB IPC contract', () => {
             {
                 authorization: 'Bearer TOKEN',
                 cookie: 'mac=00%3A1A%3A79%3A00%3A00%3A01',
-            }
+            },
+            undefined
+        );
+    });
+
+    it('forwards an explicit playback release without activating a new scope', async () => {
+        const api = getExposedApi();
+        const url = 'https://stream.example/live.ts';
+        await api.setUserAgent(undefined, undefined, url, undefined, 'release');
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'set-user-agent',
+            undefined,
+            undefined,
+            url,
+            undefined,
+            'release'
         );
     });
 

@@ -21,6 +21,18 @@ describe('ElectronXtreamDataSource (user data delegation)', () => {
     });
 
     describe('favorites and recently viewed', () => {
+        it('delegates strict favorite reads to the rejecting database accessor', async () => {
+            harness.dbService.getFavorites.mockRejectedValueOnce(
+                new Error('Storage unavailable')
+            );
+            await expect(
+                harness.dataSource.getFavorites(playlistId, true)
+            ).rejects.toThrow('Storage unavailable');
+            expect(harness.dbService.getFavorites).toHaveBeenCalledWith(
+                playlistId,
+                true
+            );
+        });
         it('delegates favorites operations to the DB', async () => {
             harness.dbService.isFavorite.mockResolvedValue(true);
 

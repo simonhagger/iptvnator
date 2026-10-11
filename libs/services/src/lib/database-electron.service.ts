@@ -730,8 +730,9 @@ export class DatabaseService {
     /**
      * Get global favorites across all playlists (all content types)
      */
-    async getAllGlobalFavorites(): Promise<GlobalFavoriteItem[]> {
+    async getAllGlobalFavorites(strict = false): Promise<GlobalFavoriteItem[]> {
         if (typeof window.electron?.dbGetAllGlobalFavorites !== 'function') {
+            if (strict) throw new Error('Favorites storage is unavailable');
             return [];
         }
 
@@ -739,9 +740,24 @@ export class DatabaseService {
             const items = await window.electron.dbGetAllGlobalFavorites();
             return items || [];
         } catch (error) {
+            if (strict) throw error;
             console.error('Error getting all global favorites:', error);
             return [];
         }
+    }
+
+    async getAllGlobalFavoriteMembership(): Promise<GlobalFavoriteItem[]> {
+        if (
+            typeof window.electron?.dbGetAllGlobalFavoriteMembership !==
+            'function'
+        ) {
+            throw new Error('Favorites storage is unavailable');
+        }
+        const items = await window.electron.dbGetAllGlobalFavoriteMembership();
+        if (!Array.isArray(items)) {
+            throw new Error('Favorite membership response is invalid');
+        }
+        return items;
     }
 
     /**
@@ -848,14 +864,19 @@ export class DatabaseService {
     /**
      * Get all favorites for a playlist
      */
-    async getFavorites(playlistId: string): Promise<XtreamContent[]> {
+    async getFavorites(
+        playlistId: string,
+        strict = false
+    ): Promise<XtreamContent[]> {
         if (typeof window.electron?.dbGetFavorites !== 'function') {
+            if (strict) throw new Error('Favorites storage is unavailable');
             return [];
         }
 
         try {
             return await window.electron.dbGetFavorites(playlistId);
         } catch (error) {
+            if (strict) throw error;
             console.error('Error getting favorites:', error);
             return [];
         }

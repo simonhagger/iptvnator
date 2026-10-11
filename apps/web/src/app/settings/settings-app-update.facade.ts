@@ -6,7 +6,7 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { take } from 'rxjs';
+import { firstValueFrom, take } from 'rxjs';
 import { AppUpdateInstallService } from '../services/app-update-install.service';
 import { SettingsService } from '../services/settings.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
@@ -37,14 +37,19 @@ export class SettingsAppUpdateFacade {
     readonly updateMessage = signal('');
 
     private unsubscribeStatus: (() => void) | null = null;
+    private statusLoadPromise: Promise<void> | null = null;
+    private versionCheckPromise: Promise<void> | null = null;
+    private disposed = false;
 
     /** Subscribes to status pushes and kicks off the initial status load */
     init(): void {
+        this.disposed = false;
         this.bindStatusEvents();
         void this.loadStatus();
     }
 
     dispose(): void {
+        this.disposed = true;
         this.unsubscribeStatus?.();
         this.unsubscribeStatus = null;
     }
@@ -121,10 +126,48 @@ export class SettingsAppUpdateFacade {
      * settings UI
      */
     checkAppVersion(): void {
-        this.settingsService
+        if (this.runtime.isElectron) {
+            this.versionCheckPromise ??= this.loadStatus()
+                .then(() => {
+                    if (!this.disposed) return this.checkLoadedAppVersion();
+                })
+                .catch(() => {
+                    if (!this.disposed)
+                        this.updateMessage.set(
+                            this.translate.instant('SETTINGS.APP_UPDATE_ERROR')
+                        );
+                })
+                .finally(() => {
+                    this.versionCheckPromise = null;
+                });
+            return;
+        }
+        this.checkLoadedAppVersion();
+    }
+
+    private checkLoadedAppVersion(): Promise<void> | void {
+        if (this.status()?.updatesEnabled === false) {
+            this.version.set(this.dataService.getAppVersion());
+            this.updateMessage.set(
+                this.translate.instant('SETTINGS.APP_UPDATE_DISABLED')
+            );
+            return;
+        }
+        // A desktop bridge that has not answered cannot authorize a feed request.
+        if (this.runtime.isElectron && !this.status()) {
+            this.version.set(this.dataService.getAppVersion());
+            return;
+        }
+        const latestVersion = this.settingsService
             .getAppVersion()
-            .pipe(take(1))
-            .subscribe((version) => this.showVersionInformation(version));
+            .pipe(take(1));
+        if (this.runtime.isElectron)
+            return firstValueFrom(latestVersion).then((version) => {
+                if (!this.disposed) this.showVersionInformation(version);
+            });
+        latestVersion.subscribe((version) =>
+            this.showVersionInformation(version)
+        );
     }
 
     /**
@@ -183,7 +226,13 @@ export class SettingsAppUpdateFacade {
      * The updater IPC handlers can still be registering while the settings
      * page mounts, so the first load retries until the bridge answers.
      */
-    private async loadStatus(): Promise<void> {
+    private loadStatus(): Promise<void> {
+        return (this.statusLoadPromise ??= this.readStatus().finally(() => {
+            this.statusLoadPromise = null;
+        }));
+    }
+
+    private async readStatus(): Promise<void> {
         if (!this.runtime.isElectron) {
             return;
         }
@@ -195,11 +244,13 @@ export class SettingsAppUpdateFacade {
             attempt <= APP_UPDATE_STATUS_LOAD_ATTEMPTS;
             attempt += 1
         ) {
+            if (this.disposed) return;
             const electron = window.electron;
 
             if (electron?.getAppUpdateStatus) {
                 try {
-                    this.status.set(await electron.getAppUpdateStatus());
+                    const status = await electron.getAppUpdateStatus();
+                    if (!this.disposed) this.status.set(status);
                     return;
                 } catch (error) {
                     lastError = error;

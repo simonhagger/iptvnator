@@ -37,6 +37,7 @@ import {
     inlineSeriesEpisodeState,
     type PlaybackFallbackRequest,
     type SeriesPlaybackEpisodeState,
+    type SeriesQueueStartRequest,
 } from '@iptvnator/ui/playback';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
@@ -53,6 +54,7 @@ import {
 } from './serial-details-season-watch.service';
 import { SerialDetailsWatchToggles } from './serial-details-watch-toggles';
 import { buildSerialEpisodePlayback } from './serial-episode-playback';
+import { SerialDetailsQueueState } from './serial-details-queue-state';
 
 export type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
@@ -72,6 +74,15 @@ let pageInstances = 0;
  */
 @Injectable()
 export class SerialDetailsPlaybackService {
+    readonly canStartSeriesQueue = () => this.portalPlayer.isEmbeddedPlayer();
+    private readonly queueState = new SerialDetailsQueueState();
+    readonly initialSeriesQueue = this.queueState.initial;
+    readonly seriesQueueLaunch = this.queueState.launch;
+
+    startSeriesQueue(request: SeriesQueueStartRequest): void {
+        this.queueState.seed(request.ids, request.episode.id);
+        this.playEpisode(request.episode.episode as XtreamSerieEpisode);
+    }
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -215,24 +226,33 @@ export class SerialDetailsPlaybackService {
     /** `player` forces MPV/VLC (the "…" menu); history and the launch position are recorded either way. */
     playEpisode(
         episode: XtreamSerieEpisode,
-        player?: ExternalPlayerName
+        player?: ExternalPlayerName,
+        startTimeOverride?: number
     ): Promise<ExternalPlayerSession | void> | void {
+        const launchRevision = this.queueState.requested(Number(episode.id));
         // A forced launch still settling owns the next start: the latest
         // choice made meanwhile replaces its player once it settled.
         const owner = this.launchOwner();
         if (!player && owner && this.forcedLaunchPending()) {
             queueEpisodeChoice(this, owner, episode, (queued) =>
-                this.playEpisode(queued)
+                this.playEpisode(queued, undefined, startTimeOverride)
             );
             return;
         }
         const playlist = this.xtreamStore.currentPlaylist();
         const selectedItem = this.selectedItem();
         if (!playlist || !selectedItem) {
+            this.queueState.settle(launchRevision, 'failed');
             return;
         }
 
-        const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
+        let streamUrl: string;
+        try {
+            streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
+        } catch (error) {
+            this.queueState.settle(launchRevision, 'failed');
+            throw error;
+        }
         this.recordRecentItem(streamUrl, {
             xtreamId: this.route.snapshot.params['serialId'],
             contentType: 'series',
@@ -246,9 +266,14 @@ export class SerialDetailsPlaybackService {
             selectedItem,
             episode,
             streamUrl,
-            startTime: position?.positionSeconds,
+            startTime: startTimeOverride ?? position?.positionSeconds,
         });
-        return this.startPlayback(playback, episodeState, player);
+        return this.startPlayback(
+            playback,
+            episodeState,
+            launchRevision,
+            player
+        );
     }
 
     playQuickStartEpisode(): void {
@@ -281,6 +306,11 @@ export class SerialDetailsPlaybackService {
     }
 
     closeInlinePlayer(): void {
+        this.queueState.reset();
+        this.clearInlinePlayback();
+    }
+
+    private clearInlinePlayback(): void {
         this.inlinePlayback.set(null);
         this.inlinePlaybackSessionEpisodeState.set(null);
         this.lastSaveTime = 0;
@@ -371,27 +401,45 @@ export class SerialDetailsPlaybackService {
     private startPlayback(
         playback: ResolvedPortalPlayback,
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null,
+        launchRevision: number,
         player?: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> | void {
         this.lastSaveTime = 0;
         if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlaybackSessionEpisodeState.set(episodeState);
             this.inlinePlayback.set(playback);
+            this.queueState.settle(launchRevision, 'confirmed');
             return;
         }
 
-        this.closeInlinePlayer();
-        const launch = player
-            ? openEpisodeExternally(this, playback, player)
-            : this.portalPlayer.openResolvedPlayback(playback, true);
+        this.queueState.discardSeed();
+        this.clearInlinePlayback();
+        const launch = openEpisodeExternally(this, playback, player);
         // The bookkeeping never rejects; a forced launch's failure is the
         // menu's to report, which awaits the launch it asked for.
         const token = this.pageToken();
         const stillShown = () => this.pageToken() === token;
-        const settled = launch.catch((error) => {
-            this.logger.warn('External launch failed', error);
-            return undefined;
-        });
+        const settled = launch.then(
+            (session) => {
+                if (stillShown()) {
+                    this.queueState.settle(
+                        launchRevision,
+                        session &&
+                            session.status !== 'error' &&
+                            session.status !== 'closed'
+                            ? 'confirmed'
+                            : 'failed'
+                    );
+                }
+                return session;
+            },
+            (error) => {
+                if (stillShown())
+                    this.queueState.settle(launchRevision, 'failed');
+                this.logger.warn('External launch failed', error);
+                return undefined;
+            }
+        );
         void this.playbackPositionState.recordExternalLaunch(
             playback,
             settled.then((session) => (stillShown() ? session : undefined)),

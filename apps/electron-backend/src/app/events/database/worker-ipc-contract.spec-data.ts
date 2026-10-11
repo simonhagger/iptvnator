@@ -1,4 +1,5 @@
 import { DbWorkerOperation } from '../../workers/database-worker.types';
+import type { SavedVodPlaylist } from '@iptvnator/shared/interfaces';
 
 type WorkerIpcContractCase = {
     operation: DbWorkerOperation;
@@ -12,6 +13,16 @@ export const operationId = 'operation-1';
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
 const playlistUpdates = { name: 'Updated playlist' };
+const savedVodPlaylist: SavedVodPlaylist = {
+    schemaVersion: 1,
+    id: 'saved-list-1',
+    name: 'Weekend',
+    revision: 1,
+    createdAt: '2026-10-04T12:00:00Z',
+    updatedAt: '2026-10-04T12:00:00Z',
+    execution: null,
+    entries: [],
+};
 const categories = [{ category_id: '10', category_name: 'Live' }];
 export const streams = [{ stream_id: 42, name: 'Channel' }];
 const favorites = [{ contentId: 1, playlistId }];
@@ -65,6 +76,37 @@ const vodSourcePin = {
 };
 
 export const workerIpcContractCases: WorkerIpcContractCase[] = [
+    {
+        operation: 'DB_LIST_SAVED_VOD_PLAYLISTS',
+        args: [],
+        payload: {},
+    },
+    {
+        operation: 'DB_GET_SAVED_VOD_PLAYLIST',
+        args: [savedVodPlaylist.id],
+        payload: { id: savedVodPlaylist.id },
+    },
+    {
+        operation: 'DB_SAVE_SAVED_VOD_PLAYLIST',
+        args: [savedVodPlaylist, null],
+        payload: { playlist: savedVodPlaylist, expectedRevision: null },
+    },
+    {
+        operation: 'DB_SAVE_SAVED_VOD_PLAYLIST',
+        args: [savedVodPlaylist, savedVodPlaylist.revision],
+        payload: {
+            playlist: savedVodPlaylist,
+            expectedRevision: savedVodPlaylist.revision,
+        },
+    },
+    {
+        operation: 'DB_DELETE_SAVED_VOD_PLAYLIST',
+        args: [savedVodPlaylist.id, savedVodPlaylist.revision],
+        payload: {
+            id: savedVodPlaylist.id,
+            expectedRevision: savedVodPlaylist.revision,
+        },
+    },
     {
         operation: 'DB_CREATE_PLAYLIST',
         args: [playlist],
@@ -290,6 +332,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_GET_ALL_GLOBAL_FAVORITES',
+        args: [],
+        payload: {},
+    },
+    {
+        operation: 'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP',
         args: [],
         payload: {},
     },

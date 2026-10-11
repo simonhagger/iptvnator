@@ -308,6 +308,122 @@ them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 season tabs on series detail pages; medium equals the About block's 120px
 poster so browse and watch share one secondary-poster size.
 
+### Shared VOD indicators and actions
+
+Catalog tiles, content cards and Dashboard rails use the passive
+`app-content-cover-indicators` and sibling `app-content-cover-actions` components
+from `@iptvnator/portal/shared/ui/content-cover`. The secondary entry keeps these
+components out of unrelated shared-UI imports. Hosts supply immutable indicator
+and action models; shared presentation never reads provider state or writes data.
+
+Cover controllers keep writable signals private and expose readonly selectors.
+Pure helpers calculate identity, ratings and watch indicators from their inputs.
+Explicit commands own reads, queued writes, errors and pending state. An awaited
+persistence command publishes its committed snapshot with `persist: false` when
+synchronizing NgRx playlist metadata, so the effect does not save it a second time.
+Readonly signals do not deeply freeze their values; replace collections rather
+than mutating objects or maps returned by a selector.
+
+Favourite, watched/started and rating markers stay visible without hovering.
+Watch progress uses the existing 90% movie completion policy. A series marker
+describes episode progress and says Started, including a completed episode;
+it cannot establish that the entire show was watched. Failed or pending reads
+omit unknown state. Ratings accept finite ten-point values and retain provider,
+provider-supplied IMDb, TMDB or Kinopoisk attribution. A generic provider score
+must not inherit an IMDb label. Ratings occupy the upper left; the favourite
+heart and action menu occupy the upper right on the same row. A membership
+command declares `favoriteState` so the shared actions promote it to an outline
+or filled heart toggle with `aria-pressed`, retaining the owner's disabled and
+persistence behavior. History deletion remains a separate menu action. Watch
+markers sit below a rating when present. Missing indicators reserve no empty
+space, and progress occupies the poster bottom without moving artwork.
+The pure provider rating resolver accepts catalogue fields and nested detail
+`info` fields from saved Stalker favourites. Preserve valid score attribution
+without flattening or mutating the saved provider payload.
+
+The labelled three-dot menu is a sibling of the cover activation element.
+Details uses the existing detail/show navigation; source owners implement
+favourite changes using provider + playlist + content kind + provider ID.
+Recent VOD menus offer favourite changes alongside history removal; favourites
+offer collection removal. Reuse the scoped favourite controller for membership,
+serialized writes and persisted readback. Failed reads omit the favourite action
+and offer Retry. Membership uses the complete persisted set, independently of
+display caps. Retry retains represented watch scopes even when their reads fail;
+request deduplication must not erase the scope that needs recovery.
+Provider cover controllers expose progress failures separately from favourite
+membership failures. Retry remains available while either read fails; a progress
+failure must not disable known favourite actions. Represented watch scopes name
+the current VOD results. Ignore removed or superseded requests, including a source
+removed and reintroduced before an older response completes.
+Mixed-content type labels must remain clear of status, rating and action overlays;
+verify their rendered bounds rather than relying on stylesheet source order.
+Recent collection Retry also rereads positions and resolves episode-parent
+actions through the shared history projection. Reconcile recovered cover fields
+onto current row identities and current favourite membership. Preserve removals,
+new rows and ordering; superseded retries, scope changes and disposal must not
+publish an older projection.
+Position-read failures are explicit projection results, distinct from successful
+empty reads. Collections retain Retry while either membership or progress reads
+fail, and progress failures use their own translated message. Favourites Retry
+also recovers progress without replacing or reordering the mounted favourite rows.
+Native callers use the dedicated complete-membership read; the bounded display
+query retains its existing limit.
+PWA cover membership uses the data-source strict read contract. Storage access,
+malformed persisted maps or required snapshots, and unresolved referenced items
+remain failures; legacy callers retain their existing fallback. An absent key
+is known-empty, while valid historical numeric-string IDs stay supported. Do not
+turn incomplete hydration into a successful partial membership snapshot.
+PWA favourite add/remove operations require a readable, valid current membership
+map before writing, so a failure after initial cover hydration cannot overwrite
+existing favourites.
+Load PWA validation at its asynchronous read/write boundary; keep legacy parsing
+canonical and synchronous. A write reads current storage after that load, with
+no await between the validated membership read and its write.
+Removing, clearing or reordering a Stalker item must preserve
+other content kinds that reuse its provider ID. Continue Watching keeps explicit
+resume/history controls. Do not advertise unavailable actions.
+Poster and logo URLs are not backdrop metadata. Cover favourite commands omit
+the optional backdrop argument unless they carry an actual landscape backdrop;
+later detail enrichment must remain able to fill missing backdrop metadata.
+Material menus preserve keyboard navigation, Escape and focus restoration;
+opening or selecting a menu must not also activate its cover. Live/radio tiles
+retain their channel-specific controls. Use shared Material icons and app theme
+tokens in both themes. Hydrate represented watch scopes in bulk, not per card.
+Dashboard scopes include matched Trending and Recommendations cards, and changes
+to their matches refresh the scope. Catalogue-backed series progress matches
+the parent series ID; direct episode IDs are reserved for episode history.
+Runtime controllers timestamp missing or invalid episode event timestamps before
+comparing recency; pure selectors do not read the clock or mutate event payloads.
+Cover recency uses the shared date normalizer so SQLite UTC timestamps and ISO
+timestamps compare consistently across local timezones.
+Recent mapping preserves the provider's history content kind. Episode history
+uses that episode's scoped position and a separate parent-show favourite target;
+history removal and menu ownership retain the original row identity. Episode
+and parent history rows remain distinct even when their provider IDs coincide.
+Dashboard history favourite indicators use the resolved parent show too. An
+episode ID must not inherit membership from an unrelated show with the same ID.
+Native and PWA Dashboard mappers retain explicit episode provenance. Historical
+`series` rows remain ambiguous: prefer a matching parent position, then use a
+direct episode fallback when no parent position exists. Keep keyed lookup costs
+independent of the total saved history size.
+A separate detail target opens the parent show and retains exact episode resume
+data. Ordinary Details activation uses parent identity only and never consumes
+the autoplay resume handoff. Unknown parents omit favourite and Details actions;
+the cover activation is accessibly disabled while history removal remains available.
+Parent-only Details do not require the season/episode coordinates needed for
+Resume. Dashboard rail and hero activation must honour the same availability.
+Pending favourite controls use the command target key.
+Returning from collection inline details reloads persisted membership and bulk
+watch positions without reopening details or initiating reads when details open.
+Catalogue arrival explicitly refreshes its provider's persisted watch positions,
+including return from other views that can change them. Coalesce only overlapping
+reads; a completed initial load must not suppress a later arrival refresh.
+Favourite removal uses the heart icon consistently; history removal uses delete.
+Named cover activation elements reference the shared translated status summary
+through `aria-describedby`, so favourite, watch, rating and progress information
+is available on keyboard focus. Track scoped content identity rather than row
+index; an open menu must remain owned by its original content after reordering.
+
 ### Posters-only wall
 
 `Settings.showCoverTitles` (Settings > General, default on, only an explicit
@@ -347,11 +463,12 @@ row under VOD and series covers so the grid shows more rows per screen.
   labelled by the title, activated by Enter and Space (Space prevents the
   page scroll) and carrying a `:focus-visible` ring (`card-focus-ring`
   mixin in `libs/ui/styles/_content-grid.scss`). On `app-content-card` that
-  surface is the inner `.content-card__activation` element, and the Remove
-  control (labelled by `removeTooltip`) is a SIBLING positioned over the
+  surface is the inner `.content-card__activation` element, and the VOD menu
+  or live Remove control is a SIBLING positioned over the
   poster corner — an interactive control nested inside a `role="button"`
   is an invalid accessibility structure. Its ring is drawn on the OUTER
   `.content-card` via `:has(> .content-card__activation:focus-visible)`,
+  and on grid `mat-card` via `:has(> .grid-card-primary:focus-visible)`,
   because the card's `overflow: hidden` would clip an outline on the inner
   surface on every edge. Poster `alt` is the title, not a literal.
 

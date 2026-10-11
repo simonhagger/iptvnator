@@ -1082,7 +1082,9 @@ describe('WebPlayerViewComponent', () => {
             expect(setUserAgent).toHaveBeenCalledWith(
                 undefined,
                 undefined,
-                GATED_STREAM_URL
+                GATED_STREAM_URL,
+                undefined,
+                'release'
             );
         });
     });

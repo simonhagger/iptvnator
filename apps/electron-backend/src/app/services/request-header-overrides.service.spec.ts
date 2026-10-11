@@ -4,12 +4,18 @@ type HeaderListener = (
 ) => void;
 
 const mockOnBeforeSendHeaders = jest.fn();
+const mockOnHeadersReceived = jest.fn();
+const mockOnCompleted = jest.fn();
+const mockOnErrorOccurred = jest.fn();
 
 jest.mock('electron', () => ({
     session: {
         defaultSession: {
             webRequest: {
                 onBeforeSendHeaders: mockOnBeforeSendHeaders,
+                onHeadersReceived: mockOnHeadersReceived,
+                onCompleted: mockOnCompleted,
+                onErrorOccurred: mockOnErrorOccurred,
             },
         },
     },
@@ -55,6 +61,45 @@ describe('request header overrides', () => {
     beforeEach(() => {
         jest.resetModules();
         mockOnBeforeSendHeaders.mockClear();
+        mockOnHeadersReceived.mockClear();
+        mockOnCompleted.mockClear();
+        mockOnErrorOccurred.mockClear();
+    });
+
+    it('binds headerless playback to its IPC owner and revokes it on close', async () => {
+        const { configureRequestHeaderOverride, releaseStreamHeaderOverride } =
+            await import('./request-header-overrides.service');
+        const url = 'https://stream.example:443/live.ts';
+        configureRequestHeaderOverride(null, null, url, null, 1);
+        runHeaderListener(mockOnBeforeSendHeaders.mock.calls[0][1], url, {
+            Origin: 'http://localhost:4200',
+        });
+        const received = mockOnHeadersReceived.mock.calls[0][1];
+        const details = {
+            id: 1,
+            url,
+            webContentsId: 1,
+            statusCode: 302,
+            responseHeaders: {},
+        };
+        const callback = jest.fn();
+        received(details, callback);
+        expect(callback).toHaveBeenLastCalledWith({
+            responseHeaders: {
+                'Access-Control-Allow-Origin': ['http://localhost:4200'],
+            },
+        });
+        releaseStreamHeaderOverride(url, 2);
+        received(details, callback);
+        expect(callback).toHaveBeenLastCalledWith({
+            responseHeaders: {
+                'Access-Control-Allow-Origin': ['http://localhost:4200'],
+            },
+        });
+        releaseStreamHeaderOverride(url, 1);
+        runHeaderListener(mockOnBeforeSendHeaders.mock.calls[0][1], url);
+        received(details, callback);
+        expect(callback).toHaveBeenLastCalledWith({});
     });
 
     it('registers one listener and updates the active scoped headers', async () => {
@@ -248,9 +293,8 @@ describe('request header overrides', () => {
     });
 
     it('injects the YouTube embed Referer when none is present', async () => {
-        const { registerStaticHeaderShims } = await import(
-            './request-header-overrides.service'
-        );
+        const { registerStaticHeaderShims } =
+            await import('./request-header-overrides.service');
 
         registerStaticHeaderShims();
         expect(mockOnBeforeSendHeaders).toHaveBeenCalledTimes(1);
@@ -265,9 +309,8 @@ describe('request header overrides', () => {
     });
 
     it('keeps an existing Referer on YouTube embed requests', async () => {
-        const { registerStaticHeaderShims } = await import(
-            './request-header-overrides.service'
-        );
+        const { registerStaticHeaderShims } =
+            await import('./request-header-overrides.service');
 
         registerStaticHeaderShims();
         const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
@@ -282,9 +325,8 @@ describe('request header overrides', () => {
     });
 
     it('does not inject the Referer for non-embed YouTube paths', async () => {
-        const { registerStaticHeaderShims } = await import(
-            './request-header-overrides.service'
-        );
+        const { registerStaticHeaderShims } =
+            await import('./request-header-overrides.service');
 
         registerStaticHeaderShims();
         const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
@@ -297,9 +339,8 @@ describe('request header overrides', () => {
     });
 
     it('does not inject the embed Referer for non-YouTube hosts', async () => {
-        const { registerStaticHeaderShims } = await import(
-            './request-header-overrides.service'
-        );
+        const { registerStaticHeaderShims } =
+            await import('./request-header-overrides.service');
 
         registerStaticHeaderShims();
         const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
@@ -362,9 +403,8 @@ describe('request header override credentials', () => {
     });
 
     it('attaches cookie and authorization to requests on the stream origin', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'MAG250',
@@ -383,9 +423,8 @@ describe('request header override credentials', () => {
     });
 
     it('does not attach credentials to the referer origin', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         // The UA/Referer scope includes the referer origin (port 80), but
         // the credentials belong to the stream origin (:8080) only.
@@ -408,9 +447,8 @@ describe('request header override credentials', () => {
     });
 
     it('never attaches credentials to a third-party host', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'MAG250',
@@ -430,9 +468,8 @@ describe('request header override credentials', () => {
     });
 
     it('ignores credentials passed without a scope URL', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'PlaylistAgent/1.0',
@@ -450,9 +487,8 @@ describe('request header override credentials', () => {
     });
 
     it('drops credentials when the next stream replaces the scoped override', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'MAG250',
@@ -474,9 +510,8 @@ describe('request header override credentials', () => {
     });
 
     it('clears the credentialed override when playback ends', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'MAG250',
@@ -496,9 +531,8 @@ describe('request header override credentials', () => {
     });
 
     it('keeps a credentials-only override active without UA or referer', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             undefined,
@@ -515,9 +549,8 @@ describe('request header override credentials', () => {
     });
 
     it('replaces existing credential headers case-insensitively', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride(
             'MAG250',
@@ -539,9 +572,8 @@ describe('request header override credentials', () => {
     });
 
     it('rejects credential values containing control characters', async () => {
-        const { configureRequestHeaderOverride } = await import(
-            './request-header-overrides.service'
-        );
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
 
         configureRequestHeaderOverride('MAG250', undefined, STREAM_URL, {
             authorization: 'Bearer TOKEN\r\nX-Injected: 1',

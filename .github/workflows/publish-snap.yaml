@@ -17,7 +17,7 @@ permissions:
 jobs:
     verify-snap:
         name: Verify public-release Snap assets
-        if: ${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') }}
+        if: ${{ github.repository == '4gray/iptvnator' && ((github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')) }}
         runs-on: ubuntu-latest
         timeout-minutes: 45
         env:
@@ -164,7 +164,7 @@ jobs:
     publish-snap:
         name: Publish verified public-release Snap to edge
         needs: verify-snap
-        if: ${{ needs.verify-snap.result == 'success' }}
+        if: ${{ github.repository == '4gray/iptvnator' && needs.verify-snap.result == 'success' }}
         runs-on: ubuntu-latest
         timeout-minutes: 20
 

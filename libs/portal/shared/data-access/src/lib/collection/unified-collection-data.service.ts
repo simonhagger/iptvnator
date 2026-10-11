@@ -1,12 +1,24 @@
-import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    Signal,
+    signal,
+} from '@angular/core';
 import {
     CollectionContentType,
     CollectionScope,
     UnifiedCollectionItem,
+    PORTAL_PLAYBACK_POSITIONS,
+    contentCoverIdentity,
+    collectionRowIdentity,
 } from '@iptvnator/portal/shared/util';
+import { loadCollectionCoverProjection } from './collection-cover-projection';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
+import { ContentCoverDataService } from './content-cover-data.service';
 
 export type CollectionMode = 'favorites' | 'recent';
 
@@ -27,6 +39,25 @@ export interface CollectionLoadRequest {
 export class UnifiedCollectionDataService {
     private readonly favoritesData = inject(UnifiedFavoritesDataService);
     private readonly recentData = inject(UnifiedRecentDataService);
+    private readonly covers = inject(ContentCoverDataService);
+    readonly pendingFavoriteKeys = this.covers.pendingFavoriteKeys;
+    readonly favoriteFailed = this.covers.failed;
+    private readonly failedWatchPlaylistIds = signal<readonly string[]>([]);
+    readonly watchReadFailed = computed(() =>
+        this.allItems().some(
+            (item) =>
+                item.contentType !== 'live' &&
+                item.sourceType !== 'm3u' &&
+                this.failedWatchPlaylistIds().includes(item.playlistId)
+        )
+    );
+    readonly coverReadFailed = computed(
+        () => this.favoriteFailed() || this.watchReadFailed()
+    );
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS, {
+        optional: true,
+    });
+    private readonly destroyRef = inject(DestroyRef);
     private readonly reloadIndicator = createCollectionReloadIndicator(
         inject(DestroyRef)
     );
@@ -57,6 +88,11 @@ export class UnifiedCollectionDataService {
         this.request.asReadonly();
 
     private requestId = 0;
+    private retryId = 0;
+    private loadedMode: CollectionMode | null = null;
+    constructor() {
+        this.destroyRef.onDestroy(() => ++this.requestId);
+    }
 
     /**
      * Replace the collection with the rows the request resolves to. Returns
@@ -86,26 +122,50 @@ export class UnifiedCollectionDataService {
                           params.playlistId,
                           params.portalType
                       );
-            const favoriteUids =
-                params.mode === 'favorites'
-                    ? new Set(items.map((item) => item.uid))
-                    : await this.loadFavoriteUidSet(params);
+            if (requestId !== this.requestId || this.destroyRef.destroyed)
+                return null;
+            const hasVod = items.some((item) => item.contentType !== 'live');
+            if (hasVod) await this.covers.load(params);
+            else void this.covers.load(null);
+            if (requestId !== this.requestId || this.destroyRef.destroyed)
+                return null;
+            const favorites = hasVod
+                ? this.covers.knownFavorites()
+                : params.mode === 'favorites'
+                  ? items
+                  : await this.loadFavoriteItems(params);
+            const projection = hasVod
+                ? await loadCollectionCoverProjection(
+                      items,
+                      favorites,
+                      this.playbackPositions,
+                      params.mode === 'recent' ? 'history' : 'catalog'
+                  )
+                : { items, failedWatchPlaylistIds: [] };
             if (requestId !== this.requestId) {
                 return null;
             }
-            this.allItems.set(items);
+            this.allItems.set(projection.items);
+            this.failedWatchPlaylistIds.set(projection.failedWatchPlaylistIds);
+            this.loadedMode = params.mode;
             this.request.set({
                 scope: params.scope,
                 playlistId: params.playlistId,
                 portalType: params.portalType,
             });
-            this.favoriteUidSet.set(favoriteUids);
-            return items;
+            this.favoriteUidSet.set(
+                new Set(favorites?.map((item) => item.uid))
+            );
+            // A mounted row may have changed membership while watch positions
+            // were loading. Publish the current persisted cover snapshot.
+            if (hasVod) this.refreshCoverFavorites();
+            return this.allItems();
         } catch {
             if (requestId !== this.requestId) {
                 return null;
             }
             this.allItems.set([]);
+            this.failedWatchPlaylistIds.set([]);
             return null;
         } finally {
             if (requestId === this.requestId) {
@@ -119,22 +179,58 @@ export class UnifiedCollectionDataService {
         mode: CollectionMode,
         item: UnifiedCollectionItem
     ): Promise<void> {
+        const requestId = this.requestId;
+        if (
+            mode === 'favorites' &&
+            item.contentType !== 'live' &&
+            item.sourceType !== 'm3u'
+        ) {
+            // Removal is an explicit intent. A stale collection row must not
+            // add an item that another surface has already removed.
+            if (this.covers.favoriteFor(item) === true)
+                await this.covers.toggleFavorite(item);
+            if (requestId === this.requestId && !this.destroyRef.destroyed)
+                this.refreshCoverFavorites();
+            return;
+        }
         if (mode === 'favorites') {
             await this.favoritesData.removeFavorite(item);
-            this.favoriteUidSet.update((favoriteUids) => {
-                const nextFavoriteUids = new Set(favoriteUids);
-                nextFavoriteUids.delete(item.uid);
-                return nextFavoriteUids;
-            });
         } else {
             await this.recentData.removeRecentItem(item);
         }
-        this.allItems.update((items) =>
-            items.filter((i) => i.uid !== item.uid)
+        if (requestId !== this.requestId || this.destroyRef.destroyed) return;
+        const identity =
+            mode === 'recent' ? collectionRowIdentity : contentCoverIdentity;
+        const key = identity(item);
+        const remaining = this.allItems().filter((candidate) =>
+            item.contentType === 'live'
+                ? candidate.uid !== item.uid
+                : identity(candidate) !== key
         );
+        this.allItems.set(remaining);
+        if (
+            mode === 'favorites' &&
+            !remaining.some((candidate) => candidate.uid === item.uid)
+        )
+            this.favoriteUidSet.update(
+                (current) =>
+                    new Set([...current].filter((uid) => uid !== item.uid))
+            );
     }
 
     async toggleFavorite(item: UnifiedCollectionItem): Promise<void> {
+        const requestId = this.requestId;
+        if (item.contentType !== 'live') {
+            const target =
+                item.coverFavoriteTarget === undefined
+                    ? item
+                    : item.coverFavoriteTarget;
+            if (!target) return;
+            await this.covers.toggleFavorite(target);
+            if (requestId === this.requestId && !this.destroyRef.destroyed)
+                this.refreshCoverFavorites();
+            return;
+        }
         const nextFavoriteUids = new Set(this.favoriteUidSet());
 
         if (nextFavoriteUids.has(item.uid)) {
@@ -145,7 +241,87 @@ export class UnifiedCollectionDataService {
             nextFavoriteUids.add(item.uid);
         }
 
+        if (requestId !== this.requestId) return;
         this.favoriteUidSet.set(nextFavoriteUids);
+    }
+
+    async retryFavorites(): Promise<void> {
+        if (this.loadedMode === null || this.isLoading() || this.isReloading())
+            return;
+        const requestId = this.requestId;
+        const retryId = ++this.retryId;
+        const loadedRequest = this.loadedRequest();
+        const mode = this.loadedMode;
+        const isCurrent = () =>
+            requestId === this.requestId &&
+            retryId === this.retryId &&
+            loadedRequest === this.loadedRequest() &&
+            !this.destroyRef.destroyed;
+        if (mode === 'recent' || this.covers.failed())
+            await this.covers.retry();
+        if (!isCurrent()) return;
+        const items = this.allItems();
+        const projection = await loadCollectionCoverProjection(
+            items,
+            this.covers.knownFavorites(),
+            this.playbackPositions,
+            mode === 'recent' ? 'history' : 'catalog'
+        );
+        if (!isCurrent()) return;
+        const byIdentity = new Map(
+            projection.items.map((item) => [collectionRowIdentity(item), item])
+        );
+        // Rows may have been removed, promoted or enriched while positions
+        // loaded. Refresh cover fields on remaining rows, preserving ownership.
+        this.allItems.update((items) =>
+            items.map((item) => {
+                const cover = byIdentity.get(collectionRowIdentity(item));
+                return cover
+                    ? {
+                          ...item,
+                          coverIndicators: cover.coverIndicators,
+                          coverFavoriteTarget: cover.coverFavoriteTarget,
+                          coverDetailTarget: cover.coverDetailTarget,
+                      }
+                    : item;
+            })
+        );
+        this.failedWatchPlaylistIds.set(projection.failedWatchPlaylistIds);
+        this.refreshCoverFavorites();
+    }
+
+    private refreshCoverFavorites(): void {
+        const favorites = this.covers.knownFavorites();
+        if (favorites)
+            this.favoriteUidSet.set(new Set(favorites.map((item) => item.uid)));
+        this.allItems.update((items) =>
+            items
+                .filter(
+                    (candidate) =>
+                        this.loadedMode !== 'favorites' ||
+                        candidate.contentType === 'live' ||
+                        candidate.sourceType === 'm3u' ||
+                        this.covers.favoriteFor(candidate) !== false
+                )
+                .map((candidate) =>
+                    candidate.contentType !== 'live' &&
+                    candidate.sourceType !== 'm3u'
+                        ? {
+                              ...candidate,
+                              coverIndicators: {
+                                  ...candidate.coverIndicators,
+                                  favorite:
+                                      candidate.coverFavoriteTarget === null
+                                          ? undefined
+                                          : this.covers.favoriteFor(
+                                                candidate.coverFavoriteTarget ??
+                                                    candidate
+                                            ),
+                              },
+                          }
+                        : candidate
+                )
+        );
     }
 
     async reorder(
@@ -187,18 +363,18 @@ export class UnifiedCollectionDataService {
         });
     }
 
-    private async loadFavoriteUidSet(
+    private async loadFavoriteItems(
         params: CollectionLoadRequest
-    ): Promise<ReadonlySet<string>> {
+    ): Promise<UnifiedCollectionItem[] | undefined> {
         try {
             const favorites = await this.favoritesData.getFavorites(
                 params.scope,
                 params.playlistId,
                 params.portalType
             );
-            return new Set(favorites.map((item) => item.uid));
+            return favorites;
         } catch {
-            return new Set<string>();
+            return undefined;
         }
     }
 }

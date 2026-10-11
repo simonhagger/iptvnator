@@ -112,6 +112,15 @@
                     (pressed)="playQuickStartEpisode()"
                 />
             }
+            @if (quickStartAction()?.action?.kind === 'resume') {
+                <app-detail-action-button
+                    variant="secondary"
+                    icon="replay"
+                    [label]="'XTREAM.RESTART' | translate"
+                    testId="series-restart"
+                    (pressed)="restartQuickStartEpisode()"
+                />
+            }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
                     variant="secondary"
@@ -140,6 +149,8 @@
                 detail-player
                 [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
+                [initialSeriesQueue]="initialSeriesQueue()"
+                [seriesQueueLaunch]="seriesQueueLaunch()"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="serial.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
@@ -163,6 +174,13 @@
         }
 
         <!-- Seasons & Episodes -->
+        @if (!inlinePlayback() && canStartSeriesQueue()) {
+            <app-series-queue-start
+                detail-episodes
+                [seasons]="mappedSeasons()"
+                (requested)="startSeriesQueue($event)"
+            />
+        }
         @if (mappedSeasons()) {
             <app-season-container
                 detail-episodes
@@ -179,6 +197,8 @@
                 [seasonDescriptions]="seasonDescriptions()"
                 [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
+                [episodeMenuSections]="savedEpisodes.sections"
+                (episodeMenuSelected)="savedEpisodes.select($event)"
                 [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||

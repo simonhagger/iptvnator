@@ -306,7 +306,7 @@ describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
         });
         return out
             .trim()
-            .split('\n')
+            .split(/\r?\n/)
             .filter((line) => line.length > 0);
     }
 

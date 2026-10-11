@@ -832,7 +832,9 @@ describe('UnifiedLiveTabComponent', () => {
         expect(setUserAgent).toHaveBeenLastCalledWith(
             undefined,
             undefined,
-            'https://example.com/jazz.mp3'
+            'https://example.com/jazz.mp3',
+            undefined,
+            'release'
         );
     });
 

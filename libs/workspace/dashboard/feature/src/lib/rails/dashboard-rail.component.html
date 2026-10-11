@@ -162,7 +162,19 @@
                     >
                         <a
                             class="rail__card-link"
-                            [routerLink]="card.link"
+                            [attr.aria-describedby]="cardDescriptionId(card)"
+                            [routerLink]="
+                                card.detailsEnabled === false ? null : card.link
+                            "
+                            [attr.aria-disabled]="
+                                card.detailsEnabled === false ? true : null
+                            "
+                            [attr.role]="
+                                card.detailsEnabled === false ? 'link' : null
+                            "
+                            [attr.tabindex]="
+                                card.detailsEnabled === false ? -1 : null
+                            "
                             [attr.data-test-id]="
                                 testId() ? testId() + '-card-link' : null
                             "
@@ -202,17 +214,18 @@
                                 }
 
                                 @if (
-                                    card.watchProgress !== null &&
-                                    card.watchProgress !== undefined
+                                    cardDescriptionId(card);
+                                    as descriptionId
                                 ) {
-                                    <span
-                                        class="rail__art-progress"
-                                        aria-hidden="true"
-                                    >
-                                        <i
-                                            [style.width.%]="card.watchProgress"
-                                        ></i>
-                                    </span>
+                                    <app-content-cover-indicators
+                                        [descriptionId]="descriptionId"
+                                        [indicators]="cardIndicators(card)"
+                                        [showFavorite]="
+                                            !favoriteActionFor(
+                                                card.actions ?? []
+                                            )
+                                        "
+                                    />
                                 }
                             </div>
 
@@ -232,11 +245,18 @@
                                                 card.episodeBadge
                                             }}</span>
                                         }
-                                        @if (card.remainingLabel; as remaining) {
-                                            <span class="rail__card-remaining">{{
-                                                remaining.key
-                                                    | translate: remaining.params
-                                            }}</span>
+                                        @if (
+                                            card.remainingLabel;
+                                            as remaining
+                                        ) {
+                                            <span
+                                                class="rail__card-remaining"
+                                                >{{
+                                                    remaining.key
+                                                        | translate
+                                                            : remaining.params
+                                                }}</span
+                                            >
                                         }
                                         @if (card.subtitle) {
                                             <span class="rail__card-subtitle">{{
@@ -251,7 +271,8 @@
                                                 "
                                                 [attr.data-test-id]="
                                                     testId()
-                                                        ? testId() + '-card-expiry'
+                                                        ? testId() +
+                                                          '-card-expiry'
                                                         : null
                                                 "
                                                 >{{ expiry.label }}</span
@@ -263,49 +284,19 @@
                         </a>
 
                         @if (card.actions && card.actions.length > 0) {
-                            <button
-                                type="button"
-                                mat-icon-button
-                                class="rail__action-trigger"
-                                [matMenuTriggerFor]="cardActionMenu"
-                                [matMenuTriggerData]="{ card: card }"
-                                [attr.aria-label]="'SHOW_MORE' | translate"
-                                [attr.data-test-id]="
+                            <app-content-cover-actions
+                                [actions]="card.actions"
+                                [title]="cardTitle(card)"
+                                [testId]="
                                     testId() ? testId() + '-card-actions' : null
                                 "
-                                (click)="stopActionEvent($event)"
-                            >
-                                <mat-icon>more_vert</mat-icon>
-                            </button>
+                                (actionSelected)="selectAction(card, $event)"
+                            />
                         }
                     </div>
                 }
             }
         </div>
-
-        <mat-menu
-            #cardActionMenu="matMenu"
-            panelClass="dashboard-rail-action-menu"
-            xPosition="before"
-        >
-            <ng-template matMenuContent let-card="card">
-                @for (action of card.actions ?? []; track action.id) {
-                    <button
-                        mat-menu-item
-                        type="button"
-                        [disabled]="action.disabled"
-                        [class.rail__menu-action--danger]="action.destructive"
-                        [class.rail__menu-action--separated]="
-                            action.separatorBefore
-                        "
-                        (click)="selectAction(card, action, $event)"
-                    >
-                        <mat-icon>{{ action.icon }}</mat-icon>
-                        <span>{{ action.labelKey | translate }}</span>
-                    </button>
-                }
-            </ng-template>
-        </mat-menu>
 
         <button
             type="button"

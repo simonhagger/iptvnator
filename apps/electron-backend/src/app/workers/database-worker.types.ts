@@ -2,6 +2,10 @@ import type { WorkerPerformanceCaptureResult } from './worker-performance-captur
 import type { DbWorkerSqlStatementsMessage } from './database-worker-sql-statement-count';
 
 export const DB_WORKER_OPERATIONS = [
+    'DB_LIST_SAVED_VOD_PLAYLISTS',
+    'DB_GET_SAVED_VOD_PLAYLIST',
+    'DB_SAVE_SAVED_VOD_PLAYLIST',
+    'DB_DELETE_SAVED_VOD_PLAYLIST',
     'DB_HAS_CATEGORIES',
     'DB_GET_CATEGORIES',
     'DB_SAVE_CATEGORIES',
@@ -40,6 +44,7 @@ export const DB_WORKER_OPERATIONS = [
     'DB_GET_FAVORITES',
     'DB_GET_GLOBAL_FAVORITES',
     'DB_GET_ALL_GLOBAL_FAVORITES',
+    'DB_GET_ALL_GLOBAL_FAVORITE_MEMBERSHIP',
     'DB_REORDER_GLOBAL_FAVORITES',
     'DB_GET_RECENTLY_VIEWED',
     'DB_CLEAR_RECENTLY_VIEWED',
