@@ -1,4 +1,10 @@
 import path from 'path';
+
+// These fixtures describe a Linux namespace, independent of the test host.
+jest.mock(
+    'path',
+    () => jest.requireActual<typeof import('path')>('path').posix
+);
 import { createLinuxFrameCopyHelperEnvironment } from '../embedded-mpv-frame-copy-runtime';
 
 const HOSTILE_LOADER_ENVIRONMENT = {

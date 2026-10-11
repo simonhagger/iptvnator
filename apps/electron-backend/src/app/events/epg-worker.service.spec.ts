@@ -38,6 +38,7 @@ jest.mock('../workers/worker-runtime-paths', () => ({
         mockResolveWorkerRuntimeBootstrap(...args),
 }));
 
+import { resolve } from 'node:path';
 import { retireEpgSource } from './epg-source-generation';
 import { EpgWorkerService } from './epg-worker.service';
 
@@ -168,7 +169,7 @@ describe('EpgWorkerService worker lifecycle', () => {
         });
 
         it('refuses a local file the authorizer denies without spawning a worker', async () => {
-            const localPath = '/home/user/epg/guide.xml.gz';
+            const localPath = resolve('/home/user/epg/guide.xml.gz');
             const progressSpy = jest.spyOn(service, 'sendProgressToRenderer');
             service.localSourceAuthorizer = {
                 authorize: jest.fn(),

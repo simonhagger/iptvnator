@@ -1,13 +1,15 @@
 import {
-    chmodSync,
     constants as fsConstants,
     mkdirSync,
     readFileSync,
-    symlinkSync,
     unlinkSync,
     writeFileSync,
 } from 'fs';
 import path from 'path';
+import {
+    chmodFixtureSync as chmodSync,
+    symlinkFixtureSync as symlinkSync,
+} from './posix-files.test-helpers';
 import type { RuntimeFile, RuntimeFixture } from './runtime.spec-data';
 import {
     cloneManifest,

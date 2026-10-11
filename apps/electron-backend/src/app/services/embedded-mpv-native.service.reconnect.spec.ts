@@ -265,6 +265,10 @@ describe('EmbeddedMpvNativeService reconnect', () => {
     });
 
     it('hands Linux native-view its options through a user-only include file', () => {
+        const writeSpy = jest.spyOn(
+            jest.requireActual<typeof import('fs')>('fs'),
+            'writeFileSync'
+        );
         Object.defineProperty(process, 'platform', { value: 'linux' });
         Object.defineProperty(process, 'arch', { value: 'x64' });
 
@@ -286,7 +290,16 @@ describe('EmbeddedMpvNativeService reconnect', () => {
         expect(readFileSync(file, 'utf8')).toBe(
             'network-timeout=10\nhttp-header-fields=X-Key: secret\n'
         );
-        expect(statSync(file).mode & 0o777).toBe(0o600);
+        expect(writeSpy).toHaveBeenCalledWith(
+            file,
+            'network-timeout=10\nhttp-header-fields=X-Key: secret\n',
+            expect.objectContaining({ mode: 0o600 })
+        );
+        // Windows does not expose POSIX permission bits through stat.
+        if (originalPlatform !== 'win32') {
+            expect(statSync(file).mode & 0o777).toBe(0o600);
+        }
+        writeSpy.mockRestore();
 
         service.disposeSession('session-1');
         expect(existsSync(file)).toBe(false);

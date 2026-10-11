@@ -2,6 +2,12 @@ import type { Stats } from 'fs';
 import path from 'path';
 import { createLinuxFrameCopyHelperLaunch } from '../embedded-mpv-frame-copy-runtime';
 
+// These fixtures describe a Linux namespace, independent of the test host.
+jest.mock(
+    'path',
+    () => jest.requireActual<typeof import('path')>('path').posix
+);
+
 function fakeStat(
     kind: 'directory' | 'file' | 'symlink'
 ): Pick<Stats, 'isDirectory' | 'isFile' | 'isSymbolicLink'> {
