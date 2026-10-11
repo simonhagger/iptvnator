@@ -1,4 +1,5 @@
 import { session } from 'electron';
+import { StreamCorsScope } from './stream-cors.service';
 
 export type StreamCredentialHeaders = {
     authorization?: string | null;
@@ -40,6 +41,28 @@ const YOUTUBE_EMBED_REFERER = 'https://4gray.github.io/iptvnator/';
 let activeHeaderOverride: HeaderOverride | null = null;
 let activeScopedHeaderOverride: HeaderOverride | null = null;
 let listenerRegistered = false;
+const streamCors = new StreamCorsScope();
+let corsListenerRegistered = false;
+
+function registerStreamCorsListeners(): void {
+    if (corsListenerRegistered) return;
+    session.defaultSession.webRequest.onHeadersReceived(
+        headerOverrideUrlFilter,
+        (details, callback) => {
+            const responseHeaders = streamCors.response(details);
+            callback(responseHeaders ? { responseHeaders } : {});
+        }
+    );
+    session.defaultSession.webRequest.onCompleted(
+        headerOverrideUrlFilter,
+        (details) => streamCors.finish(details.id)
+    );
+    session.defaultSession.webRequest.onErrorOccurred(
+        headerOverrideUrlFilter,
+        (details) => streamCors.finish(details.id)
+    );
+    corsListenerRegistered = true;
+}
 
 function normalizeHeaderValue(value?: string | null): string | undefined {
     if (typeof value !== 'string') {
@@ -128,6 +151,7 @@ function handleBeforeSendHeaders(
     details: Electron.OnBeforeSendHeadersListenerDetails,
     callback: (beforeSendResponse: Electron.BeforeSendResponse) => void
 ): void {
+    streamCors.beforeRequest(details);
     const requestHeaders = { ...details.requestHeaders };
     applyYoutubeEmbedRefererShim(details.url, requestHeaders);
     const overrides = [activeHeaderOverride, activeScopedHeaderOverride].filter(
@@ -194,8 +218,14 @@ export function configureRequestHeaderOverride(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
-    credentials?: StreamCredentialHeaders | null
+    credentials?: StreamCredentialHeaders | null,
+    ownerWebContentsId?: number
 ): void {
+    if (scopeUrl !== undefined && scopeUrl !== null && ownerWebContentsId) {
+        streamCors.configure(scopeUrl, ownerWebContentsId);
+        registerStreamCorsListeners();
+        ensureHeaderOverrideListener();
+    }
     const normalizedUserAgent = normalizeHeaderValue(userAgent);
     const normalizedReferer = normalizeHeaderValue(referer);
     const isScopedOverride = scopeUrl !== undefined && scopeUrl !== null;
@@ -263,8 +293,26 @@ export function registerStaticHeaderShims(): void {
 }
 
 export function clearRequestHeaderOverride(): void {
+    streamCors.configure();
     activeHeaderOverride = null;
     activeScopedHeaderOverride = null;
+}
+
+export function releaseStreamHeaderOverride(
+    scopeUrl: string | null | undefined,
+    ownerWebContentsId: number
+): void {
+    if (streamCors.release(scopeUrl, ownerWebContentsId)) {
+        clearScopedRequestHeaderOverride();
+    }
+}
+
+export function releaseRendererStreamHeaderOverride(
+    ownerWebContentsId: number
+): void {
+    if (streamCors.releaseOwner(ownerWebContentsId)) {
+        clearScopedRequestHeaderOverride();
+    }
 }
 
 function clearScopedRequestHeaderOverride(): void {

@@ -115,7 +115,9 @@ describe('ElectronStreamHeadersService', () => {
         expect(setUserAgent).toHaveBeenCalledWith(
             undefined,
             undefined,
-            STREAM_URL
+            STREAM_URL,
+            undefined,
+            'release'
         );
     });
 

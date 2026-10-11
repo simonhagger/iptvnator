@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron';
 import {
     configureRequestHeaderOverride,
+    releaseStreamHeaderOverride,
+    releaseRendererStreamHeaderOverride,
     type StreamCredentialHeaders,
 } from '../services/request-header-overrides.service';
 
@@ -23,14 +25,32 @@ function sanitizeCredentials(value: unknown): StreamCredentialHeaders | null {
     };
 }
 
+const observedOwners = new WeakSet<Electron.WebContents>();
+function observeStreamOwner(owner: Electron.WebContents): void {
+    if (observedOwners.has(owner)) return;
+    observedOwners.add(owner);
+    const revoke = () => releaseRendererStreamHeaderOverride(owner.id);
+    owner.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+        if (isMainFrame && !isInPlace) revoke();
+    });
+    owner.on('render-process-gone', revoke);
+    owner.once('destroyed', revoke);
+}
+
 ipcMain.handle(
     'set-user-agent',
-    (_event, userAgent, referer, scopeUrl, credentials) => {
+    (event, userAgent, referer, scopeUrl, credentials, operation) => {
+        if (operation === 'release') {
+            releaseStreamHeaderOverride(scopeUrl, event.sender.id);
+            return true;
+        }
+        if (typeof scopeUrl === 'string') observeStreamOwner(event.sender);
         setUserAgent(
             userAgent,
             referer,
             scopeUrl,
-            sanitizeCredentials(credentials)
+            sanitizeCredentials(credentials),
+            event.sender.id
         );
         return true;
     }
@@ -49,7 +69,14 @@ export function setUserAgent(
     userAgent?: string | null,
     referer?: string | null,
     scopeUrl?: string | null,
-    credentials?: StreamCredentialHeaders | null
+    credentials?: StreamCredentialHeaders | null,
+    ownerWebContentsId?: number
 ): void {
-    configureRequestHeaderOverride(userAgent, referer, scopeUrl, credentials);
+    configureRequestHeaderOverride(
+        userAgent,
+        referer,
+        scopeUrl,
+        credentials,
+        ownerWebContentsId
+    );
 }
