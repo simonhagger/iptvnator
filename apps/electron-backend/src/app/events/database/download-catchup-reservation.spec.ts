@@ -1,13 +1,6 @@
-import { archiveFileStats } from './download-catchup-stats';
+import { readArchiveStats } from './download-catchup-stats';
 import { openCatchupOutput } from './download-catchup-output';
-import {
-    mkdtemp,
-    lstat,
-    readFile,
-    rename,
-    rm,
-    writeFile,
-} from 'node:fs/promises';
+import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { reserveTarget } from './download-runtime-reservation';
@@ -41,7 +34,9 @@ it.each([false, true])(
                 directory,
                 fileName: 'show.ts',
                 url: 'https://provider.test/archive.ts',
-                catchupExpectedPartialIdentity: await lstat(filePath + '.part'),
+                catchupExpectedPartialIdentity: await readArchiveStats(
+                    filePath + '.part'
+                ),
             };
             jest.mocked(readArchiveFinalizations).mockResolvedValue(
                 new Map([
@@ -75,7 +70,7 @@ it.each([false, true])(
                     'unrelated partial'
                 );
                 await expect(
-                    lstat(join(directory, 'show (1).ts.part'))
+                    readArchiveStats(join(directory, 'show (1).ts.part'))
                 ).rejects.toMatchObject({ code: 'ENOENT' });
                 expect(clearArchiveFinalization).not.toHaveBeenCalled();
             } else {
@@ -84,13 +79,13 @@ it.each([false, true])(
                     partialPath: join(directory, 'show (1).ts.part'),
                     filename: 'show (1).ts',
                 });
-                await expect(lstat(filePath + '.part')).rejects.toMatchObject({
+                await expect(
+                    readArchiveStats(filePath + '.part')
+                ).rejects.toMatchObject({
                     code: 'ENOENT',
                 });
                 expect(
-                    archiveFileStats(
-                        await lstat(join(directory, 'show (1).ts.part'))
-                    )
+                    await readArchiveStats(join(directory, 'show (1).ts.part'))
                 ).toEqual(
                     expect.objectContaining(
                         task.catchupExpectedPartialIdentity!
@@ -114,8 +109,8 @@ it('removes a journaled incomplete final before retrying the retained archive', 
             version: 1 as const,
             filePath,
             size: 100,
-            partialIdentity: await lstat(filePath + '.part'),
-            finalIdentity: await lstat(filePath),
+            partialIdentity: await readArchiveStats(filePath + '.part'),
+            finalIdentity: await readArchiveStats(filePath),
         };
         jest.mocked(readArchiveFinalizations).mockResolvedValue(
             new Map([[1, proof]])
@@ -135,7 +130,9 @@ it('removes a journaled incomplete final before retrying the retained archive', 
         await expect(
             reserveTarget({} as DownloadsDatabase, task)
         ).resolves.toMatchObject({ path: filePath });
-        await expect(lstat(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(readArchiveStats(filePath)).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
         expect(await readFile(filePath + '.part', 'utf8')).toBe(
             'complete source'
         );
@@ -239,7 +236,9 @@ it.each([false, true])(
                     'foreign bytes'
                 );
             } else {
-                await expect(lstat(filePath + '.part')).rejects.toMatchObject({
+                await expect(
+                    readArchiveStats(filePath + '.part')
+                ).rejects.toMatchObject({
                     code: 'ENOENT',
                 });
             }

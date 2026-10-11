@@ -1,5 +1,5 @@
+import { readArchiveStats } from './download-catchup-stats';
 import {
-    lstat,
     mkdtemp,
     readFile,
     rename,
@@ -91,7 +91,7 @@ afterEach(async () => {
 });
 async function prepare() {
     await writeFile(filePath + '.part', 'verified archive');
-    const partial = await lstat(filePath + '.part');
+    const partial = await readArchiveStats(filePath + '.part');
     return {
         partial,
         reservation: {
@@ -195,7 +195,7 @@ it('removes an owned incomplete copy before pausing its retained source', async 
         filePath,
         size: partial.size,
         partialIdentity: partial,
-        finalIdentity: await lstat(filePath),
+        finalIdentity: await readArchiveStats(filePath),
     });
     await resetStaleDownloads();
     expect(updates).toContainEqual(
@@ -204,7 +204,9 @@ it('removes an owned incomplete copy before pausing its retained source', async 
             bytesDownloaded: partial.size,
         })
     );
-    await expect(lstat(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(readArchiveStats(filePath)).rejects.toMatchObject({
+        code: 'ENOENT',
+    });
     expect(await readFile(reservation.partialPath, 'utf8')).toBe(
         'verified archive'
     );

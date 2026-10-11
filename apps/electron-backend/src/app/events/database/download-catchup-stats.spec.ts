@@ -1,5 +1,17 @@
-import { type BigIntStats } from 'node:fs';
-import { archiveFileStats } from './download-catchup-stats';
+import {
+    lstatSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+    type BigIntStats,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+    archiveFileStats,
+    readArchiveStats,
+    readArchiveStatsSync,
+} from './download-catchup-stats';
 import {
     archiveFileIdentity,
     sameArchiveFileIdentity,
@@ -49,4 +61,29 @@ it('rejects already-rounded numeric ownership evidence', () => {
     expect(() => archiveFileIdentity(rounded)).toThrow(
         'identity is unavailable'
     );
+});
+
+it('round-trips real filesystem ownership through bigint-safe fixture readers', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'archive-stats-'));
+    const path = join(directory, 'archive.ts');
+    try {
+        writeFileSync(path, 'archive');
+        const raw = lstatSync(path, { bigint: true });
+        const synchronous = readArchiveStatsSync(path);
+        const asynchronous = await readArchiveStats(path);
+        const identity = archiveFileIdentity(synchronous);
+        expect(identity.ino).toBe(String(raw.ino));
+        expect(identity.dev).toBe(String(raw.dev));
+        expect(sameArchiveFileIdentity(asynchronous, identity)).toBe(true);
+        expect(asynchronous.size).toBe(7);
+        expect(asynchronous.isFile()).toBe(true);
+        expect(
+            sameArchiveFileIdentity(asynchronous, {
+                ...identity,
+                ino: String(raw.ino + BigInt(1)),
+            })
+        ).toBe(false);
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
 });

@@ -1,15 +1,9 @@
+import { readArchiveStats } from './download-catchup-stats';
 import { unlinkSync } from 'node:fs';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { ArchivePartialReplacedError } from './download-catchup-output';
 import { handleDownloadFailure } from './download-finalize';
-import {
-    lstat,
-    mkdtemp,
-    readFile,
-    rename,
-    rm,
-    writeFile,
-} from 'node:fs/promises';
+import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
@@ -122,7 +116,7 @@ it.each(['failed', 'canceled'])(
         jest.mocked(getDatabase).mockResolvedValue(db as never);
         jest.mocked(transferCatchupToPartialFile).mockImplementationOnce(
             async (_db, active, reservation) => {
-                active.catchupPartialIdentity = await lstat(
+                active.catchupPartialIdentity = await readArchiveStats(
                     reservation.partialPath
                 );
                 expect(active.catchupExpectedPartialIdentity).toEqual(
@@ -147,7 +141,7 @@ it.each(['failed', 'canceled'])(
         try {
             task.filePath = join(directory, 'show.ts');
             await writeFile(task.filePath + '.part', 'retained archive');
-            const partial = await lstat(task.filePath + '.part');
+            const partial = await readArchiveStats(task.filePath + '.part');
             jest.mocked(readArchiveFinalizations).mockResolvedValueOnce(
                 new Map([
                     [
@@ -231,7 +225,7 @@ it.each([1880, null])(
         jest.mocked(transferCatchupToPartialFile).mockImplementationOnce(
             async (_db, active, reservation) => {
                 await writeFile(reservation.partialPath, body);
-                active.catchupPartialIdentity = await lstat(
+                active.catchupPartialIdentity = await readArchiveStats(
                     reservation.partialPath
                 );
                 active.totalBytes = totalBytes;
@@ -275,7 +269,9 @@ it.each([1880, null])(
                     await readFile(join(directory, 'show.ts.part'), 'utf8')
                 ).toBe('unproven retained file');
             }
-            await expect(lstat(task.filePath + '.part')).rejects.toMatchObject({
+            await expect(
+                readArchiveStats(task.filePath + '.part')
+            ).rejects.toMatchObject({
                 code: 'ENOENT',
             });
             expect(transferCatchupToPartialFile).toHaveBeenCalledTimes(1);
@@ -338,7 +334,7 @@ it.each([false, true])(
         const filePath = join(directory, 'show.ts');
         try {
             await writeFile(filePath + '.part', 'owned archive');
-            const original = await lstat(filePath + '.part');
+            const original = await readArchiveStats(filePath + '.part');
             jest.mocked(readArchiveFinalizations).mockResolvedValueOnce(
                 new Map([
                     [
@@ -389,7 +385,9 @@ it.each([false, true])(
                     'unrelated file'
                 );
             else
-                await expect(lstat(filePath + '.part')).rejects.toMatchObject({
+                await expect(
+                    readArchiveStats(filePath + '.part')
+                ).rejects.toMatchObject({
                     code: 'ENOENT',
                 });
         } finally {
@@ -443,7 +441,7 @@ it.each(['failed', 'canceled'])(
                     reservation.partialPath,
                     'verified archive bytes'
                 );
-                active.catchupPartialIdentity = await lstat(
+                active.catchupPartialIdentity = await readArchiveStats(
                     reservation.partialPath
                 );
                 mockProofs.set(active.id, {
@@ -489,7 +487,7 @@ it.each(['failed', 'canceled'])(
             await expect(
                 cleanupStoredCatchupPartial(db as never, task.id, task.filePath)
             ).resolves.toBe(true);
-            await expect(lstat(pointer!)).rejects.toMatchObject({
+            await expect(readArchiveStats(pointer!)).rejects.toMatchObject({
                 code: 'ENOENT',
             });
         } finally {

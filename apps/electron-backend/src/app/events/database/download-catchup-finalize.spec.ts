@@ -1,7 +1,6 @@
-import { archiveFileStats } from './download-catchup-stats';
+import { readArchiveStats } from './download-catchup-stats';
 import {
     mkdtemp,
-    lstat,
     link,
     readFile,
     rename,
@@ -39,7 +38,7 @@ describe('archive file promotion', () => {
             filename: 'show.ts',
         };
         await writeFile(reservation.partialPath, 'validated bytes');
-        const identity = await lstat(reservation.partialPath);
+        const identity = await readArchiveStats(reservation.partialPath);
         return { reservation, identity };
     }
     it('rejects a same-sized replacement between transfer and promotion', async () => {
@@ -52,7 +51,7 @@ describe('archive file promotion', () => {
         expect(await readFile(reservation.partialPath, 'utf8')).toBe(
             'untrusted bytes'
         );
-        await expect(lstat(reservation.path)).rejects.toMatchObject({
+        await expect(readArchiveStats(reservation.path)).rejects.toMatchObject({
             code: 'ENOENT',
         });
     });
@@ -130,7 +129,9 @@ describe('archive file promotion', () => {
         expect(await readFile(reservation.path, 'utf8')).toBe(
             'validated bytes'
         );
-        await expect(lstat(reservation.partialPath)).rejects.toMatchObject({
+        await expect(
+            readArchiveStats(reservation.partialPath)
+        ).rejects.toMatchObject({
             code: 'ENOENT',
         });
     });
@@ -157,11 +158,11 @@ describe('archive file promotion', () => {
                             })
                         );
                         await expect(
-                            lstat(reservation.path)
+                            readArchiveStats(reservation.path)
                         ).rejects.toMatchObject({ code: 'ENOENT' });
                     } else {
-                        const created = archiveFileStats(
-                            await lstat(reservation.path)
+                        const created = await readArchiveStats(
+                            reservation.path
                         );
                         expect(created).toEqual(
                             expect.objectContaining({
@@ -190,7 +191,7 @@ describe('archive file promotion', () => {
             const { reservation } = await prepare();
             const bytes = Buffer.alloc(192 * 1024, 0x47);
             await writeFile(reservation.partialPath, bytes);
-            const identity = await lstat(reservation.partialPath);
+            const identity = await readArchiveStats(reservation.partialPath);
             jest.mocked(link).mockRejectedValueOnce(
                 Object.assign(new Error('unsupported'), { code: 'ENOTSUP' })
             );
@@ -212,7 +213,9 @@ describe('archive file promotion', () => {
             expect(observedBytes).toBeGreaterThan(0);
             expect(observedBytes).toBeLessThan(bytes.length);
             expect(await readFile(reservation.partialPath)).toEqual(bytes);
-            await expect(lstat(reservation.path)).rejects.toMatchObject({
+            await expect(
+                readArchiveStats(reservation.path)
+            ).rejects.toMatchObject({
                 code: 'ENOENT',
             });
         }
