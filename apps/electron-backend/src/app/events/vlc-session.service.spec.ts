@@ -84,6 +84,11 @@ function mockStoreValues(values: Record<string, unknown>): void {
 }
 
 describe('vlc-session.service helpers and launch args', () => {
+    it('clears a reused VLC start offset for an explicit restart', () => {
+        expect(
+            buildVlcEnqueueCommands({ url: 'http://srv/episode', startTime: 0 })
+        ).toEqual(['clear', 'add http://srv/episode :start-time=0', 'seek 0']);
+    });
     let consoleErrorSpy: jest.SpyInstance;
 
     beforeEach(() => {

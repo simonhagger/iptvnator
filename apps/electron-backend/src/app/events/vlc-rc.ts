@@ -29,13 +29,14 @@ export function buildVlcEnqueueCommands(options: {
     if (options.title) {
         inputOptions.push(`:meta-title=${options.title}`);
     }
+    if (options.startTime === 0) inputOptions.push(':start-time=0');
 
     const inputLine =
         inputOptions.length > 0
             ? `${options.url} ${inputOptions.join(' ')}`
             : options.url;
     const commands = ['clear', `add ${inputLine}`];
-    if (options.startTime && Number.isFinite(options.startTime)) {
+    if (options.startTime !== undefined && Number.isFinite(options.startTime)) {
         commands.push(`seek ${Math.floor(options.startTime)}`);
     }
     return commands;

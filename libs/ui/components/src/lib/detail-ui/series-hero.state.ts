@@ -2,6 +2,7 @@ import { computed, type Signal } from '@angular/core';
 import type { TranslateService } from '@ngx-translate/core';
 import {
     formatRemainingLabel,
+    formatResumeTime,
     shortCountryList,
     shortCountryName,
     splitSeasonSuffix,
@@ -150,7 +151,7 @@ export function createSeriesHeroState(deps: SeriesHeroStateDeps) {
                         : null,
                 ].filter((part): part is string => !!part);
                 return {
-                    label: translate('WORKSPACE.DASHBOARD.HERO_CONTINUE'),
+                    label: `${translate('XTREAM.RESUME')} ${formatResumeTime(quickStart.position?.positionSeconds ?? 0)}`,
                     meta: parts.length
                         ? parts.join(' · ')
                         : quickStart.episodeLabel,

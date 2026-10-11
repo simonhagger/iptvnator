@@ -5,6 +5,7 @@ import {
     output,
 } from '@angular/core';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
+import type { SeriesQueueLaunchEvent } from '@iptvnator/portal/shared/util';
 
 /** Stand-ins for the heavy children of the series-details page in specs. */
 
@@ -45,6 +46,7 @@ export class StubPortalInlinePlayerComponent {
     readonly episodeMetadata = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
     readonly initialSeriesQueue = input<readonly number[] | null>(null);
+    readonly seriesQueueLaunch = input<SeriesQueueLaunchEvent | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
     readonly seriesEpisodes = input<unknown>(null);

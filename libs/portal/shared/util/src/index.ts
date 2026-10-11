@@ -52,3 +52,4 @@ export * from './lib/detail/country-short-name';
 export * from './lib/content-cover';
 export * from './lib/provider-content-cover';
 export * from './lib/xtream-history-provenance';
+export * from './lib/resume-time';

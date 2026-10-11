@@ -1969,3 +1969,12 @@ pending request, rejection triggers one queued re-evaluation rather than losing
 that update. Radio `<audio>` deliberately never blocks display sleep.
 Embedded MPV owns a separate blocker in `EmbeddedMpvNativeService`, and external
 MPV/VLC inhibit their own screensaver.
+
+### Series resume actions
+
+The Xtream and Stalker series hero shows Resume with the saved time for a
+partly watched episode and a separate Start over action. Start over passes an
+explicit zero offset through the playback service, including deferred external
+player launches. Both surfaces use the existing shared detail action buttons
+and favourite icon treatment. This contribution is alpha and tested on Windows
+only; other platforms are unverified.

@@ -116,6 +116,15 @@
                     (pressed)="playQuickStartEpisode()"
                 />
             }
+            @if (quickStartAction()?.kind === 'resume') {
+                <app-detail-action-button
+                    variant="secondary"
+                    icon="replay"
+                    [label]="'XTREAM.RESTART' | translate"
+                    testId="series-restart"
+                    (pressed)="restartQuickStartEpisode()"
+                />
+            }
             @if (heroPresenter.trailerEmbedUrl()) {
                 <app-detail-action-button
                     variant="secondary"
@@ -154,6 +163,7 @@
                 [playbackSessionKey]="playbackSessionKey()"
                 [playback]="playback"
                 [initialSeriesQueue]="initialSeriesQueue()"
+                [seriesQueueLaunch]="seriesQueueLaunch()"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"

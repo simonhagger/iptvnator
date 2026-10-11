@@ -855,14 +855,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     onEpisodeClicked(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        restart = false
     ) {
         this.reportSeriesQueueLaunch('requested');
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
             this.watchToggle.holdChoice(() =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+                this.onEpisodeClicked(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    restart
+                )
             );
             return;
         }
@@ -871,17 +877,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             // The launch cannot be cancelled: the choice replaces its player
             // once it settled.
             this.launchQueue.hold(seriesKey, () =>
-                this.startEpisode(episode, startTimeOverride, forcePlayer)
+                this.startEpisode(
+                    episode,
+                    startTimeOverride,
+                    forcePlayer,
+                    restart
+                )
             );
             return;
         }
-        this.startEpisode(episode, startTimeOverride, forcePlayer);
+        this.startEpisode(episode, startTimeOverride, forcePlayer, restart);
     }
 
     private startEpisode(
         episode: XtreamSerieEpisode,
         startTimeOverride?: number,
-        forcePlayer?: ExternalPlayerName
+        forcePlayer?: ExternalPlayerName,
+        restart = false
     ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
@@ -900,9 +912,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ? `${item.info.name} - ${mappedEpisode.title || `Episode ${episodeState.episodeNumber}`}`
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
-        const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
-            startTimeOverride;
+        const startTime = restart
+            ? 0
+            : (this.episodePlaybackPositions().get(trackingId)
+                  ?.positionSeconds ?? startTimeOverride);
 
         void this.startPlayback(
             command,
@@ -912,6 +925,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             startTime,
             forcePlayer
         );
+    }
+
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction()?.action;
+        if (action && !action.disabled)
+            this.onEpisodeClicked(action.episode, undefined, undefined, true);
     }
 
     async playQuickStartEpisode(): Promise<void> {
@@ -1113,7 +1132,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     private async openEpisodeExternally(
         playback: ResolvedPortalPlayback,
-        player: ExternalPlayerName,
+        player: ExternalPlayerName | undefined,
         request: StalkerSeriesPlaybackRequestContext
     ): Promise<void> {
         // `closeInlinePlayer()` just retired `request`'s generation; a fresh
@@ -1130,10 +1149,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
         let session: ExternalPlayerSession | void;
         try {
-            session = await this.portalPlayer.openExternalPlayback(
-                playback,
-                player
-            );
+            session = player
+                ? await this.portalPlayer.openExternalPlayback(playback, player)
+                : await this.portalPlayer.openResolvedPlayback(playback, true);
         } catch (error) {
             // The caller's catch would read the retired generation and stay
             // silent; the user chose this launch and gets its failure.
@@ -1234,32 +1252,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            if (forcePlayer) {
-                // Awaited so the start stays pending through the close of the
-                // previous player and the launch itself.
-                await this.launchQueue.run(
-                    pendingSeriesId,
-                    () =>
-                        this.openEpisodeExternally(
-                            resolvedPlayback,
-                            forcePlayer,
-                            request
+            // Keep all external starts pending through replacement and launch.
+            await this.launchQueue.run(
+                pendingSeriesId,
+                () =>
+                    this.openEpisodeExternally(
+                        resolvedPlayback,
+                        forcePlayer,
+                        request
+                    ),
+                {
+                    stillShown: () =>
+                        this.currentSeriesKey() === pendingSeriesId,
+                    replacePlayer: () =>
+                        this.replaceOwnExternalSession(
+                            resolvedPlayback.contentInfo
                         ),
-                    {
-                        stillShown: () =>
-                            this.currentSeriesKey() === pendingSeriesId,
-                        replacePlayer: () =>
-                            this.replaceOwnExternalSession(
-                                resolvedPlayback.contentInfo
-                            ),
-                    }
-                );
-            } else {
-                void this.portalPlayer.openResolvedPlayback(
-                    resolvedPlayback,
-                    true
-                );
-            }
+                }
+            );
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);

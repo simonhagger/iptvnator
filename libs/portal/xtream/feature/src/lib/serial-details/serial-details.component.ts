@@ -146,6 +146,7 @@ export class SerialDetailsComponent implements OnDestroy {
     readonly activeEpisodeId = this.playback.activeEpisodeId;
     readonly quickStartAction = this.playback.quickStartAction;
     readonly initialSeriesQueue = this.playback.initialSeriesQueue;
+    readonly seriesQueueLaunch = this.playback.seriesQueueLaunch;
     readonly canStartSeriesQueue = this.playback.canStartSeriesQueue;
 
     readonly startSeriesQueue = (request: SeriesQueueStartRequest) =>
@@ -281,6 +282,12 @@ export class SerialDetailsComponent implements OnDestroy {
 
     playEpisode(episode: XtreamSerieEpisode): void {
         this.playback.playEpisode(episode);
+    }
+
+    restartQuickStartEpisode(): void {
+        const action = this.quickStartAction();
+        if (action && !action.disabled)
+            this.playback.playEpisode(action.episode, undefined, 0);
     }
 
     readonly playQuickStartEpisode = () =>

@@ -53,9 +53,12 @@ export function externalEpisodeSessionIds(
     return { opening: null, active: null };
 }
 
-/** What a forced MPV/VLC episode launch reads from the series page. */
+/** What an external episode launch reads from the series page. */
 export interface SeriesExternalLaunchHost {
-    readonly portalPlayer: Pick<PortalPlayer, 'openExternalPlayback'>;
+    readonly portalPlayer: Pick<
+        PortalPlayer,
+        'openExternalPlayback' | 'openResolvedPlayback'
+    >;
     readonly externalPlayback: Pick<
         PortalExternalPlayback,
         'activeSession' | 'closeSession'
@@ -207,7 +210,7 @@ function closeOwnedEpisodeSession(
 export async function openEpisodeExternally(
     host: SeriesExternalLaunchHost,
     playback: ResolvedPortalPlayback,
-    player: ExternalPlayerName
+    player?: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
     const owner = host.launchOwner();
     if (!owner) {
@@ -243,7 +246,7 @@ async function launchEpisode(
     host: SeriesExternalLaunchHost,
     owner: string,
     playback: ResolvedPortalPlayback,
-    player: ExternalPlayerName
+    player?: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
     // Queued behind another launch: the page may have moved on meanwhile,
     // and the running player then belongs to a series the viewer left.
@@ -254,10 +257,9 @@ async function launchEpisode(
     if (!replaced || host.launchOwner() !== owner) {
         return;
     }
-    const session = await host.portalPlayer.openExternalPlayback(
-        playback,
-        player
-    );
+    const session = player
+        ? await host.portalPlayer.openExternalPlayback(playback, player)
+        : await host.portalPlayer.openResolvedPlayback(playback, true);
     // The page moved on while the launch sat inside the player IPC: pending
     // launches are owner-scoped, so the new title may already play, and the
     // player this one opened must not stay beside it.

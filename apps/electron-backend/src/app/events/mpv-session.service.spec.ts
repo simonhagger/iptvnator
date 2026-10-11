@@ -371,6 +371,47 @@ describe('external player shutdown on app quit', () => {
         expect(headerArg).not.toContain('(KHTML, like Gecko)');
     });
 
+    it('restarts from zero after resuming in a reusable MPV process', async () => {
+        shutdownMpvSession();
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        mockStoreValues({
+            [MPV_PLAYER_PATH]: '/usr/bin/mpv',
+            [MPV_REUSE_INSTANCE]: true,
+        });
+        await openMpvPlayer({
+            title: 'Episode',
+            url: 'https://example.com/episode.mp4',
+            startTime: 120,
+        });
+        const written: string[] = [];
+        (createConnection as unknown as jest.Mock).mockImplementation(() => {
+            const socket = Object.assign(new EventEmitter(), {
+                write: jest.fn((chunk: string) => written.push(chunk)),
+                end: jest.fn(),
+                destroy: jest.fn(),
+            });
+            setImmediate(() => socket.emit('connect'));
+            return socket;
+        });
+        await openMpvPlayer({
+            title: 'Episode',
+            url: 'https://example.com/episode.mp4',
+            startTime: 0,
+        });
+        const commands = written.map((chunk) => JSON.parse(chunk).command);
+        expect(commands).toContainEqual([
+            'loadfile',
+            'https://example.com/episode.mp4',
+            'replace',
+            -1,
+            'force-media-title=Episode,start=0',
+        ]);
+        expect(commands).toContainEqual(['seek', '0', 'absolute']);
+        expect(spawn).toHaveBeenCalledTimes(1);
+        shutdownMpvSession();
+    });
+
     it('escapes commas in http header fields on the reused-instance IPC path', async () => {
         // Reset any reusable instance a previous test may have left behind so
         // the first launch below spawns rather than reuses.
@@ -647,8 +688,8 @@ describe('external player shutdown on app quit', () => {
         await expect(closing).resolves.toMatchObject({ status: 'closed' });
         await expect(opening).resolves.toMatchObject({ status: 'closed' });
         const commands = sockets.flatMap((socket) =>
-            socket.write.mock.calls.map(([request]) =>
-                JSON.parse(String(request)).command[0]
+            socket.write.mock.calls.map(
+                ([request]) => JSON.parse(String(request)).command[0]
             )
         );
         expect(commands).not.toContain('loadfile');
